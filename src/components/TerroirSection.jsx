@@ -30,7 +30,7 @@ export function TerroirSection({ t, setActiveTab, onQuickSearch }) {
           <span>Denominaciones de Origen & Patrimonio</span>
         </div>
         <h2 className="font-serif text-3xl sm:text-5xl font-bold text-slate-900 tracking-tight">
-          Atributos Turísticos & Sabores de Origen
+          Rutas & Sabores de Origen
         </h2>
         <p className="mt-3 text-slate-600 text-sm sm:text-base">
           Mérida es un territorio de contrastes únicos: desde el frío de los páramos agrícolas hasta el cacao fino del Sur del Lago.

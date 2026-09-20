@@ -5,7 +5,12 @@ export const translations = {
       guide: "Guía Gastronómica",
       lidarMap: "Mapa LiDAR 3D",
       events: "Agenda de Eventos",
-      terroir: "Atributos & Terroir",
+      terroir: "Rutas & Sabores",
+      jobs: "Bolsa de Empleo",
+      cultural: "Distrito Cultural",
+      sello: "Sello Gastronómico",
+      academy: "Academia & Glubbi",
+      legal: "Marco Jurídico",
       services: "Vinculaciones Turísticas",
       affiliates: "Portal Afiliados",
       searchPlaceholder: "Buscar restaurantes, platos, chefs o zonas...",
@@ -59,7 +64,7 @@ export const translations = {
       rsvp: "Inscribirse / RSVP"
     },
     terroir: {
-      title: "Atributos Turísticos & Sabores de Origen",
+      title: "Rutas & Sabores de Origen",
       subtitle: "Mérida es un territorio de contrastes únicos: desde el frío de los páramos agrícolas hasta el cacao fino del Sur del Lago.",
       cacaoTitle: "Cacao Criollo Porcelana",
       cacaoDesc: "Reconocido mundialmente como el cacao más fino y aromático del planeta, cosechado al pie de los Andes.",
@@ -69,6 +74,40 @@ export const translations = {
       paramoDesc: "Huertas andinas entre frailejones que surten de hortalizas frescas, truchas y papas nativas a toda Venezuela.",
       thermalTitle: "Aguas Termales & Contraste Lacustre",
       thermalDesc: "Desde las termas curativas de Tabay hasta la brisa tropical de Palmarito en el Lago de Maracaibo."
+    },
+    jobs: {
+      title: "Bolsa de Empleo & Talento Gastronómico",
+      subtitle: "Conectamos el mejor talento humano con los establecimientos agremiados de la Cámara Gastronómica del Estado Mérida.",
+      postJob: "Publicar Oferta (Agremiados)",
+      applyNow: "Postularme a esta Vacante",
+      filterArea: "Todas las Áreas",
+      filterZone: "Todas las Zonas"
+    },
+    cultural: {
+      title: "Distrito Cultural & Gastronómico Urbano",
+      subtitle: "El pulso bohemio y creativo de Mérida: street art andino, cafés de autor, gastronomía callejera gourmet y rutas nocturnas.",
+      urbanRouteBadge: "Ruta Urbana de Arte & Sabor",
+      exploreCircuits: "Explorar Circuitos Urbanos"
+    },
+    sello: {
+      title: "Sello Mérida Gastronómica",
+      subtitle: "La norma técnica y estándar de confianza internacional con auditoría de 226 ítems en Calidad, Servicio y Limpieza.",
+      badge: "Certificación de Excelencia AAA",
+      auditProcess: "Proceso de Auditoría",
+      requestAudit: "Solicitar Auditoría Técnica"
+    },
+    academy: {
+      title: "Academia, Tecnología & Expo Andes 2027",
+      subtitle: "Alianza con la ULA y Hotel Escuela, transformación digital con Glubbi AI y rumbo al magno evento internacional.",
+      ulaAlliance: "Alianza ULA & Hotel Escuela",
+      glubbiTech: "Inteligencia Artificial con Glubbi",
+      expo2027: "Expo Andes Gastronómico 2027"
+    },
+    legal: {
+      title: "Centro de Recursos & Marco Jurídico",
+      subtitle: "Repositorio oficial actualizado de normativas fiscales, ordenanzas municipales y regulaciones sanitarias de Mérida y Venezuela.",
+      downloadGuide: "Descargar Guía Oficial",
+      complianceChecklist: "Checklist de Cumplimiento"
     },
     services: {
       title: "Vinculaciones Turísticas & Servicios VIP",
@@ -96,7 +135,12 @@ export const translations = {
       guide: "Gastronomic Guide",
       lidarMap: "3D LiDAR Map",
       events: "Events Calendar",
-      terroir: "Terroir & Heritage",
+      terroir: "Routes & Flavors",
+      jobs: "Job Board",
+      cultural: "Cultural District",
+      sello: "Chamber Quality Seal",
+      academy: "Academy & Glubbi",
+      legal: "Legal Center",
       services: "Tourist Concierge",
       affiliates: "Members Portal",
       searchPlaceholder: "Search restaurants, dishes, chefs or areas...",
@@ -150,7 +194,7 @@ export const translations = {
       rsvp: "Register / RSVP"
     },
     terroir: {
-      title: "Tourist Attributes & Heritage Terroir",
+      title: "Routes & Heritage Flavors",
       subtitle: "Mérida is a land of unique contrasts: from crisp farming páramos to fine porcelain cacao on the lakefront.",
       cacaoTitle: "Porcelana Criollo Cacao",
       cacaoDesc: "Globally acclaimed as the finest and most aromatic cacao on Earth, harvested at the foot of the Andes.",
@@ -160,6 +204,40 @@ export const translations = {
       paramoDesc: "Andean terraced fields among frailejones supplying fresh produce, trout, and native potatoes across Venezuela.",
       thermalTitle: "Thermal Springs & Lacustrine Contrast",
       thermalDesc: "From therapeutic hot springs in Tabay to tropical breezes in Palmarito along Lake Maracaibo."
+    },
+    jobs: {
+      title: "Gastronomic Job Board & Talent Pool",
+      subtitle: "Connecting top culinary talent with affiliated establishments of the Mérida Gastronomic Chamber.",
+      postJob: "Post a Job (Members)",
+      applyNow: "Apply for this Position",
+      filterArea: "All Departments",
+      filterZone: "All Zones"
+    },
+    cultural: {
+      title: "Urban Cultural & Gastronomic District",
+      subtitle: "The bohemian and creative pulse of Mérida: Andean street art, specialty cafes, gourmet street food, and evening routes.",
+      urbanRouteBadge: "Urban Route of Art & Flavor",
+      exploreCircuits: "Explore Urban Circuits"
+    },
+    sello: {
+      title: "Mérida Gastronómica Seal",
+      subtitle: "Technical standard and international benchmark with 226-item audit across Quality, Service, and Cleanliness.",
+      badge: "AAA Excellence Certification",
+      auditProcess: "Audit Process",
+      requestAudit: "Request Technical Audit"
+    },
+    academy: {
+      title: "Academy, Technology & Expo Andes 2027",
+      subtitle: "Strategic alliance with ULA and Hotel School, digital transformation with Glubbi AI, and road to Expo 2027.",
+      ulaAlliance: "ULA & Hotel School Alliance",
+      glubbiTech: "Artificial Intelligence with Glubbi",
+      expo2027: "Expo Andes Gastronómico 2027"
+    },
+    legal: {
+      title: "Resource Center & Legal Framework",
+      subtitle: "Official updated repository of tax laws, municipal ordinances, and sanitary regulations in Mérida and Venezuela.",
+      downloadGuide: "Download Official Guide",
+      complianceChecklist: "Compliance Checklist"
     },
     services: {
       title: "Tourist Concierge & VIP Services",

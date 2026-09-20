@@ -5,7 +5,6 @@ import {
   Search, 
   Sparkles, 
   ArrowRight, 
-  TrendingUp, 
   ShieldCheck,
   MapPin
 } from 'lucide-react';
@@ -30,14 +29,6 @@ export function HeroSection({ t, setActiveTab, onQuickSearch }) {
       setActiveTab('guide');
     }
   };
-
-  const quickPills = [
-    { label: "🍲 Pizca Andina", query: "Pizca" },
-    { label: "🐟 Trucha Asalmonada", query: "Trucha" },
-    { label: "🍫 Cacao Porcelana", query: "Porcelana" },
-    { label: "☕ Café de Especialidad", query: "Café" },
-    { label: "🥟 Pastelitos Andinos", query: "Pastelitos" }
-  ];
 
   return (
     <section className="relative min-h-[96vh] flex items-center justify-center pt-28 pb-20 overflow-hidden bg-slate-950">
@@ -119,26 +110,6 @@ export function HeroSection({ t, setActiveTab, onQuickSearch }) {
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </form>
-
-          {/* Quick Gastronomy Pills (White with subtle transparency) */}
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-            <span className="text-[11px] text-white font-bold flex items-center gap-1 drop-shadow-md">
-              <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
-              Sabores insignia:
-            </span>
-            {quickPills.map((pill) => (
-              <button
-                key={pill.label}
-                onClick={() => {
-                  onQuickSearch(pill.query);
-                  setActiveTab('guide');
-                }}
-                className="text-xs px-3.5 py-1.5 rounded-full bg-white/85 hover:bg-white text-slate-900 border border-white/60 font-bold transition-all backdrop-blur-md shadow-md hover:scale-105"
-              >
-                {pill.label}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Action Buttons (White with subtle transparency) */}

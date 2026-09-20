@@ -6,7 +6,12 @@ import {
   Phone, 
   Mail, 
   Compass, 
-  ArrowUp
+  ArrowUp,
+  Award,
+  Briefcase,
+  GraduationCap,
+  Palette,
+  Scale
 } from 'lucide-react';
 
 export function Footer({ setActiveTab, t }) {
@@ -44,15 +49,15 @@ export function Footer({ setActiveTab, t }) {
             <div className="pt-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-amber-400 border border-amber-500/30">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                Marca Gastronómica Oficial
+                Norma Técnica y Sello de Calidad AAA
               </span>
             </div>
           </div>
 
-          {/* Col 3: Navigation */}
+          {/* Col 3: Gastronomía & Rutas */}
           <div className="space-y-3">
             <h4 className="font-serif font-bold text-sm text-white uppercase tracking-wider">
-              Navegación
+              Guía & Rutas
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
@@ -63,7 +68,18 @@ export function Footer({ setActiveTab, t }) {
               <li>
                 <button onClick={() => { setActiveTab('lidar'); scrollToTop(); }} className="hover:text-amber-400 transition-colors flex items-center gap-1">
                   <Compass className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Mapa de Rutas</span>
+                  <span>Mapa LiDAR 3D</span>
+                </button>
+              </li>
+              <li>
+                <button onClick={() => { setActiveTab('terroir'); scrollToTop(); }} className="hover:text-amber-400 transition-colors">
+                  Rutas & Sabores de Origen
+                </button>
+              </li>
+              <li>
+                <button onClick={() => { setActiveTab('cultural'); scrollToTop(); }} className="hover:text-amber-400 transition-colors flex items-center gap-1">
+                  <Palette className="w-3.5 h-3.5 text-pink-400" />
+                  <span>Distrito Cultural Urbano</span>
                 </button>
               </li>
               <li>
@@ -72,29 +88,48 @@ export function Footer({ setActiveTab, t }) {
                 </button>
               </li>
               <li>
-                <button onClick={() => { setActiveTab('terroir'); scrollToTop(); }} className="hover:text-amber-400 transition-colors">
-                  Cacao & Café de Altura
-                </button>
-              </li>
-              <li>
                 <button onClick={() => { setActiveTab('services'); scrollToTop(); }} className="hover:text-amber-400 transition-colors">
-                  Concierge Turístico
+                  Vinculaciones Turísticas
                 </button>
               </li>
             </ul>
           </div>
 
-          {/* Col 4: Ejes */}
+          {/* Col 4: Gremio, Calidad & Academia */}
           <div className="space-y-3">
             <h4 className="font-serif font-bold text-sm text-white uppercase tracking-wider">
-              Ejes Territoriales
+              Gremio & Academia
             </h4>
-            <ul className="space-y-2 text-xs text-slate-400">
-              <li>Eje Metropolitano (Mérida & El Valle)</li>
-              <li>Eje del Páramo (Mucubají & Apartaderos)</li>
-              <li>Eje Valle del Mocotíes (Tovar & Zea)</li>
-              <li>Eje Pueblos del Sur (Canaguá)</li>
-              <li>Eje Panamericano (Cacao & Palmarito)</li>
+            <ul className="space-y-2 text-xs">
+              <li>
+                <button onClick={() => { setActiveTab('sello'); scrollToTop(); }} className="hover:text-amber-400 transition-colors flex items-center gap-1 text-amber-300">
+                  <Award className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Sello Mérida Gastronómica</span>
+                </button>
+              </li>
+              <li>
+                <button onClick={() => { setActiveTab('jobs'); scrollToTop(); }} className="hover:text-amber-400 transition-colors flex items-center gap-1">
+                  <Briefcase className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Bolsa de Empleo Agremiada</span>
+                </button>
+              </li>
+              <li>
+                <button onClick={() => { setActiveTab('academy'); scrollToTop(); }} className="hover:text-amber-400 transition-colors flex items-center gap-1">
+                  <GraduationCap className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Academia ULA & Glubbi AI</span>
+                </button>
+              </li>
+              <li>
+                <button onClick={() => { setActiveTab('legal'); scrollToTop(); }} className="hover:text-amber-400 transition-colors flex items-center gap-1">
+                  <Scale className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Marco Jurídico & SENIAT</span>
+                </button>
+              </li>
+              <li>
+                <button onClick={() => { setActiveTab('affiliates'); scrollToTop(); }} className="hover:text-amber-400 transition-colors">
+                  Portal Privado de Afiliados
+                </button>
+              </li>
             </ul>
           </div>
 
