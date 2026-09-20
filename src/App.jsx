@@ -189,10 +189,10 @@ export function App() {
                       Turismo Urbano, Arte & Gastronomía
                     </span>
                     <h2 className="font-serif text-3xl sm:text-4xl font-bold text-slate-900">
-                      Distrito Cultural: El "Wynwood Andino"
+                      Distrito Cultural & Gastronómico Urbano
                     </h2>
                     <p className="text-xs sm:text-sm text-slate-600 mt-1">
-                      Inspirado en Wynwood (Miami) y Urban Street Route (Barcelona), descubra circuitos peatonales de muralismo, food trucks de autor y cavas de jazz.
+                      Mérida fusiona el muralismo andino monumental, el street food de autor, los cafés literarios y las cavas de jazz en una vibrante experiencia peatonal.
                     </p>
                   </div>
                   <button

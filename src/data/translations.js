@@ -85,7 +85,7 @@ export const translations = {
     },
     cultural: {
       title: "Distrito Cultural & Gastronómico Urbano",
-      subtitle: "El pulso bohemio y creativo de Mérida: street art andino, cafés de autor, gastronomía callejera gourmet y rutas nocturnas.",
+      subtitle: "Mérida fusiona el muralismo andino monumental, el street food de autor, los cafés literarios y las cavas de jazz en una vibrante experiencia peatonal.",
       urbanRouteBadge: "Ruta Urbana de Arte & Sabor",
       exploreCircuits: "Explorar Circuitos Urbanos"
     },

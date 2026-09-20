@@ -60,13 +60,24 @@ export function CulturalDistrict({ t, setActiveTab, onQuickSearch }) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       
-      {/* Editorial Header Banner */}
-      <div className="relative rounded-3xl bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900 p-8 sm:p-12 text-white shadow-2xl overflow-hidden mb-12 border border-purple-900/30">
-        <div className="absolute -right-20 -top-20 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute left-1/3 bottom-0 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Editorial Header Banner with Urban & Artistic Street Background */}
+      <div className="relative rounded-3xl p-8 sm:p-12 text-white shadow-2xl overflow-hidden mb-12 border border-purple-900/40">
+        {/* Urban Street Art Background Image & Gradients */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="/images/distrito_mural_arte.png" 
+            alt="Muralismo y Arte Urbano de Mérida" 
+            className="w-full h-full object-cover object-center filter saturate-150 brightness-[0.32]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 to-purple-950/75" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent" />
+        </div>
+        
+        <div className="absolute -right-20 -top-20 w-96 h-96 bg-purple-600/30 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute left-1/3 bottom-0 w-80 h-80 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-purple-500/20 border border-purple-400/40 text-purple-300 text-xs font-bold mb-4 backdrop-blur-md">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-purple-500/25 border border-purple-400/40 text-purple-300 text-xs font-bold mb-4 backdrop-blur-md">
             <Palette className="w-3.5 h-3.5 text-pink-400" />
             <span>Turismo Urbano, Street Art & Gastronomía Creativa</span>
           </div>
@@ -75,20 +86,20 @@ export function CulturalDistrict({ t, setActiveTab, onQuickSearch }) {
             Distrito Cultural & Gastronómico Urbano
           </h1>
 
-          <p className="mt-4 text-slate-300 text-sm sm:text-base leading-relaxed">
-            Inspirado en el dinamismo creativo de distritos icónicos como <strong>Wynwood Boulevard (Miami)</strong> y el <strong>Urban Street Route de Barcelona</strong>, Mérida fusiona el muralismo andino monumental, el street food de autor, los cafés literarios y las cavas de jazz en una vibrante experiencia peatonal.
+          <p className="mt-4 text-slate-200 text-sm sm:text-base leading-relaxed">
+            Mérida fusiona el muralismo andino monumental, el street food de autor, los cafés literarios y las cavas de jazz en una vibrante experiencia peatonal.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
-            <div className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-xs font-bold flex items-center gap-2">
+            <div className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-xs font-bold flex items-center gap-2 backdrop-blur-md">
               <Footprints className="w-4 h-4 text-amber-400" />
               <span>4 Circuitos Peatonales Seguros</span>
             </div>
-            <div className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-xs font-bold flex items-center gap-2">
+            <div className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-xs font-bold flex items-center gap-2 backdrop-blur-md">
               <Camera className="w-4 h-4 text-pink-400" />
               <span>+1.200 m² de Street Art Mural</span>
             </div>
-            <div className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-xs font-bold flex items-center gap-2">
+            <div className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-xs font-bold flex items-center gap-2 backdrop-blur-md">
               <Utensils className="w-4 h-4 text-sky-400" />
               <span>Street Food & Cafés de Autor</span>
             </div>
@@ -105,7 +116,7 @@ export function CulturalDistrict({ t, setActiveTab, onQuickSearch }) {
               Galería Fotográfica del Distrito
             </span>
             <h2 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900 mt-1">
-              Postales Reales del "Wynwood de los Andes"
+              Postales Reales de los Andes
             </h2>
           </div>
           <span className="text-xs font-bold text-slate-500 hidden sm:inline">
