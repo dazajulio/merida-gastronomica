@@ -51,7 +51,7 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
           </div>
 
           <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight">
-            Academia, Innovación & Expo Andes 2027
+            Academia Gastronómica & Expo Andes 2027
           </h1>
 
           <p className="mt-4 font-serif text-lg sm:text-xl text-amber-300/90 italic">
@@ -59,7 +59,7 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
           </p>
 
           <p className="mt-3 text-slate-300 text-sm sm:text-base leading-relaxed max-w-3xl">
-            Articulamos la ilustre <strong>Universidad de Los Andes (ULA)</strong> y el <strong>Hotel Escuela</strong> con el músculo tecnológico predictivo de <strong>Glubbi</strong>, proyectando nuestra cordillera hacia la <strong>Expo Andes Gastronómico 2027</strong>.
+            Articulamos la ilustre <strong>Universidad de Los Andes (ULA)</strong> y el <strong>Hotel Escuela</strong> con tecnología de analítica predictiva, proyectando nuestra cordillera hacia la <strong>Expo Andes Gastronómico 2027</strong>.
           </p>
 
           {/* Navigation Sub-Pills */}
@@ -85,7 +85,7 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
               }`}
             >
               <Cpu className="w-4 h-4" />
-              <span>2. Plataforma Glubbi AI</span>
+              <span>2. Tecnología & Analítica IA</span>
             </button>
 
             <button

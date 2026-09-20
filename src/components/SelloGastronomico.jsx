@@ -67,59 +67,83 @@ export function SelloGastronomico({ t, setActiveTab }) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       
-      {/* Majestic Institutional Header */}
+      {/* Majestic Institutional Header with Official Emblem */}
       <div className="relative rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 p-8 sm:p-12 text-white shadow-2xl overflow-hidden mb-12 border border-amber-500/30">
         <div className="absolute -right-16 -bottom-16 w-96 h-96 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
         
-        <div className="relative z-10 max-w-4xl">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
           
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-bold mb-6 backdrop-blur-md">
-            <ShieldCheck className="w-4 h-4 text-amber-400" />
-            <span>NORMA TÉCNICA OFICIAL — CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA</span>
-          </div>
+          {/* Left: Editorial & Standards */}
+          <div className="lg:col-span-8">
+            <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-bold mb-6 backdrop-blur-md">
+              <ShieldCheck className="w-4 h-4 text-amber-400" />
+              <span>NORMA TÉCNICA OFICIAL — CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA</span>
+            </div>
 
-          <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight">
-            Sello Mérida Gastronómica
-          </h1>
+            <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight">
+              Sello Mérida Gastronómica
+            </h1>
 
-          <p className="mt-4 font-serif text-lg sm:text-xl text-amber-200/90 italic font-medium">
-            "Para ser referentes globales, la excelencia debe ser medible."
-          </p>
-
-          <p className="mt-4 text-slate-200 text-sm sm:text-base leading-relaxed max-w-3xl">
-            Más que un reconocimiento, es una <strong>norma técnica y un estándar de confianza comparable a certificaciones internacionales</strong>. A través de una rigurosa auditoría de <strong>226 ítems</strong> sustentada en tres pilares —<strong>Calidad, Servicio y Limpieza</strong>—, evaluamos la gestión operativa, la seguridad alimentaria, el manejo de mermas y la excelencia de servicio.
-          </p>
-
-          <div className="mt-6 p-4 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-md max-w-3xl">
-            <p className="text-xs sm:text-sm text-white font-medium">
-              ⭐ <strong>Acreditación AAA:</strong> Quien ostente este sello en su fachada acredita ante Venezuela y el mundo una Calificación AAA, garantizando un establecimiento seguro, rentable y memorable.
+            <p className="mt-4 font-serif text-lg sm:text-2xl text-amber-200/95 italic font-medium">
+              "Para ser referentes globales, la excelencia debe ser medible."
             </p>
+
+            <p className="mt-4 text-slate-200 text-sm sm:text-base leading-relaxed max-w-3xl">
+              Más que un reconocimiento, es una <strong>norma técnica y un estándar de confianza comparable a certificaciones internacionales</strong>. A través de una rigurosa auditoría de <strong>226 ítems</strong> sustentada en tres pilares —<strong>Calidad, Servicio y Limpieza</strong>—, evaluamos la gestión operativa, la seguridad alimentaria, el manejo de mermas y la excelencia de servicio.
+            </p>
+
+            <div className="mt-6 p-4 rounded-2xl bg-white/10 border border-amber-400/30 backdrop-blur-md max-w-3xl">
+              <p className="text-xs sm:text-sm text-white font-medium">
+                ⭐ <strong>Acreditación AAA:</strong> Quien ostente este sello en su fachada acredita ante Venezuela y el mundo una Calificación AAA, garantizando un establecimiento seguro, rentable y memorable.
+              </p>
+            </div>
+
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <button
+                onClick={() => setRequestModalOpen(true)}
+                className="py-3.5 px-7 rounded-xl bg-gradient-to-r from-amber-500 to-terracotta text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-xl hover:brightness-110 transition-all"
+              >
+                <Award className="w-4 h-4" />
+                <span>Solicitar Auditoría de 226 Ítems</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  const el = document.getElementById('simulador-sello');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="py-3.5 px-6 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/30 text-xs font-bold uppercase tracking-wider transition-all"
+              >
+                Simulador de Autoevaluación
+              </button>
+            </div>
           </div>
 
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            <button
-              onClick={() => setRequestModalOpen(true)}
-              className="py-3.5 px-7 rounded-xl bg-gradient-to-r from-amber-500 to-terracotta text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-xl hover:brightness-110 transition-all"
-            >
-              <Award className="w-4 h-4" />
-              <span>Solicitar Auditoría de 226 Ítems</span>
-            </button>
-
-            <button
-              onClick={() => {
-                const el = document.getElementById('simulador-sello');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="py-3.5 px-6 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/30 text-xs font-bold uppercase tracking-wider transition-all"
-            >
-              Simulador de Autoevaluación
-            </button>
+          {/* Right: Imposing 3D Official Emblem */}
+          <div className="lg:col-span-4 flex flex-col items-center justify-center text-center">
+            <div className="relative group">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-yellow-200 blur-2xl opacity-40 group-hover:opacity-65 transition-opacity" />
+              <div className="relative w-64 h-64 sm:w-72 sm:h-72 rounded-full p-2 bg-gradient-to-b from-amber-400 via-amber-600 to-amber-900 shadow-[0_0_50px_rgba(217,119,6,0.5)] transition-transform duration-500 hover:scale-105">
+                <img 
+                  src="/images/emblema_sello_aaa.jpg" 
+                  alt="Emblema Oficial Sello Mérida Gastronómica Calificación AAA" 
+                  className="w-full h-full object-cover rounded-full shadow-inner"
+                />
+              </div>
+            </div>
+            
+            <div className="mt-4 px-4 py-1.5 rounded-full bg-black/60 border border-amber-500/50 backdrop-blur-md">
+              <span className="text-xs font-extrabold text-amber-300 uppercase tracking-widest flex items-center gap-1.5">
+                <Award className="w-4 h-4 text-amber-400" />
+                NORMA TÉCNICA OFICIAL AAA
+              </span>
+            </div>
           </div>
 
         </div>
 
         {/* 3 Pillars Summary Badges */}
-        <div className="mt-10 pt-8 border-t border-white/15 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mt-12 pt-8 border-t border-white/15 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-5 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
               <Award className="w-6 h-6" />

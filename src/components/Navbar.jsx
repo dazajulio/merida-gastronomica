@@ -56,7 +56,7 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
 
   const secondaryNavItems = [
     { id: 'jobs', label: t.nav.jobs, icon: Briefcase, desc: 'Bolsa laboral de agremiados' },
-    { id: 'academy', label: t.nav.academy, icon: GraduationCap, desc: 'Alianza ULA, Glubbi & Expo 2027' },
+    { id: 'academy', label: t.nav.academy, icon: GraduationCap, desc: 'Alianza ULA, Formación & Expo 2027' },
     { id: 'legal', label: t.nav.legal, icon: Scale, desc: 'SENIAT, SACS, ordenanzas y guías' },
     { id: 'events', label: t.nav.events, icon: Calendar, desc: 'Festivales, congresos y catas' },
     { id: 'services', label: t.nav.services, icon: MapPin, desc: 'Teleférico VIP, 4x4 y montaña' },

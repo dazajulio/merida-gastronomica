@@ -265,10 +265,10 @@ export function App() {
                         <GraduationCap className="w-6 h-6" />
                       </div>
                       <h3 className="font-serif font-bold text-xl text-slate-900">
-                        Academia, Glubbi AI & Expo 2027
+                        Academia Gastronómica & Expo 2027
                       </h3>
                       <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                        Alianza con la ULA y Hotel Escuela para la Licenciatura en Gastronomía, tecnología predictiva con Glubbi y rumbo a Expo Andes 2027.
+                        Alianza con la ULA y Hotel Escuela para la Licenciatura en Gastronomía, centros de formación técnica y rumbo a Expo Andes 2027.
                       </p>
                     </div>
                     <button
