@@ -7,15 +7,15 @@ export const LIDAR_ROUTES = [
     altitudeSpan: "1.630 msnm - 4.765 msnm",
     distanceKm: "38 km",
     checkpoints: [
-      { name: "Casco Histórico de Mérida (La Abadía)", alt: 1630, type: "restaurant", refId: "rest-01", lat: 8.5983, lng: -71.1449 },
-      { name: "Estación Barinitas (Teleférico)", alt: 1577, type: "attraction", lat: 8.5925, lng: -71.1432 },
-      { name: "Sector El Valle (La Sevillana)", alt: 2100, type: "restaurant", refId: "rest-05", lat: 8.6421, lng: -71.1123 },
-      { name: "Tabay & Aguas Termales", alt: 1708, type: "thermal", lat: 8.6315, lng: -71.0712 },
+      { name: "Kaffia Caffe (Las Heroínas)", alt: 1620, type: "restaurant", refId: "rest-kaffia", lat: 8.5940, lng: -71.1448 },
+      { name: "Estación Barinitas (Teleférico Mukumbarí)", alt: 1577, type: "attraction", lat: 8.5925, lng: -71.1432 },
+      { name: "Plaza Bolívar & Casco Histórico", alt: 1630, type: "attraction", lat: 8.5983, lng: -71.1449 },
+      { name: "Tabay & Valle de San Javier", alt: 1708, type: "thermal", lat: 8.6315, lng: -71.0712 },
       { name: "Estación Pico Espejo (Mukumbarí)", alt: 4765, type: "summit", lat: 8.5284, lng: -71.0503 }
     ],
     elevationProfile: [
-      { label: "Mérida Centro", alt: 1630 },
-      { label: "El Valle", alt: 2100 },
+      { label: "Kaffia (Las Heroínas)", alt: 1620 },
+      { label: "Plaza Bolívar", alt: 1630 },
       { label: "Tabay", alt: 1708 },
       { label: "La Aguada", alt: 3452 },
       { label: "Loma Redonda", alt: 4045 },

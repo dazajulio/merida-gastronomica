@@ -64,12 +64,34 @@ export function RestaurantModal({ restaurant, onClose, onNavigateToLidar }) {
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {restaurant.instagramUrl && (
+              <a
+                href={restaurant.instagramUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-pink-50 text-pink-700 border border-pink-200 text-xs font-semibold hover:bg-pink-100 transition-colors"
+              >
+                <span>Instagram</span>
+              </a>
+            )}
+            {restaurant.facebookUrl && (
+              <a
+                href={restaurant.facebookUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold hover:bg-blue-100 transition-colors"
+              >
+                <span>Facebook</span>
+              </a>
+            )}
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Content Body */}
