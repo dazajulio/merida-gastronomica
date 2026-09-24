@@ -30,7 +30,8 @@ export const RESTAURANTS_DATA = [
       "/images/kaffia/kaffia-hamburguesas-cena.png",
       "/images/kaffia/kaffia-brindis.png"
     ],
-    coordinates: { lat: 8.5940, lng: -71.1448 },
+    coordinates: { lat: 8.593291, lng: -71.146179 },
+    googleMapsEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1972.5140780735067!2d-71.14617921694148!3d8.59329108042517!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e6486e23b4974f1%3A0x9f1af09750f624f6!2sKaffia%20caffe!5e0!3m2!1ses!2sve!4v1790213062220!5m2!1ses!2sve",
     description: "Ubicado a pasos del Teleférico Mukumbarí y la emblemática Plaza Las Heroínas, Kaffia Caffe ofrece un acogedor espacio rústico-moderno con paredes de ladrillo, luces cálidas y terraza. Desde exquisitos desayunos y cafés filtrados hasta pizzas rústicas, hamburguesas gourmet y veladas especiales con vino y coctelería.",
     signatureDishes: [
       {
