@@ -1,133 +1,212 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  MapPin, 
   Mountain, 
-  Sparkles, 
-  Navigation, 
   Layers, 
-  ExternalLink, 
   ArrowUpRight,
-  ShieldCheck,
+  Route as RouteIcon,
   Compass,
-  Star,
-  ChevronRight,
-  Route as RouteIcon
+  Eye,
+  Maximize2,
+  Navigation,
+  Sparkles,
+  MapPin,
+  CheckCircle2,
+  TrendingUp,
+  Flame
 } from 'lucide-react';
 import { LIDAR_ROUTES } from '../data/routesLidarData';
-import { RESTAURANTS_DATA } from '../data/restaurantsData';
-import L from 'leaflet';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
+
+const MAP_STYLES = [
+  {
+    id: 'outdoors',
+    name: 'Relieve 3D',
+    icon: '🏔️',
+    url: 'mapbox://styles/mapbox/outdoors-v12',
+    description: 'Topografía de montaña y senderos'
+  },
+  {
+    id: 'satellite',
+    name: 'Satélite HD',
+    icon: '🛰️',
+    url: 'mapbox://styles/mapbox/satellite-streets-v12',
+    description: 'Imágenes satelitales de alta resolución'
+  },
+  {
+    id: 'lidar',
+    name: 'Modo LiDAR',
+    icon: '⚡',
+    url: 'mapbox://styles/mapbox/dark-v11',
+    description: 'Matriz espectral y relieve de contraste'
+  },
+  {
+    id: 'streets',
+    name: 'Urbano Claro',
+    icon: '🗺️',
+    url: 'mapbox://styles/mapbox/light-v11',
+    description: 'Calles, avenidas y comercios'
+  }
+];
 
 export function LidarMap({ onSelectRestaurantById, t }) {
   const [activeRouteId, setActiveRouteId] = useState('eje-metropolitano');
   const [selectedCheckpoint, setSelectedCheckpoint] = useState(null);
+  const [selectedStyleId, setSelectedStyleId] = useState('outdoors');
+  const [is3DMode, setIs3DMode] = useState(true);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
+
   const mapContainerRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const layerGroupRef = useRef(null);
+  const mapRef = useRef(null);
+  const markersRef = useRef([]);
 
   const currentRoute = LIDAR_ROUTES.find(r => r.id === activeRouteId) || LIDAR_ROUTES[0];
 
-  // Initialize Map
-  useEffect(() => {
-    if (!mapContainerRef.current) return;
+  // Configure 3D terrain and sky in Mapbox
+  const configure3DTerrain = (map) => {
+    try {
+      if (!map.getSource('mapbox-dem')) {
+        map.addSource('mapbox-dem', {
+          type: 'raster-dem',
+          url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+          tileSize: 512,
+          maxzoom: 14
+        });
+      }
 
-    if (!mapInstanceRef.current) {
-      // Create map centered on Merida city
-      const map = L.map(mapContainerRef.current, {
-        center: [8.5983, -71.1449],
-        zoom: 11,
-        zoomControl: false,
-      });
+      // Add terrain exaggeration for dramatic Andean peaks
+      map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.6 });
 
-      // Add clean, warm, beautiful CartoDB Positron or OSM Voyager tiles
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://carto.com/">CARTO</a> | Cámara Gastronómica Mérida',
-        maxZoom: 19
-      }).addTo(map);
-
-      // Add custom zoom control in top right
-      L.control.zoom({ position: 'topright' }).addTo(map);
-
-      mapInstanceRef.current = map;
-      layerGroupRef.current = L.layerGroup().addTo(map);
+      // Add realistic atmospheric sky
+      if (!map.getLayer('sky')) {
+        map.addLayer({
+          id: 'sky',
+          type: 'sky',
+          paint: {
+            'sky-type': 'atmosphere',
+            'sky-atmosphere-sun': [0.0, 90.0],
+            'sky-atmosphere-sun-intensity': 15
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('3D Terrain notice:', err);
     }
+  };
 
-    return () => {
-      // clean up on unmount if needed
-    };
-  }, []);
+  // Draw Route Polyline on Mapbox
+  const updateRouteLayers = (map, route) => {
+    if (!map || !map.isStyleLoaded()) return;
 
-  // Update Markers & Polylines when activeRouteId changes
-  useEffect(() => {
-    if (!mapInstanceRef.current || !layerGroupRef.current) return;
+    const coordinates = route.checkpoints.map(cp => [cp.lng, cp.lat]);
 
-    const map = mapInstanceRef.current;
-    const layerGroup = layerGroupRef.current;
-    layerGroup.clearLayers();
-
-    const latlngs = [];
-
-    // Custom Marker Icons
-    const createCustomIcon = (color, number, isRestaurant) => {
-      return L.divIcon({
-        className: 'custom-map-pin',
-        html: `
-          <div style="
-            background: ${isRestaurant ? '#c2410c' : '#0284c7'};
-            color: white;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 12px;
-            border: 3px solid white;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-            cursor: pointer;
-            transition: transform 0.2s;
-          ">
-            ${number}
-          </div>
-        `,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
-        popupAnchor: [0, -18]
-      });
+    const geojsonData = {
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'LineString',
+        coordinates: coordinates
+      }
     };
 
-    currentRoute.checkpoints.forEach((cp, idx) => {
+    // Remove existing layers/source if present
+    if (map.getLayer('route-glow')) map.removeLayer('route-glow');
+    if (map.getLayer('route-line')) map.removeLayer('route-line');
+    if (map.getSource('active-route')) map.removeSource('active-route');
+
+    // Add source
+    map.addSource('active-route', {
+      type: 'geojson',
+      data: geojsonData
+    });
+
+    // Glowing halo layer (especially stunning in LiDAR mode)
+    map.addLayer({
+      id: 'route-glow',
+      type: 'line',
+      source: 'active-route',
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      paint: {
+        'line-color': route.color || '#d97706',
+        'line-width': 10,
+        'line-opacity': 0.35,
+        'line-blur': 4
+      }
+    });
+
+    // Sharp main route line
+    map.addLayer({
+      id: 'route-line',
+      type: 'line',
+      source: 'active-route',
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      paint: {
+        'line-color': route.color || '#f59e0b',
+        'line-width': 4,
+        'line-dasharray': [2, 1.5]
+      }
+    });
+
+    // Clear old markers
+    markersRef.current.forEach(m => m.remove());
+    markersRef.current = [];
+
+    // Create dynamic 3D-styled markers
+    route.checkpoints.forEach((cp, idx) => {
       const isRestaurant = cp.type === 'restaurant';
-      const marker = L.marker([cp.lat, cp.lng], {
-        icon: createCustomIcon(currentRoute.color, idx + 1, isRestaurant)
-      });
-
-      latlngs.push([cp.lat, cp.lng]);
-
-      // Popup Content
-      const popupHtml = `
-        <div style="padding: 12px; min-width: 220px; font-family: 'Plus Jakarta Sans', sans-serif;">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-            <span style="font-size: 10px; font-weight: 700; color: ${isRestaurant ? '#c2410c' : '#0284c7'}; text-transform: uppercase; letter-spacing: 0.5px;">
-              ${isRestaurant ? '⭐ Restaurante Afiliado' : '📍 Punto de Interés'}
-            </span>
-            <span style="font-size: 11px; font-weight: 700; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #334155;">
-              ${cp.alt} msnm
-            </span>
-          </div>
-          <h4 style="font-size: 14px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0;">${cp.name}</h4>
-          <p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0;">Coordenadas: ${cp.lat.toFixed(4)}° N, ${cp.lng.toFixed(4)}° W</p>
-          ${cp.refId ? `<button id="btn-popup-${cp.refId}" style="width: 100%; background: #d97706; color: white; border: none; padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;">Ver Ficha Completa →</button>` : ''}
+      
+      const el = document.createElement('div');
+      el.className = 'custom-mapbox-marker group cursor-pointer';
+      el.innerHTML = `
+        <div style="
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          background: ${isRestaurant ? 'linear-gradient(135deg, #ea580c, #c2410c)' : 'linear-gradient(135deg, #0284c7, #0369a1)'};
+          color: white;
+          font-weight: 800;
+          font-size: 13px;
+          border: 3px solid #ffffff;
+          box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+          transition: all 0.25s ease;
+        ">
+          ${idx + 1}
         </div>
       `;
 
-      marker.bindPopup(popupHtml);
+      // Popup
+      const popupContent = document.createElement('div');
+      popupContent.style.padding = '8px';
+      popupContent.style.fontFamily = 'system-ui, sans-serif';
+      popupContent.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; gap: 8px;">
+          <span style="font-size: 10px; font-weight: 800; color: ${isRestaurant ? '#ea580c' : '#0284c7'}; text-transform: uppercase; letter-spacing: 0.5px;">
+            ${isRestaurant ? '⭐ Ficha Gastronómica' : '📍 Punto de Interés'}
+          </span>
+          <span style="font-size: 11px; font-weight: 700; background: #f1f5f9; padding: 2px 6px; border-radius: 6px; color: #334155;">
+            ${cp.alt} msnm
+          </span>
+        </div>
+        <h4 style="font-size: 14px; font-weight: 800; color: #0f172a; margin: 0 0 4px 0; line-height: 1.3;">${cp.name}</h4>
+        <p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0;">GPS: ${cp.lat.toFixed(4)}° N, ${cp.lng.toFixed(4)}° W</p>
+        ${cp.refId ? `<button id="btn-popup-${cp.refId}" style="width: 100%; background: #d97706; color: white; border: none; padding: 7px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; transition: background 0.2s;">Ver Ficha de Autor →</button>` : ''}
+      `;
 
-      marker.on('click', () => {
-        setSelectedCheckpoint(cp);
-      });
+      const popup = new mapboxgl.Popup({ offset: 25, closeButton: false, maxWidth: '260px' })
+        .setDOMContent(popupContent);
 
-      marker.on('popupopen', () => {
+      popup.on('open', () => {
         if (cp.refId) {
           const btn = document.getElementById(`btn-popup-${cp.refId}`);
           if (btn) {
@@ -136,54 +215,160 @@ export function LidarMap({ onSelectRestaurantById, t }) {
         }
       });
 
-      layerGroup.addLayer(marker);
+      const marker = new mapboxgl.Marker(el)
+        .setLngLat([cp.lng, cp.lat])
+        .setPopup(popup)
+        .addTo(map);
+
+      el.addEventListener('click', () => {
+        setSelectedCheckpoint(cp);
+      });
+
+      markersRef.current.push(marker);
     });
 
-    // Draw route polyline
-    if (latlngs.length > 1) {
-      const polyline = L.polyline(latlngs, {
-        color: '#d97706',
-        weight: 4,
-        opacity: 0.8,
-        dashArray: '8, 8',
-        lineCap: 'round'
+    // Fit camera to bounds with cinematic 3D pitch & bearing
+    if (coordinates.length > 1) {
+      const bounds = coordinates.reduce((b, coord) => b.extend(coord), new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+      
+      map.fitBounds(bounds, {
+        padding: { top: 70, bottom: 70, left: 60, right: 60 },
+        pitch: is3DMode ? 55 : 0,
+        bearing: is3DMode ? -20 : 0,
+        duration: 2000,
+        maxZoom: 13
       });
-      layerGroup.addLayer(polyline);
-
-      // Fit map bounds
-      map.fitBounds(latlngs, { padding: [50, 50], maxZoom: 13 });
-    } else if (latlngs.length === 1) {
-      map.setView(latlngs[0], 12);
     }
-  }, [activeRouteId, currentRoute, onSelectRestaurantById]);
+  };
+
+  // Initialize Mapbox instance
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+
+    const initialRoute = LIDAR_ROUTES.find(r => r.id === activeRouteId) || LIDAR_ROUTES[0];
+    const firstPoint = initialRoute.checkpoints[0];
+
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: MAP_STYLES.find(s => s.id === selectedStyleId)?.url || 'mapbox://styles/mapbox/outdoors-v12',
+      center: [firstPoint.lng, firstPoint.lat],
+      zoom: 11,
+      pitch: 55, // 3D perspective angle
+      bearing: -20, // Mountain orientation
+      antialias: true
+    });
+
+    // Add navigation controls (zoom & 3D compass)
+    map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'top-right');
+    
+    // Add real-time geolocation control
+    map.addControl(
+      new mapboxgl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: true,
+        showUserHeading: true
+      }),
+      'top-right'
+    );
+
+    // Add fullscreen control
+    map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+
+    map.on('load', () => {
+      configure3DTerrain(map);
+      setIsMapLoaded(true);
+      updateRouteLayers(map, initialRoute);
+    });
+
+    mapRef.current = map;
+
+    return () => {
+      map.remove();
+    };
+  }, []);
+
+  // Change Mapbox Style
+  const handleStyleChange = (newStyleId) => {
+    if (!mapRef.current) return;
+    setSelectedStyleId(newStyleId);
+    
+    const styleObj = MAP_STYLES.find(s => s.id === newStyleId);
+    if (!styleObj) return;
+
+    const map = mapRef.current;
+    map.setStyle(styleObj.url);
+
+    map.once('style.load', () => {
+      configure3DTerrain(map);
+      updateRouteLayers(map, currentRoute);
+    });
+  };
+
+  // Toggle 2D / 3D Mode
+  const toggle3DMode = () => {
+    if (!mapRef.current) return;
+    const nextMode = !is3DMode;
+    setIs3DMode(nextMode);
+
+    mapRef.current.easeTo({
+      pitch: nextMode ? 60 : 0,
+      bearing: nextMode ? -25 : 0,
+      duration: 1200
+    });
+  };
+
+  // Update Route when activeRouteId changes
+  useEffect(() => {
+    if (!mapRef.current || !isMapLoaded) return;
+    updateRouteLayers(mapRef.current, currentRoute);
+  }, [activeRouteId, isMapLoaded]);
+
+  // Fly to selected checkpoint
+  const handleCheckpointClick = (cp) => {
+    setSelectedCheckpoint(cp);
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: [cp.lng, cp.lat],
+        zoom: 14.5,
+        pitch: 65,
+        bearing: 30,
+        speed: 1.2,
+        curve: 1.4,
+        essential: true
+      });
+    }
+  };
 
   return (
-    <section className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="mapa-lidar" className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       
       {/* Header */}
       <div className="text-center max-w-3xl mx-auto mb-10">
         <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs font-semibold mb-3 shadow-sm">
-          <RouteIcon className="w-3.5 h-3.5 text-amber-700" />
-          <span>Geolocalización & Rutas del Sabor</span>
+          <Sparkles className="w-3.5 h-3.5 text-amber-700 animate-pulse" />
+          <span>Cartografía Satelital & Relieve 3D Mapbox</span>
         </div>
         <h2 className="font-serif text-3xl sm:text-5xl font-bold text-slate-900 tracking-tight">
-          Mapa de la Ruta Gastronómica de Mérida
+          Mapa Topográfico & Rutas del Sabor
         </h2>
         <p className="mt-3 text-slate-600 text-sm sm:text-base">
-          Explore los 5 ejes territoriales del estado Mérida, desde el calor lacustre de Palmarito hasta la Sierra Nevada a más de 4.700 metros de altitud.
+          Explora en relieve tridimensional y alta resolución satelital los 5 ejes gastronómicos de Mérida, desde el nivel del mar en Palmarito hasta los 4.765 m de la Sierra Nevada.
         </p>
       </div>
 
       {/* Main Map Box */}
-      <div className="rounded-3xl bg-white border border-slate-200 shadow-xl overflow-hidden">
+      <div className="rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
         
-        {/* Top Route Selector */}
-        <div className="p-4 sm:p-6 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        {/* Top Route & Style Toolbar */}
+        <div className="p-4 sm:p-5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-4">
           
+          {/* Route selector buttons */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider mr-1 flex items-center gap-1">
-              <Layers className="w-3.5 h-3.5 text-amber-600" />
-              Seleccionar Eje:
+            <span className="text-xs font-bold text-amber-400 uppercase tracking-wider mr-1 flex items-center gap-1.5">
+              <RouteIcon className="w-4 h-4" />
+              Eje:
             </span>
             {LIDAR_ROUTES.map((route) => (
               <button
@@ -192,86 +377,130 @@ export function LidarMap({ onSelectRestaurantById, t }) {
                   setActiveRouteId(route.id);
                   setSelectedCheckpoint(null);
                 }}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 ${
                   activeRouteId === route.id
-                    ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20 scale-105'
-                    : 'bg-white text-slate-700 border border-slate-200 hover:border-amber-400 hover:text-amber-700'
+                    ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30 ring-2 ring-amber-400/50 scale-105'
+                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700'
                 }`}
               >
                 <div 
                   className="w-2.5 h-2.5 rounded-full"
-                  style={{ backgroundColor: activeRouteId === route.id ? '#ffffff' : '#d97706' }}
+                  style={{ backgroundColor: activeRouteId === route.id ? '#ffffff' : route.color || '#d97706' }}
                 />
                 <span>{route.name.split(':')[1] || route.name}</span>
               </button>
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="px-3.5 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-center gap-1.5">
-              <Mountain className="w-4 h-4 text-amber-600" />
-              <span>Altitud: {currentRoute.altitudeSpan}</span>
+          {/* Quick Metrics */}
+          <div className="flex items-center gap-2.5">
+            <div className="px-3 py-1 rounded-lg bg-slate-800 border border-slate-700 text-amber-300 text-xs font-medium flex items-center gap-1.5">
+              <Mountain className="w-3.5 h-3.5 text-amber-400" />
+              <span>{currentRoute.altitudeSpan}</span>
             </div>
           </div>
 
         </div>
 
-        {/* 2-Column Layout: Real Leaflet Map + Interactive Route Sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
+        {/* 2-Column Layout: Mapbox 3D Map + Checkpoint & Elevation Sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 relative">
           
-          {/* Left Column: Real Map */}
-          <div className="lg:col-span-8 relative min-h-[460px] lg:min-h-[580px] w-full">
-            <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+          {/* Left Column: Mapbox GL */}
+          <div className="lg:col-span-8 relative min-h-[500px] lg:min-h-[640px] w-full bg-slate-950">
             
-            {/* Map Legend Floating Tag */}
-            <div className="absolute bottom-4 left-4 z-[400] bg-white/95 backdrop-blur-md px-3.5 py-2.5 rounded-2xl border border-slate-200 shadow-md text-xs space-y-1.5">
+            {/* Map Canvas */}
+            <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+
+            {/* Floating Top-Left: Style Switcher & 3D Tilt Button */}
+            <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+              <div className="bg-slate-900/90 backdrop-blur-md p-1.5 rounded-2xl border border-slate-700 shadow-xl flex items-center gap-1">
+                {MAP_STYLES.map(style => (
+                  <button
+                    key={style.id}
+                    onClick={() => handleStyleChange(style.id)}
+                    title={style.description}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                      selectedStyleId === style.id
+                        ? 'bg-amber-600 text-white shadow-md'
+                        : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    <span>{style.icon}</span>
+                    <span className="hidden sm:inline">{style.name}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* 3D View Toggle */}
+              <button
+                onClick={toggle3DMode}
+                className="self-start bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-700 text-xs font-semibold text-slate-200 hover:text-white hover:bg-slate-800 transition-all flex items-center gap-1.5 shadow-lg"
+              >
+                <Compass className={`w-3.5 h-3.5 text-amber-400 ${is3DMode ? 'animate-spin-slow' : ''}`} />
+                <span>{is3DMode ? 'Modo 3D Montaña (Activo)' : 'Cambiar a 3D'}</span>
+              </button>
+            </div>
+
+            {/* Floating Bottom-Left: Legend */}
+            <div className="absolute bottom-4 left-4 z-10 bg-slate-900/90 backdrop-blur-md px-3.5 py-2.5 rounded-2xl border border-slate-700 shadow-xl text-xs space-y-1.5 text-white">
               <div className="flex items-center gap-2">
-                <div className="w-3.5 h-3.5 rounded-full bg-terracotta border-2 border-white shadow" />
-                <span className="font-medium text-slate-700">Restaurante / Ficha de Autor</span>
+                <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-tr from-amber-600 to-orange-500 border-2 border-white shadow" />
+                <span className="font-medium text-slate-200">Restaurante / Ficha de Autor</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3.5 h-3.5 rounded-full bg-sky-600 border-2 border-white shadow" />
-                <span className="font-medium text-slate-700">Paraje Turístico / Cumbre</span>
+                <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-tr from-sky-600 to-blue-500 border-2 border-white shadow" />
+                <span className="font-medium text-slate-200">Paraje Turístico / Cima</span>
               </div>
             </div>
+
           </div>
 
-          {/* Right Column: Checkpoints & Elevation Sidebar */}
+          {/* Right Column: Checkpoints, Route Details & Elevation Sidebar */}
           <div className="lg:col-span-4 p-5 sm:p-6 bg-slate-50 border-l border-slate-200 flex flex-col justify-between space-y-6">
             
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-700">
+              {/* Route Heading */}
+              <div className="mb-4">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">
+                  {currentRoute.tag}
+                </span>
+                <h3 className="text-base font-bold text-slate-900 mt-0.5">
+                  {currentRoute.name}
+                </h3>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  {currentRoute.description}
+                </p>
+              </div>
+
+              {/* Paradas */}
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-amber-600" />
                   Paradas de la Ruta
                 </span>
                 <span className="text-xs text-slate-500 font-medium">
-                  {currentRoute.distanceKm} aprox.
+                  {currentRoute.distanceKm}
                 </span>
               </div>
 
-              <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                 {currentRoute.checkpoints.map((cp, idx) => {
                   const isSelected = selectedCheckpoint?.name === cp.name;
                   const isRest = cp.type === 'restaurant';
                   return (
                     <div
                       key={idx}
-                      onClick={() => {
-                        setSelectedCheckpoint(cp);
-                        if (mapInstanceRef.current) {
-                          mapInstanceRef.current.flyTo([cp.lat, cp.lng], 13, { duration: 1 });
-                        }
-                      }}
-                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                      onClick={() => handleCheckpointClick(cp)}
+                      className={`p-3 rounded-2xl border transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-white border-amber-500 shadow-md scale-[1.02]'
-                          : 'bg-white border-slate-200 hover:border-amber-300'
+                          ? 'bg-white border-amber-500 shadow-md scale-[1.02] ring-2 ring-amber-500/20'
+                          : 'bg-white border-slate-200 hover:border-amber-300 hover:bg-amber-50/30'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-start gap-2.5">
                           <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 mt-0.5 ${
-                            isRest ? 'bg-terracotta' : 'bg-sky-600'
+                            isRest ? 'bg-gradient-to-tr from-amber-600 to-orange-500' : 'bg-gradient-to-tr from-sky-600 to-blue-500'
                           }`}>
                             {idx + 1}
                           </div>
@@ -280,7 +509,7 @@ export function LidarMap({ onSelectRestaurantById, t }) {
                               {cp.name}
                             </h4>
                             <p className="text-[11px] text-slate-500 mt-0.5">
-                              {isRest ? 'Restaurante Afiliado Cámara' : 'Atractivo Natural'}
+                              {isRest ? '⭐ Restaurante Afiliado' : '📍 Atractivo Natural'}
                             </p>
                           </div>
                         </div>
@@ -297,10 +526,10 @@ export function LidarMap({ onSelectRestaurantById, t }) {
                               e.stopPropagation();
                               onSelectRestaurantById(cp.refId);
                             }}
-                            className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1"
+                            className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 transition-colors"
                           >
-                            <span>Abrir Ficha de Restaurante</span>
-                            <ArrowUpRight className="w-3 h-3" />
+                            <span>Ver Ficha Completa</span>
+                            <ArrowUpRight className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       )}
@@ -312,22 +541,28 @@ export function LidarMap({ onSelectRestaurantById, t }) {
 
             {/* Profile Elevation Chart */}
             <div className="pt-4 border-t border-slate-200">
-              <span className="text-xs font-bold text-slate-700 block mb-2">
-                Perfil de Altura del Eje ({currentRoute.altitudeSpan}):
-              </span>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-amber-600" />
+                  Gradiente de Altitud:
+                </span>
+                <span className="text-[11px] font-medium text-amber-700">
+                  {currentRoute.altitudeSpan}
+                </span>
+              </div>
               
-              <div className="h-20 w-full bg-white rounded-xl p-2 border border-slate-200 flex items-end justify-between gap-1">
+              <div className="h-20 w-full bg-white rounded-xl p-2.5 border border-slate-200 flex items-end justify-between gap-1 shadow-inner">
                 {currentRoute.elevationProfile.map((pt, idx) => {
                   const maxAlt = 4765;
-                  const heightPercent = Math.max(20, Math.min(100, (pt.alt / maxAlt) * 100));
+                  const heightPercent = Math.max(18, Math.min(100, (pt.alt / maxAlt) * 100));
                   return (
-                    <div key={idx} className="flex-1 flex flex-col items-center gap-1 group">
+                    <div key={idx} className="flex-1 flex flex-col items-center gap-1 group cursor-pointer">
                       <div 
                         style={{ height: `${heightPercent}%` }}
-                        className="w-full rounded-t-md bg-gradient-to-t from-amber-600 to-amber-400 group-hover:brightness-110 transition-all"
+                        className="w-full rounded-t-md bg-gradient-to-t from-amber-600 to-amber-400 group-hover:from-amber-500 group-hover:to-orange-300 transition-all shadow-sm"
                         title={`${pt.label}: ${pt.alt} msnm`}
                       />
-                      <span className="text-[8px] font-medium text-slate-500 truncate max-w-[45px] text-center">
+                      <span className="text-[8px] font-semibold text-slate-500 truncate max-w-[45px] text-center">
                         {pt.label.split(' ')[0]}
                       </span>
                     </div>
