@@ -18,7 +18,7 @@ import { LIDAR_ROUTES } from '../data/routesLidarData';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || import.meta.env.MAPBOX || '';
 
 const MAP_STYLES = [
   {
