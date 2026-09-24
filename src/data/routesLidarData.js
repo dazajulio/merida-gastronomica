@@ -4,7 +4,7 @@ export const LIDAR_ROUTES = [
     name: "Eje 1: Metropolitano & Valle de San Javier",
     tag: "Alta Cocina, Historia & Cumbres",
     color: "#22c55e",
-    altitudeSpan: "1.630 msnm - 4.765 msnm",
+    altitudeSpan: "1.620 msnm - 4.765 msnm",
     distanceKm: "38 km",
     checkpoints: [
       { name: "Kaffia Caffe (Las Heroínas)", alt: 1620, type: "restaurant", refId: "rest-kaffia", lat: 8.593291, lng: -71.146179 },
@@ -33,7 +33,7 @@ export const LIDAR_ROUTES = [
     checkpoints: [
       { name: "Mucurubá", alt: 2407, type: "town", lat: 8.7061, lng: -70.9702 },
       { name: "Mucuchíes & San Rafael", alt: 2980, type: "town", lat: 8.7482, lng: -70.9168 },
-      { name: "Refugio Mucubají", alt: 3550, type: "restaurant", refId: "rest-02", lat: 8.7981, lng: -70.8354 },
+      { name: "Apartaderos & San Rafael de Mucuchíes", alt: 3342, type: "town", lat: 8.7840, lng: -70.8500 },
       { name: "Laguna de Mucubají", alt: 3550, type: "nature", lat: 8.8012, lng: -70.8290 },
       { name: "Collado del Cóndor (Pico El Águila)", alt: 4118, type: "summit", lat: 8.8523, lng: -70.8124 }
     ],
@@ -45,7 +45,7 @@ export const LIDAR_ROUTES = [
       { label: "Mucubají", alt: 3550 },
       { label: "Pico Águila", alt: 4118 }
     ],
-    description: "Travesía por la Carretera Trasandina entre huertas de hortalizas, iglesias de piedra de Juan Félix Sánchez, lagunas glaciares y posadas con chimenea donde reina la trucha fresca y el chocolate caliente."
+    description: "Travesía por la Carretera Trasandina entre huertas de hortalizas, iglesias de piedra de Juan Félix Sánchez, lagunas glaciares y parajes con chimenea donde reina la trucha fresca y el chocolate caliente."
   },
   {
     id: "eje-mocoties",
@@ -56,7 +56,7 @@ export const LIDAR_ROUTES = [
     distanceKm: "62 km",
     checkpoints: [
       { name: "Santa Cruz de Mora (Haciendas de Café)", alt: 880, type: "coffee", lat: 8.4053, lng: -71.6738 },
-      { name: "Tovar (Laboratorio Café Mocotíes)", alt: 950, type: "restaurant", refId: "rest-03", lat: 8.3378, lng: -71.7589 },
+      { name: "Tovar Colonial & Centro de Arte", alt: 950, type: "town", lat: 8.3378, lng: -71.7589 },
       { name: "Bailadores & Cascadas", alt: 1745, type: "town", lat: 8.2435, lng: -71.8211 },
       { name: "Zea", alt: 910, type: "town", lat: 8.3789, lng: -71.7821 }
     ],
@@ -77,7 +77,7 @@ export const LIDAR_ROUTES = [
     distanceKm: "94 km",
     checkpoints: [
       { name: "Aricagua", alt: 1610, type: "town", lat: 8.2167, lng: -71.1333 },
-      { name: "Canaguá Ancestral", alt: 1490, type: "restaurant", refId: "rest-06", lat: 8.1124, lng: -71.4356 },
+      { name: "Canaguá Colonial", alt: 1490, type: "town", lat: 8.1124, lng: -71.4356 },
       { name: "Chacantá", alt: 1800, type: "town", lat: 8.1633, lng: -71.4889 },
       { name: "Guaraque", alt: 1515, type: "town", lat: 8.1500, lng: -71.6500 }
     ],
@@ -99,7 +99,7 @@ export const LIDAR_ROUTES = [
     distanceKm: "85 km",
     checkpoints: [
       { name: "El Vigía (Centro Logístico)", alt: 130, type: "city", lat: 8.6256, lng: -71.6508 },
-      { name: "Hacienda Porcelana Sur del Lago", alt: 65, type: "restaurant", refId: "rest-04", lat: 8.6401, lng: -71.6812 },
+      { name: "Plantaciones de Cacao Sur del Lago", alt: 65, type: "coffee", lat: 8.6401, lng: -71.6812 },
       { name: "Santa Elena de Arenales", alt: 85, type: "town", lat: 8.7845, lng: -71.5122 },
       { name: "Palmarito (Playa Lacustre)", alt: 10, type: "beach", lat: 9.0734, lng: -71.4231 }
     ],
