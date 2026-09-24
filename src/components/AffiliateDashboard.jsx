@@ -300,12 +300,25 @@ function GpsCalibrationTab({ activeUser }) {
     }
   };
 
-  // Save Calibrated Coordinates
+  // Save Calibrated Coordinates & Sync Live with 3D Map
   const handleSaveCoordinates = async () => {
     setIsSaving(true);
     try {
       localStorage.setItem(`coords_${activeUser.id}`, JSON.stringify(coords));
+      localStorage.setItem('coords_rest-kaffia', JSON.stringify(coords));
+      localStorage.setItem('coords_kaffia-caffe-merida', JSON.stringify(coords));
+      localStorage.setItem('coords_CGM-2026-001', JSON.stringify(coords));
       
+      // Dispatch live real-time event for LidarMap to update instantly
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cgm_coords_updated', {
+          detail: {
+            restaurantId: activeUser.id || 'rest-kaffia',
+            coords: coords
+          }
+        }));
+      }
+
       // Try saving to Supabase if connected
       if (supabase) {
         await supabase

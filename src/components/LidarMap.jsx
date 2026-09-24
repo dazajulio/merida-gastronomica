@@ -29,6 +29,28 @@ const getMapboxToken = () => {
 
 const MAPBOX_TOKEN = getMapboxToken();
 
+// LIVE COORDINATES RESOLVER (Gives 100% precedence to the Affiliate Portal Calibrator)
+export const getLiveRestaurantCoords = (restData) => {
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(`coords_${restData.id}`) ||
+                    localStorage.getItem(`coords_${restData.certificateNumber}`) ||
+                    localStorage.getItem(`coords_${restData.slug}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
+          return {
+            lat: parsed.lat,
+            lng: parsed.lng,
+            alt: parsed.alt || restData.altitude || 1620
+          };
+        }
+      }
+    } catch (e) {}
+  }
+  return restData.coordinates;
+};
+
 const MAP_STYLES = [
   {
     id: 'outdoors',
@@ -162,14 +184,16 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
-    // 3. MANDATORY: ALWAYS RENDER ALL REGISTERED RESTAURANTS IN PERMANENT 3D CARDS
+    // 3. MANDATORY: ALWAYS RENDER ALL REGISTERED RESTAURANTS IN PERMANENT 3D CARDS (LIVE SYNCED)
     RESTAURANTS_DATA.forEach((restData) => {
-      const restLng = restData.coordinates.lng;
-      const restLat = restData.coordinates.lat;
+      const liveCoords = getLiveRestaurantCoords(restData);
+      const restLng = liveCoords.lng;
+      const restLat = liveCoords.lat;
+      const restAlt = liveCoords.alt || restData.altitude || 1620;
 
       const el = document.createElement('div');
       el.className = 'custom-mapbox-marker group cursor-pointer';
-      el.style.zIndex = '1000';
+      el.style.zIndex = '30';
       el.style.position = 'relative';
 
       el.innerHTML = `
@@ -195,7 +219,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
               </span>
 
               <span style="position: absolute; top: 7px; right: 7px; background: rgba(15,23,42,0.85); color: #38bdf8; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px; border: 1px solid rgba(56,189,248,0.3);">
-                ${restData.altitude || 1620} msnm
+                ${restAlt} msnm
               </span>
 
               <div style="position: absolute; bottom: 6px; left: 8px; right: 8px; display: flex; align-items: center; justify-content: space-between;">
@@ -303,7 +327,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
       .forEach((cp, idx) => {
         const el = document.createElement('div');
         el.className = 'custom-mapbox-attraction-marker cursor-pointer';
-        el.style.zIndex = '50';
+        el.style.zIndex = '20';
         el.innerHTML = `
           <div style="position: relative; display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.4));">
             <div style="
@@ -339,17 +363,18 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
         markersRef.current.push(marker);
       });
 
-    // 5. CAMERA POSITIONING
+    // 5. CAMERA POSITIONING (USING LIVE CALIBRATED COORDINATES)
     if (autoFocusRefId) {
       const targetRest = RESTAURANTS_DATA.find(r => r.id === autoFocusRefId);
-      const targetCp = targetRest 
-        ? { lng: targetRest.coordinates.lng, lat: targetRest.coordinates.lat }
+      const targetCoords = targetRest ? getLiveRestaurantCoords(targetRest) : null;
+      const targetCp = targetCoords 
+        ? { lng: targetCoords.lng, lat: targetCoords.lat }
         : route.checkpoints.find(cp => cp.refId === autoFocusRefId);
 
       if (targetCp) {
         map.flyTo({
           center: [targetCp.lng, targetCp.lat],
-          zoom: 16.8,
+          zoom: 17.2,
           pitch: 58,
           bearing: -15,
           duration: 2000,
@@ -363,12 +388,13 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
         }, 200);
       }
     } else {
-      // Default: Center on the primary registered restaurant (Kaffia)
+      // Default: Center on the primary registered restaurant (Kaffia) with live coordinates
       const primaryRest = RESTAURANTS_DATA[0];
       if (primaryRest) {
+        const liveCoords = getLiveRestaurantCoords(primaryRest);
         map.flyTo({
-          center: [primaryRest.coordinates.lng, primaryRest.coordinates.lat],
-          zoom: 16.2,
+          center: [liveCoords.lng, liveCoords.lat],
+          zoom: 16.5,
           pitch: 55,
           bearing: -15,
           duration: 1800,
@@ -431,6 +457,21 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
       map.remove();
     };
   }, []);
+
+  // Real-time synchronization when coordinates are updated in Affiliate Dashboard
+  useEffect(() => {
+    const handleCoordsUpdate = () => {
+      if (mapRef.current && isMapLoaded) {
+        updateRouteLayers(mapRef.current, currentRoute);
+      }
+    };
+    window.addEventListener('cgm_coords_updated', handleCoordsUpdate);
+    window.addEventListener('storage', handleCoordsUpdate);
+    return () => {
+      window.removeEventListener('cgm_coords_updated', handleCoordsUpdate);
+      window.removeEventListener('storage', handleCoordsUpdate);
+    };
+  }, [currentRoute, isMapLoaded]);
 
   // Handle focusRestaurantId change if map is already loaded
   useEffect(() => {
