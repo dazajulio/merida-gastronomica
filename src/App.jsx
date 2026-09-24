@@ -53,7 +53,15 @@ export function App() {
           (r.slug && r.slug.toLowerCase() === targetQuery.toLowerCase())
         );
         if (found) {
-          setSelectedRestaurant(found);
+          // Navigate straight to Lidar 3D Map, focusing on this restaurant marker with preview card
+          setFocusRestaurantId(found.id);
+          setActiveTab('lidar');
+          setTimeout(() => {
+            const mapBoxEl = document.getElementById('mapa-lidar-box') || document.getElementById('mapa-lidar');
+            if (mapBoxEl) {
+              mapBoxEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }, 350);
         }
       }
     }
@@ -85,12 +93,16 @@ export function App() {
     setSelectedRestaurant(null);
     setFocusRestaurantId(restaurant.id);
     setActiveTab('lidar');
+    if (typeof window !== 'undefined') {
+      const newUrl = `${window.location.pathname}?restaurante=${restaurant.slug || restaurant.id}`;
+      window.history.replaceState(null, '', newUrl);
+    }
     setTimeout(() => {
-      const mapBoxEl = document.getElementById('mapa-lidar-box');
+      const mapBoxEl = document.getElementById('mapa-lidar-box') || document.getElementById('mapa-lidar');
       if (mapBoxEl) {
         mapBoxEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-    }, 150);
+    }, 200);
   };
 
   const handleQuickSearch = (term) => {

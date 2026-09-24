@@ -242,25 +242,51 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
         </div>
       `;
 
+      // Find restaurant object if it's a restaurant
+      const restData = isRestaurant ? RESTAURANTS_DATA.find(r => r.id === cp.refId) : null;
+
       // Popup
       const popupContent = document.createElement('div');
-      popupContent.style.padding = '10px';
-      popupContent.style.fontFamily = 'system-ui, sans-serif';
+      popupContent.style.padding = '0';
+      popupContent.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      popupContent.style.width = '260px';
+      popupContent.style.overflow = 'hidden';
+      popupContent.style.borderRadius = '14px';
+
       popupContent.innerHTML = `
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; gap: 8px;">
-          <span style="font-size: 10px; font-weight: 800; color: ${isRestaurant ? '#d97706' : '#0284c7'}; text-transform: uppercase; letter-spacing: 0.5px;">
-            ${isRestaurant ? '⭐ Agremiado Cámara' : '📍 Punto de Interés'}
-          </span>
-          <span style="font-size: 11px; font-weight: 700; background: #f1f5f9; padding: 2px 6px; border-radius: 6px; color: #334155;">
-            ${cp.alt} msnm
-          </span>
+        ${restData ? `
+          <div style="position: relative; width: 100%; height: 115px; overflow: hidden; background: #0f172a;">
+            <img src="${restData.coverImage}" alt="${restData.name}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+            <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.1) 60%, transparent 100%);"></div>
+            <span style="position: absolute; top: 8px; left: 8px; background: rgba(217,119,6,0.95); color: white; font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 9999px; letter-spacing: 0.4px;">
+              ★ AGREMIADO OFICIAL
+            </span>
+            <span style="position: absolute; top: 8px; right: 8px; background: rgba(15,23,42,0.85); color: #38bdf8; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px;">
+              ${cp.alt} msnm
+            </span>
+            <div style="position: absolute; bottom: 6px; left: 8px; right: 8px; display: flex; align-items: center; justify-content: space-between;">
+              <span style="font-size: 11px; color: #fbbf24; font-weight: 800;">★ ${restData.rating} <span style="font-size: 10px; color: #cbd5e1; font-weight: 500;">(${restData.reviewsCount})</span></span>
+              <span style="font-size: 10px; font-weight: 700; color: #f8fafc; background: rgba(0,0,0,0.5); padding: 1px 5px; border-radius: 4px;">${restData.priceTier || '$$$'}</span>
+            </div>
+          </div>
+        ` : `
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 0 12px; gap: 8px;">
+            <span style="font-size: 10px; font-weight: 800; color: #0284c7; text-transform: uppercase; letter-spacing: 0.5px;">
+              📍 Punto de Interés
+            </span>
+            <span style="font-size: 11px; font-weight: 700; background: #f1f5f9; padding: 2px 6px; border-radius: 6px; color: #334155;">
+              ${cp.alt} msnm
+            </span>
+          </div>
+        `}
+        <div style="padding: 10px 12px 12px 12px; background: white;">
+          <h4 style="font-size: 14px; font-weight: 800; color: #0f172a; margin: 0 0 3px 0; line-height: 1.25;">${cp.name}</h4>
+          ${restData ? `<p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0; line-height: 1.3;">📍 ${restData.location}</p>` : `<p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0;">GPS: ${cp.lat.toFixed(4)}° N, ${cp.lng.toFixed(4)}° W</p>`}
+          ${cp.refId ? `<button id="btn-popup-${cp.refId}" style="width: 100%; background: linear-gradient(135deg, #d97706, #b45309); color: white; border: none; padding: 8px 12px; border-radius: 10px; font-size: 12px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 10px rgba(217,119,6,0.3); transition: transform 0.15s ease;">Ver Ficha Completa & Reservar →</button>` : ''}
         </div>
-        <h4 style="font-size: 15px; font-weight: 800; color: #0f172a; margin: 0 0 4px 0; line-height: 1.3;">${cp.name}</h4>
-        <p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0;">GPS: ${cp.lat.toFixed(4)}° N, ${cp.lng.toFixed(4)}° W</p>
-        ${cp.refId ? `<button id="btn-popup-${cp.refId}" style="width: 100%; background: linear-gradient(135deg, #d97706, #b45309); color: white; border: none; padding: 8px 12px; border-radius: 10px; font-size: 12px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 10px rgba(217,119,6,0.3); transition: transform 0.2s;">Abrir Ficha Completa & Reservar →</button>` : ''}
       `;
 
-      const popup = new mapboxgl.Popup({ offset: 28, closeButton: false, maxWidth: '270px' })
+      const popup = new mapboxgl.Popup({ offset: 28, closeButton: true, maxWidth: '280px' })
         .setDOMContent(popupContent);
 
       popup.on('open', () => {
@@ -277,11 +303,12 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
         .setPopup(popup)
         .addTo(map);
 
-      // Direct click on marker opens the full restaurant modal immediately
-      el.addEventListener('click', () => {
+      // Direct click on marker pin selects checkpoint and opens preview popup
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
         setSelectedCheckpoint(cp);
-        if (cp.refId && onSelectRestaurantById) {
-          onSelectRestaurantById(cp.refId);
+        if (!marker.getPopup().isOpen()) {
+          marker.togglePopup();
         }
       });
 
@@ -304,13 +331,15 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
           duration: 2200,
           essential: true
         });
-        if (!targetMarkerToOpen.getPopup().isOpen()) {
-          targetMarkerToOpen.togglePopup();
-        }
+        setTimeout(() => {
+          if (!targetMarkerToOpen.getPopup().isOpen()) {
+            targetMarkerToOpen.togglePopup();
+          }
+        }, 600);
         setTimeout(() => {
           const mapBoxEl = document.getElementById('mapa-lidar-box');
           if (mapBoxEl) {
-            mapBoxEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            mapBoxEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }
         }, 200);
       }
@@ -327,7 +356,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
 
       // Automatically open the first affiliate restaurant popup on the map
       const firstRestMarker = markersRef.current.find((m, i) => route.checkpoints[i]?.type === 'restaurant');
-      if (firstRestMarker && !firstRestMarker.getPopup().isOpen()) {
+      if (firstRestMarker) {
         setTimeout(() => {
           if (!firstRestMarker.getPopup().isOpen()) {
             firstRestMarker.togglePopup();
