@@ -15,6 +15,7 @@ export function RestaurantGuide({
   restaurants, 
   onSelectRestaurant, 
   onBookDirect, 
+  onViewOnMap,
   t, 
   initialSearch = '' 
 }) {
@@ -200,6 +201,7 @@ export function RestaurantGuide({
               restaurant={restaurant}
               onSelect={onSelectRestaurant}
               onBookDirect={onBookDirect}
+              onViewOnMap={onViewOnMap}
               t={t}
             />
           ))}

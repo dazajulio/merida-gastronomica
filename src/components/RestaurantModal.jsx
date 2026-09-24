@@ -15,7 +15,7 @@ import {
   Utensils
 } from 'lucide-react';
 
-export function RestaurantModal({ restaurant, onClose, onNavigateToLidar }) {
+export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
   const [activeImage, setActiveImage] = useState(restaurant.coverImage);
   const [resDate, setResDate] = useState('');
   const [resGuests, setResGuests] = useState('2 personas');
@@ -65,6 +65,14 @@ export function RestaurantModal({ restaurant, onClose, onNavigateToLidar }) {
           </div>
 
           <div className="flex items-center gap-2">
+            {onViewOnMap && (
+              <button
+                onClick={() => onViewOnMap(restaurant)}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-amber-300 border border-slate-700 text-xs font-semibold hover:bg-slate-800 transition-colors shadow-sm"
+              >
+                <span>📍 Ver en Mapa 3D</span>
+              </button>
+            )}
             {restaurant.instagramUrl && (
               <a
                 href={restaurant.instagramUrl}

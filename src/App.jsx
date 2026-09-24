@@ -34,6 +34,7 @@ export function App() {
   const [activeTab, setActiveTab] = useState('home'); // home | guide | lidar | events | terroir | jobs | cultural | sello | academy | legal | services | affiliates
   const [lang, setLang] = useState('es');
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
+  const [focusRestaurantId, setFocusRestaurantId] = useState(null);
   const [guideSearchTerm, setGuideSearchTerm] = useState('');
 
   const t = translations[lang] || translations.es;
@@ -43,6 +44,13 @@ export function App() {
     if (found) {
       setSelectedRestaurant(found);
     }
+  };
+
+  const handleViewOnMap = (restaurant) => {
+    setSelectedRestaurant(null);
+    setFocusRestaurantId(restaurant.id);
+    setActiveTab('lidar');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleQuickSearch = (term) => {
@@ -107,6 +115,7 @@ export function App() {
                   restaurants={RESTAURANTS_DATA.slice(0, 3)} 
                   onSelectRestaurant={setSelectedRestaurant}
                   onBookDirect={handleBookDirect}
+                  onViewOnMap={handleViewOnMap}
                   t={t}
                   initialSearch=""
                 />
@@ -348,6 +357,7 @@ export function App() {
               restaurants={RESTAURANTS_DATA} 
               onSelectRestaurant={setSelectedRestaurant}
               onBookDirect={handleBookDirect}
+              onViewOnMap={handleViewOnMap}
               t={t}
               initialSearch={guideSearchTerm}
             />
@@ -359,6 +369,7 @@ export function App() {
           <div className="pt-24 pb-16">
             <LidarMap 
               onSelectRestaurantById={handleSelectRestaurantById}
+              focusRestaurantId={focusRestaurantId}
               t={t}
             />
           </div>
@@ -453,10 +464,7 @@ export function App() {
         <RestaurantModal 
           restaurant={selectedRestaurant} 
           onClose={() => setSelectedRestaurant(null)}
-          onNavigateToLidar={() => {
-            setSelectedRestaurant(null);
-            setActiveTab('lidar');
-          }}
+          onViewOnMap={handleViewOnMap}
         />
       )}
 

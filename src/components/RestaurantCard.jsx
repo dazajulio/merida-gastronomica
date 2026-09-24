@@ -6,15 +6,19 @@ import {
   ShieldCheck, 
   ArrowUpRight, 
   Mountain, 
-  Sparkles
+  Sparkles,
+  Compass
 } from 'lucide-react';
 
-export function RestaurantCard({ restaurant, onSelect, onBookDirect, t }) {
+export function RestaurantCard({ restaurant, onSelect, onBookDirect, onViewOnMap, t }) {
   return (
     <div className="group relative rounded-3xl bg-white border border-slate-200 overflow-hidden hover:border-amber-400 hover:shadow-card-hover transition-all duration-300 flex flex-col justify-between">
       
       {/* Image & Badges */}
-      <div className="relative h-60 w-full overflow-hidden bg-slate-100">
+      <div 
+        onClick={() => onSelect(restaurant)}
+        className="relative h-60 w-full overflow-hidden bg-slate-100 cursor-pointer"
+      >
         <img 
           src={restaurant.coverImage} 
           alt={restaurant.name} 
@@ -53,7 +57,10 @@ export function RestaurantCard({ restaurant, onSelect, onBookDirect, t }) {
         <div>
           {/* Title and Rating */}
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-serif text-xl font-bold text-slate-900 group-hover:text-amber-700 transition-colors leading-snug">
+            <h3 
+              onClick={() => onSelect(restaurant)}
+              className="font-serif text-xl font-bold text-slate-900 group-hover:text-amber-700 transition-colors leading-snug cursor-pointer"
+            >
               {restaurant.name}
             </h3>
             <div className="flex items-center gap-1 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 shrink-0">
@@ -63,11 +70,19 @@ export function RestaurantCard({ restaurant, onSelect, onBookDirect, t }) {
             </div>
           </div>
 
-          {/* Location */}
-          <div className="flex items-center gap-1.5 text-xs text-slate-600 mt-2">
-            <MapPin className="w-3.5 h-3.5 text-terracotta shrink-0" />
+          {/* Location with clickable map jump */}
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onViewOnMap) onViewOnMap(restaurant);
+              else onSelect(restaurant);
+            }}
+            className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-amber-700 mt-2 text-left group/loc transition-colors"
+          >
+            <MapPin className="w-3.5 h-3.5 text-terracotta shrink-0 group-hover/loc:scale-110 transition-transform" />
             <span className="truncate">{restaurant.location}</span>
-          </div>
+          </button>
 
           {/* Chef Tag */}
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100 text-xs text-slate-600">
@@ -95,21 +110,38 @@ export function RestaurantCard({ restaurant, onSelect, onBookDirect, t }) {
         </div>
 
         {/* Card Footer Actions */}
-        <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-2">
+        <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col gap-2">
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onSelect(restaurant)}
+              className="flex-1 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-slate-200"
+            >
+              <span>Ver Ficha Completa</span>
+              <ArrowUpRight className="w-3.5 h-3.5 text-amber-600" />
+            </button>
+
+            <button
+              onClick={() => onBookDirect(restaurant)}
+              className="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shrink-0 shadow-sm"
+            >
+              <span>Reservar</span>
+            </button>
+          </div>
+
+          {/* Direct Button: Ver Ubicación en Mapa 3D */}
           <button
-            onClick={() => onSelect(restaurant)}
-            className="flex-1 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-slate-200"
+            type="button"
+            onClick={() => {
+              if (onViewOnMap) onViewOnMap(restaurant);
+              else onSelect(restaurant);
+            }}
+            className="w-full py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
           >
-            <span>Ver Ficha Completa</span>
-            <ArrowUpRight className="w-3.5 h-3.5 text-amber-600" />
+            <Compass className="w-3.5 h-3.5 text-amber-400" />
+            <span>📍 Ver en Mapa 3D con Radar</span>
           </button>
 
-          <button
-            onClick={() => onBookDirect(restaurant)}
-            className="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shrink-0 shadow-sm"
-          >
-            <span>Reservar</span>
-          </button>
         </div>
 
       </div>
