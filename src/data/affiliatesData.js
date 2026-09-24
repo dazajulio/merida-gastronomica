@@ -1,18 +1,18 @@
 export const AFFILIATES_DATA = {
   currentUser: {
-    id: "AF-8821",
-    restaurantName: "La Abadía Restaurant & Cava Andina",
-    ownerName: "Nelson Castro Briceño",
-    memberCategory: "Restaurante Élite / Miembro Fundador",
-    registrationDate: "15 de Marzo de 2021",
+    id: "CGM-2026-001",
+    restaurantName: "Kaffia Caffe",
+    ownerName: "Gerencia & Equipo Kaffia",
+    memberCategory: "Restaurante Élite / Miembro Oficial 2026",
+    registrationDate: "01 de Enero de 2026",
     expiryDate: "31 de Diciembre de 2026",
     status: "Activo (Solvente)",
     monthlyDues: "$35.00",
-    lastPaymentDate: "05 de Agosto de 2026",
-    certificateCode: "CGM-CERT-2026-8821-V",
+    lastPaymentDate: "01 de Septiembre de 2026",
+    certificateCode: "CGM-CERT-2026-001-KAF",
     stats: {
-      profileViewsMonth: 3420,
-      reservationsMonth: 128,
+      profileViewsMonth: 4850,
+      reservationsMonth: 184,
       chamberRating: "5.0 / 5.0 (Auditoría de Calidad Aprobada)"
     }
   },
