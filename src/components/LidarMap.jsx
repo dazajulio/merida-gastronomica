@@ -159,29 +159,75 @@ export function LidarMap({ onSelectRestaurantById, t }) {
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
-    // Create dynamic 3D-styled markers
+    // Create dynamic 3D-styled markers with distinctive radar signals for affiliates
     route.checkpoints.forEach((cp, idx) => {
       const isRestaurant = cp.type === 'restaurant';
       
       const el = document.createElement('div');
       el.className = 'custom-mapbox-marker group cursor-pointer';
       el.innerHTML = `
-        <div style="
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 34px;
-          height: 34px;
-          border-radius: 50%;
-          background: ${isRestaurant ? 'linear-gradient(135deg, #ea580c, #c2410c)' : 'linear-gradient(135deg, #0284c7, #0369a1)'};
-          color: white;
-          font-weight: 800;
-          font-size: 13px;
-          border: 3px solid #ffffff;
-          box-shadow: 0 6px 16px rgba(0,0,0,0.35);
-          transition: all 0.25s ease;
-        ">
-          ${idx + 1}
+        <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
+          ${isRestaurant ? `
+            <div style="
+              background: rgba(15, 23, 42, 0.95);
+              backdrop-filter: blur(8px);
+              color: #fbbf24;
+              font-size: 9px;
+              font-weight: 800;
+              padding: 2.5px 7px;
+              border-radius: 9999px;
+              border: 1px solid rgba(251, 191, 36, 0.6);
+              box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+              white-space: nowrap;
+              margin-bottom: 3px;
+              display: flex;
+              align-items: center;
+              gap: 3px;
+              letter-spacing: 0.4px;
+            ">
+              <span>★ AGREMIADO OFICIAL</span>
+            </div>
+          ` : ''}
+
+          <div style="position: relative; width: ${isRestaurant ? '42px' : '32px'}; height: ${isRestaurant ? '42px' : '32px'}; display: flex; align-items: center; justify-content: center;">
+            ${isRestaurant ? `
+              <div class="animate-radar-ring" style="
+                position: absolute;
+                inset: -6px;
+                border-radius: 50%;
+                background: rgba(217, 119, 6, 0.5);
+                pointer-events: none;
+              "></div>
+              <div class="animate-radar-ring" style="
+                position: absolute;
+                inset: -14px;
+                border-radius: 50%;
+                background: rgba(245, 158, 11, 0.28);
+                pointer-events: none;
+                animation-delay: 0.8s;
+              "></div>
+            ` : ''}
+
+            <div style="
+              position: relative;
+              z-index: 2;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              width: ${isRestaurant ? '38px' : '30px'};
+              height: ${isRestaurant ? '38px' : '30px'};
+              border-radius: 50%;
+              background: ${isRestaurant ? 'linear-gradient(135deg, #f59e0b, #d97706, #9a3412)' : 'linear-gradient(135deg, #0284c7, #0369a1)'};
+              color: white;
+              font-weight: 800;
+              font-size: ${isRestaurant ? '15px' : '11px'};
+              border: 3px solid #ffffff;
+              box-shadow: 0 8px 20px rgba(0,0,0,0.45), 0 0 16px ${isRestaurant ? 'rgba(245, 158, 11, 0.8)' : 'rgba(2, 132, 199, 0.3)'};
+              transition: transform 0.25s ease;
+            ">
+              ${isRestaurant ? '☕' : idx + 1}
+            </div>
+          </div>
         </div>
       `;
 
@@ -191,8 +237,8 @@ export function LidarMap({ onSelectRestaurantById, t }) {
       popupContent.style.fontFamily = 'system-ui, sans-serif';
       popupContent.innerHTML = `
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; gap: 8px;">
-          <span style="font-size: 10px; font-weight: 800; color: ${isRestaurant ? '#ea580c' : '#0284c7'}; text-transform: uppercase; letter-spacing: 0.5px;">
-            ${isRestaurant ? '⭐ Ficha Gastronómica' : '📍 Punto de Interés'}
+          <span style="font-size: 10px; font-weight: 800; color: ${isRestaurant ? '#d97706' : '#0284c7'}; text-transform: uppercase; letter-spacing: 0.5px;">
+            ${isRestaurant ? '⭐ Agremiado Cámara' : '📍 Punto de Interés'}
           </span>
           <span style="font-size: 11px; font-weight: 700; background: #f1f5f9; padding: 2px 6px; border-radius: 6px; color: #334155;">
             ${cp.alt} msnm
@@ -200,7 +246,7 @@ export function LidarMap({ onSelectRestaurantById, t }) {
         </div>
         <h4 style="font-size: 14px; font-weight: 800; color: #0f172a; margin: 0 0 4px 0; line-height: 1.3;">${cp.name}</h4>
         <p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0;">GPS: ${cp.lat.toFixed(4)}° N, ${cp.lng.toFixed(4)}° W</p>
-        ${cp.refId ? `<button id="btn-popup-${cp.refId}" style="width: 100%; background: #d97706; color: white; border: none; padding: 7px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; transition: background 0.2s;">Ver Ficha de Autor →</button>` : ''}
+        ${cp.refId ? `<button id="btn-popup-${cp.refId}" style="width: 100%; background: linear-gradient(135deg, #d97706, #b45309); color: white; border: none; padding: 8px 12px; border-radius: 10px; font-size: 11px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 10px rgba(217,119,6,0.3); transition: transform 0.2s;">Ver Ficha de Autor & Reservar →</button>` : ''}
       `;
 
       const popup = new mapboxgl.Popup({ offset: 25, closeButton: false, maxWidth: '260px' })
@@ -215,7 +261,7 @@ export function LidarMap({ onSelectRestaurantById, t }) {
         }
       });
 
-      const marker = new mapboxgl.Marker(el)
+      const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat([cp.lng, cp.lat])
         .setPopup(popup)
         .addTo(map);
