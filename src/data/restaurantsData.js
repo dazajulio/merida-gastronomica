@@ -22,37 +22,37 @@ export const RESTAURANTS_DATA = [
     isCertifiedByCamara: true,
     certificateNumber: "CGM-2026-001",
     badge: "Primer Afiliado Oficial 2026",
-    coverImage: "/images/kaffia/kaffia-fachada.png",
+    coverImage: "/images/kaffia/kaffia-fachada-hd.jpg",
     gallery: [
-      "/images/kaffia/kaffia-fachada.png",
-      "/images/kaffia/kaffia-mesa-gourmet.png",
-      "/images/kaffia/kaffia-ambiente.png",
-      "/images/kaffia/kaffia-hamburguesas-cena.png",
-      "/images/kaffia/kaffia-brindis.png"
+      "/images/kaffia/kaffia-fachada-hd.jpg",
+      "/images/kaffia/kaffia-salon-banquete.jpg",
+      "/images/kaffia/kaffia-plato-gourmet.jpg",
+      "/images/kaffia/kaffia-entrante-autor.jpg",
+      "/images/kaffia/kaffia-cena-vino.jpg"
     ],
     coordinates: { lat: 8.593291, lng: -71.146179 },
     googleMapsEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1972.5140780735067!2d-71.14617921694148!3d8.59329108042517!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e6486e23b4974f1%3A0x9f1af09750f624f6!2sKaffia%20caffe!5e0!3m2!1ses!2sve!4v1790213062220!5m2!1ses!2sve",
-    description: "Ubicado a pasos del Teleférico Mukumbarí y la emblemática Plaza Las Heroínas, Kaffia Caffe ofrece un acogedor espacio rústico-moderno con paredes de ladrillo, luces cálidas y terraza. Desde exquisitos desayunos y cafés filtrados hasta pizzas rústicas, hamburguesas gourmet y veladas especiales con vino y coctelería.",
+    description: "Ubicado a pasos del Teleférico Mukumbarí y la emblemática Plaza Las Heroínas, Kaffia Caffe conjuga un ambiente colonial contemporáneo con muros de ladrillo expuesto, arreglos florales y cálida iluminación. Ofrece desde alta cocina y banquetes privados con maridaje de vino, hasta brunch, cafés de especialidad, pizzas y hamburguesas artesanales.",
     signatureDishes: [
       {
-        name: "Hamburguesas Gourmet Kaffia de Autor",
-        description: "Carne jugosa seleccionada en pan artesanal de la casa con queso fundido, vegetales frescos y papas rústicas.",
+        name: "Medallones de Res en Salsa de Champiñones con Timbal de Aguacate",
+        description: "Tiernos cortes de res glaseados en salsa cremosa de setas, acompañados de papas salteadas al romero y torre de vegetales andinos.",
+        price: "$12.00"
+      },
+      {
+        name: "Cazuela Marinera Cremosa al Pimentón con Arroz Pilaf",
+        description: "Salteado de mariscos en salsa emulsionada de pimentón dulce, servido con timbal de arroz blanco y ensalada fresca.",
+        price: "$11.50"
+      },
+      {
+        name: "Canapé de Res Braseada en Nido de Papa y Microgreens",
+        description: "Entrante de autor servido en corteza crujiente de papa andina con reducción de tomates dulces y brotes frescos.",
+        price: "$6.50"
+      },
+      {
+        name: "Hamburguesas Gourmet Kaffia & Cenas con Maridaje",
+        description: "Carne premium en pan artesanal sellado con el logo Kaffia, quesos fundidos y papas rústicas, ideales para veladas y eventos.",
         price: "$8.50"
-      },
-      {
-        name: "Pizza Artesanal Kaffia al Horno",
-        description: "Masa fermentada lentamente con salsa pomodoro artesanal, queso mozzarella andino y selección de ingredientes especiales.",
-        price: "$10.00"
-      },
-      {
-        name: "Experiencia Espresso & Métodos Filtrados de Altura",
-        description: "Granos seleccionados 100% arábica de origen merideño preparados en Chemex, V60 y espresso de precisión.",
-        price: "$4.50"
-      },
-      {
-        name: "Waffles & Crepes Artesanales",
-        description: "Servidos con frutas frescas, chocolate criollo puro o caramelo salado y crema batida.",
-        price: "$7.00"
       }
     ],
     menuHighlights: [
