@@ -7,7 +7,7 @@ export const LIDAR_ROUTES = [
     altitudeSpan: "1.620 msnm - 4.765 msnm",
     distanceKm: "38 km",
     checkpoints: [
-      { name: "Kaffia Caffe (Las Heroínas)", alt: 1620, type: "restaurant", refId: "rest-kaffia", lat: 8.59365, lng: -71.14435 },
+      { name: "Kaffia Caffe (Las Heroínas)", alt: 1620, type: "restaurant", refId: "rest-kaffia", lat: 8.59480, lng: -71.14388 },
       { name: "Estación Barinitas (Teleférico Mukumbarí)", alt: 1577, type: "attraction", lat: 8.5925, lng: -71.1432 },
       { name: "Plaza Bolívar & Casco Histórico", alt: 1630, type: "attraction", lat: 8.5983, lng: -71.1449 },
       { name: "Tabay & Valle de San Javier", alt: 1708, type: "thermal", lat: 8.6315, lng: -71.0712 },
