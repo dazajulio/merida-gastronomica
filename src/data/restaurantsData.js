@@ -3,17 +3,17 @@ export const RESTAURANTS_DATA = [
     id: "rest-kaffia",
     name: "Kaffia Caffe",
     slug: "kaffia-caffe-merida",
-    tagline: "Más que café: Alta repostería, cafés de especialidad y brunch de autor",
+    tagline: "Más que café: Cafés de especialidad, pizzas gourmet, hamburguesas de autor y cenas",
     eje: "metropolitano",
     ejeName: "Eje Metropolitano (Sector Las Heroínas)",
-    category: "Café de Especialidad & Bistro",
+    category: "Café de Especialidad, Bistro & Pizza",
     rating: 5.0,
     reviewsCount: 145,
     priceTier: "$$",
     altitude: 1620,
     location: "Av. 8 entre Calles 24 y 25, Sector Las Heroínas, Casco Central, Mérida",
-    chef: "Equipo Barista & Repostería Kaffia",
-    chefBio: "Pioneros en la experiencia del café de especialidad merideño, fusionando perfiles de tueste local con técnicas avanzadas de extracción, panadería artesanal y coctelería de autor.",
+    chef: "Equipo Barista & Cocina Kaffia",
+    chefBio: "Fusionando la cultura del café de especialidad de altura con una propuesta gastronómica cálida de pizzas artesanales, hamburguesas de autor, repostería y cenas con maridaje en Las Heroínas.",
     phone: "+58 274 2521448",
     whatsapp: "+58 412 6666954",
     instagram: "@kaffiacaffe",
@@ -22,42 +22,43 @@ export const RESTAURANTS_DATA = [
     isCertifiedByCamara: true,
     certificateNumber: "CGM-2026-001",
     badge: "Primer Afiliado Oficial 2026",
-    coverImage: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=1200&q=80",
+    coverImage: "/images/kaffia/kaffia-fachada.png",
     gallery: [
-      "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80"
+      "/images/kaffia/kaffia-fachada.png",
+      "/images/kaffia/kaffia-mesa-gourmet.png",
+      "/images/kaffia/kaffia-ambiente.png",
+      "/images/kaffia/kaffia-hamburguesas-cena.png",
+      "/images/kaffia/kaffia-brindis.png"
     ],
     coordinates: { lat: 8.5940, lng: -71.1448 },
-    description: "Ubicado a pasos del Teleférico Mukumbarí y la emblemática Plaza Las Heroínas, Kaffia Caffe es un punto de encuentro obligado para los amantes del buen café y los sabores memorables. Ofrece un ambiente cálido, moderno y acogedor donde cada taza cuenta la historia de los cafetales andinos.",
+    description: "Ubicado a pasos del Teleférico Mukumbarí y la emblemática Plaza Las Heroínas, Kaffia Caffe ofrece un acogedor espacio rústico-moderno con paredes de ladrillo, luces cálidas y terraza. Desde exquisitos desayunos y cafés filtrados hasta pizzas rústicas, hamburguesas gourmet y veladas especiales con vino y coctelería.",
     signatureDishes: [
       {
+        name: "Hamburguesas Gourmet Kaffia de Autor",
+        description: "Carne jugosa seleccionada en pan artesanal de la casa con queso fundido, vegetales frescos y papas rústicas.",
+        price: "$8.50"
+      },
+      {
+        name: "Pizza Artesanal Kaffia al Horno",
+        description: "Masa fermentada lentamente con salsa pomodoro artesanal, queso mozzarella andino y selección de ingredientes especiales.",
+        price: "$10.00"
+      },
+      {
         name: "Experiencia Espresso & Métodos Filtrados de Altura",
-        description: "Granos seleccionados 100% arábica de origen merideño preparados en Chemex, V60, Aeropress y Prensa Francesa.",
+        description: "Granos seleccionados 100% arábica de origen merideño preparados en Chemex, V60 y espresso de precisión.",
         price: "$4.50"
       },
       {
-        name: "Waffles & Crepes Artesanales Kaffia",
-        description: "Masa crujiente servida con frutas frescas de temporada, reducción de chocolate criollo o caramelo salado y crema batida.",
+        name: "Waffles & Crepes Artesanales",
+        description: "Servidos con frutas frescas, chocolate criollo puro o caramelo salado y crema batida.",
         price: "$7.00"
-      },
-      {
-        name: "Brunch Andino Gourmet",
-        description: "Huevos pochados sobre pan brioche de masa madre, aguacate merideño, queso ahumado artesanal y tocineta crocante.",
-        price: "$9.50"
-      },
-      {
-        name: "Mocaccino Especial con Cacao Criollo",
-        description: "Combinación de espresso doble, leche vaporizada y chocolate 70% puro de origen andino.",
-        price: "$5.00"
       }
     ],
     menuHighlights: [
-      "Variedad de tortas y pastelería fina recién horneada",
-      "Sandwiches gourmet en pan artesanal y focaccia",
-      "Frappes, smoothies naturales y mocktails refrescantes",
-      "Bebidas calientes con especias de montaña"
+      "Pizzas artesanales y burgers gourmet",
+      "Variedad de tortas, pastelería y repostería fina",
+      "Cenas y veladas especiales para grupos y parejas",
+      "Cócteles, sangría de autor, copas de vino y mocktails"
     ],
     openingHours: "Lunes a Sábado: 8:00 AM - 10:00 PM | Domingo: 8:00 AM - 4:00 PM",
     features: [
