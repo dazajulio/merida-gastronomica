@@ -292,19 +292,27 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
       }
     });
 
-    // If focusing on a specific restaurant, fly straight to it and open popup
+    // If focusing on a specific restaurant, fly straight to it, open popup and center viewport on map
     if (autoFocusRefId && targetMarkerToOpen) {
       const targetCp = route.checkpoints.find(cp => cp.refId === autoFocusRefId);
       if (targetCp) {
         map.flyTo({
           center: [targetCp.lng, targetCp.lat],
-          zoom: 16,
-          pitch: 65,
+          zoom: 17,
+          pitch: 60,
           bearing: 25,
-          duration: 2500,
+          duration: 2200,
           essential: true
         });
-        targetMarkerToOpen.togglePopup();
+        if (!targetMarkerToOpen.getPopup().isOpen()) {
+          targetMarkerToOpen.togglePopup();
+        }
+        setTimeout(() => {
+          const mapBoxEl = document.getElementById('mapa-lidar-box');
+          if (mapBoxEl) {
+            mapBoxEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 200);
       }
     } else if (coordinates.length > 1) {
       const bounds = coordinates.reduce((b, coord) => b.extend(coord), new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
@@ -454,7 +462,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
       </div>
 
       {/* Main Map Box */}
-      <div className="rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
+      <div id="mapa-lidar-box" className="rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden scroll-mt-24">
         
         {/* Top Route & Style Toolbar */}
         <div className="p-4 sm:p-5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-4">

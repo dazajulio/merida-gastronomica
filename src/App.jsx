@@ -50,7 +50,12 @@ export function App() {
     setSelectedRestaurant(null);
     setFocusRestaurantId(restaurant.id);
     setActiveTab('lidar');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => {
+      const mapBoxEl = document.getElementById('mapa-lidar-box');
+      if (mapBoxEl) {
+        mapBoxEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 150);
   };
 
   const handleQuickSearch = (term) => {
