@@ -105,200 +105,205 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
 
   // Draw Route Polyline & Markers on Mapbox
   const updateRouteLayers = (map, route, autoFocusRefId = null) => {
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map) return;
 
-    const coordinates = route.checkpoints.map(cp => [cp.lng, cp.lat]);
+    // 1. Draw Route Polyline safely if style is ready
+    try {
+      if (map.isStyleLoaded()) {
+        const coordinates = route.checkpoints.map(cp => [cp.lng, cp.lat]);
+        const geojsonData = {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: coordinates
+          }
+        };
 
-    const geojsonData = {
-      type: 'Feature',
-      properties: {},
-      geometry: {
-        type: 'LineString',
-        coordinates: coordinates
+        if (map.getLayer('route-glow')) map.removeLayer('route-glow');
+        if (map.getLayer('route-line')) map.removeLayer('route-line');
+        if (map.getSource('active-route')) map.removeSource('active-route');
+
+        map.addSource('active-route', {
+          type: 'geojson',
+          data: geojsonData
+        });
+
+        map.addLayer({
+          id: 'route-glow',
+          type: 'line',
+          source: 'active-route',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: {
+            'line-color': route.color || '#d97706',
+            'line-width': 10,
+            'line-opacity': 0.35,
+            'line-blur': 4
+          }
+        });
+
+        map.addLayer({
+          id: 'route-line',
+          type: 'line',
+          source: 'active-route',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: {
+            'line-color': route.color || '#f59e0b',
+            'line-width': 4,
+            'line-dasharray': [2, 1.5]
+          }
+        });
       }
-    };
+    } catch (err) {
+      console.warn('Polyline layer notice:', err);
+    }
 
-    // Remove existing layers/source if present
-    if (map.getLayer('route-glow')) map.removeLayer('route-glow');
-    if (map.getLayer('route-line')) map.removeLayer('route-line');
-    if (map.getSource('active-route')) map.removeSource('active-route');
-
-    // Add source
-    map.addSource('active-route', {
-      type: 'geojson',
-      data: geojsonData
-    });
-
-    // Glowing halo layer
-    map.addLayer({
-      id: 'route-glow',
-      type: 'line',
-      source: 'active-route',
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
-      },
-      paint: {
-        'line-color': route.color || '#d97706',
-        'line-width': 10,
-        'line-opacity': 0.35,
-        'line-blur': 4
-      }
-    });
-
-    // Sharp main route line
-    map.addLayer({
-      id: 'route-line',
-      type: 'line',
-      source: 'active-route',
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
-      },
-      paint: {
-        'line-color': route.color || '#f59e0b',
-        'line-width': 4,
-        'line-dasharray': [2, 1.5]
-      }
-    });
-
-    // Clear old markers
+    // 2. Clear old markers
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
-    let targetMarkerToOpen = null;
-
-    // Create dynamic 3D-styled markers with distinctive radar signals and permanent floating restaurant cards
-    route.checkpoints.forEach((cp, idx) => {
-      const isRestaurant = cp.type === 'restaurant';
-      const isTarget = autoFocusRefId && cp.refId === autoFocusRefId;
-      const restData = isRestaurant ? RESTAURANTS_DATA.find(r => r.id === cp.refId) : null;
+    // 3. MANDATORY: ALWAYS RENDER ALL REGISTERED RESTAURANTS IN PERMANENT 3D CARDS
+    RESTAURANTS_DATA.forEach((restData) => {
+      const restLng = restData.coordinates.lng;
+      const restLat = restData.coordinates.lat;
 
       const el = document.createElement('div');
       el.className = 'custom-mapbox-marker group cursor-pointer';
+      el.style.zIndex = '1000';
+      el.style.position = 'relative';
 
-      if (isRestaurant && restData) {
-        // ALWAYS VISIBLE PERMANENT 3D FLOATING PREVIEW CARD
-        el.innerHTML = `
-          <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; filter: drop-shadow(0 14px 28px rgba(0,0,0,0.55)); transform: translate3d(0,0,0);">
-            
-            <!-- Permanent Preview Card -->
-            <div id="card-pin-${cp.refId}" style="
-              width: 260px;
-              background: #ffffff;
-              border-radius: 16px;
-              overflow: hidden;
-              border: 2px solid #f59e0b;
-              box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-              transition: transform 0.2s ease, box-shadow 0.2s ease;
-            ">
-              <!-- Cover Image & Badges -->
-              <div style="position: relative; width: 100%; height: 110px; background: #0f172a; overflow: hidden;">
-                <img src="${restData.coverImage}" alt="${restData.name}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
-                <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(15,23,42,0.9) 0%, rgba(15,23,42,0.2) 60%, transparent 100%);"></div>
-                
-                <span style="position: absolute; top: 7px; left: 7px; background: #d97706; color: #ffffff; font-size: 9px; font-weight: 800; padding: 2.5px 8px; border-radius: 9999px; letter-spacing: 0.4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
-                  ★ AGREMIADO OFICIAL
-                </span>
+      el.innerHTML = `
+        <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; filter: drop-shadow(0 14px 28px rgba(0,0,0,0.55)); pointer-events: auto;">
+          
+          <!-- Permanent Floating Preview Card (ALWAYS VISIBLE) -->
+          <div id="card-pin-${restData.id}" style="
+            width: 260px;
+            background: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 2.5px solid #f59e0b;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+          ">
+            <!-- Cover Image & Badges -->
+            <div style="position: relative; width: 100%; height: 110px; background: #0f172a; overflow: hidden;">
+              <img src="${restData.coverImage}" alt="${restData.name}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+              <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(15,23,42,0.9) 0%, rgba(15,23,42,0.2) 60%, transparent 100%);"></div>
+              
+              <span style="position: absolute; top: 7px; left: 7px; background: #d97706; color: #ffffff; font-size: 9px; font-weight: 800; padding: 2.5px 8px; border-radius: 9999px; letter-spacing: 0.4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
+                ★ AGREMIADO OFICIAL
+              </span>
 
-                <span style="position: absolute; top: 7px; right: 7px; background: rgba(15,23,42,0.85); color: #38bdf8; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px; border: 1px solid rgba(56,189,248,0.3);">
-                  ${cp.alt} msnm
-                </span>
+              <span style="position: absolute; top: 7px; right: 7px; background: rgba(15,23,42,0.85); color: #38bdf8; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px; border: 1px solid rgba(56,189,248,0.3);">
+                ${restData.altitude || 1620} msnm
+              </span>
 
-                <div style="position: absolute; bottom: 6px; left: 8px; right: 8px; display: flex; align-items: center; justify-content: space-between;">
-                  <span style="font-size: 11px; color: #fbbf24; font-weight: 800;">★ ${restData.rating} <span style="font-size: 10px; color: #e2e8f0; font-weight: 500;">(${restData.reviewsCount})</span></span>
-                  <span style="font-size: 10px; font-weight: 700; color: #ffffff; background: rgba(0,0,0,0.65); padding: 1px 6px; border-radius: 4px;">${restData.priceTier || '$$'}</span>
-                </div>
-              </div>
-
-              <!-- Content Body -->
-              <div style="padding: 9px 11px 11px 11px; background: #ffffff;">
-                <h4 style="font-size: 14px; font-weight: 800; color: #0f172a; margin: 0 0 2px 0; line-height: 1.25;">
-                  ${restData.name}
-                </h4>
-                <p style="font-size: 10px; color: #64748b; margin: 0 0 8px 0; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                  📍 ${restData.location}
-                </p>
-
-                <!-- Button to open full modal -->
-                <button 
-                  id="btn-direct-modal-${cp.refId}" 
-                  type="button"
-                  style="
-                    width: 100%;
-                    background: linear-gradient(135deg, #d97706, #b45309);
-                    color: #ffffff;
-                    border: none;
-                    padding: 7px 10px;
-                    border-radius: 10px;
-                    font-size: 11px;
-                    font-weight: 800;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 5px;
-                    box-shadow: 0 4px 12px rgba(217,119,6,0.35);
-                  "
-                >
-                  <span>Ver Ficha Completa & Reservar</span>
-                  <span>→</span>
-                </button>
+              <div style="position: absolute; bottom: 6px; left: 8px; right: 8px; display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 11px; color: #fbbf24; font-weight: 800;">★ ${restData.rating} <span style="font-size: 10px; color: #e2e8f0; font-weight: 500;">(${restData.reviewsCount})</span></span>
+                <span style="font-size: 10px; font-weight: 700; color: #ffffff; background: rgba(0,0,0,0.65); padding: 1px 6px; border-radius: 4px;">${restData.priceTier || '$$'}</span>
               </div>
             </div>
 
-            <!-- Pointer Arrow Stem -->
-            <div style="width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 10px solid #f59e0b; margin-top: -1px;"></div>
+            <!-- Content Body -->
+            <div style="padding: 9px 11px 11px 11px; background: #ffffff;">
+              <h4 style="font-size: 14px; font-weight: 800; color: #0f172a; margin: 0 0 2px 0; line-height: 1.25;">
+                ${restData.name}
+              </h4>
+              <p style="font-size: 10px; color: #64748b; margin: 0 0 8px 0; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                📍 ${restData.location}
+              </p>
 
-            <!-- Radar Pin Center -->
-            <div style="position: relative; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; margin-top: 2px;">
-              <div class="animate-radar-ring" style="
-                position: absolute;
-                inset: -6px;
-                border-radius: 50%;
-                background: rgba(217, 119, 6, 0.55);
-                pointer-events: none;
-              "></div>
-              <div class="animate-radar-ring" style="
-                position: absolute;
-                inset: -14px;
-                border-radius: 50%;
-                background: rgba(245, 158, 11, 0.3);
-                pointer-events: none;
-                animation-delay: 0.8s;
-              "></div>
-
-              <div style="
-                position: relative;
-                z-index: 2;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 30px;
-                height: 30px;
-                border-radius: 50%;
-                background: linear-gradient(135deg, #f59e0b, #d97706, #9a3412);
-                color: white;
-                font-weight: 800;
-                font-size: 13px;
-                border: 2.5px solid #ffffff;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-              ">
-                ☕
-              </div>
+              <!-- Button to open full modal -->
+              <button 
+                id="btn-direct-modal-${restData.id}" 
+                type="button"
+                style="
+                  width: 100%;
+                  background: linear-gradient(135deg, #d97706, #b45309);
+                  color: #ffffff;
+                  border: none;
+                  padding: 8px 10px;
+                  border-radius: 10px;
+                  font-size: 11px;
+                  font-weight: 800;
+                  cursor: pointer;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  gap: 5px;
+                  box-shadow: 0 4px 12px rgba(217,119,6,0.35);
+                "
+              >
+                <span>Ver Ficha Completa & Reservar</span>
+                <span>→</span>
+              </button>
             </div>
-
           </div>
-        `;
 
-        el.addEventListener('click', (e) => {
-          setSelectedCheckpoint(cp);
-          if (cp.refId && onSelectRestaurantById) {
-            onSelectRestaurantById(cp.refId);
-          }
-        });
-      } else {
-        // Point of Interest / Attraction Marker
+          <!-- Pointer Arrow Stem -->
+          <div style="width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 10px solid #f59e0b; margin-top: -1px;"></div>
+
+          <!-- Radar Pin Center -->
+          <div style="position: relative; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; margin-top: 2px;">
+            <div class="animate-radar-ring" style="
+              position: absolute;
+              inset: -6px;
+              border-radius: 50%;
+              background: rgba(217, 119, 6, 0.55);
+              pointer-events: none;
+            "></div>
+            <div class="animate-radar-ring" style="
+              position: absolute;
+              inset: -14px;
+              border-radius: 50%;
+              background: rgba(245, 158, 11, 0.3);
+              pointer-events: none;
+              animation-delay: 0.8s;
+            "></div>
+
+            <div style="
+              position: relative;
+              z-index: 2;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              width: 32px;
+              height: 32px;
+              border-radius: 50%;
+              background: linear-gradient(135deg, #f59e0b, #d97706, #9a3412);
+              color: white;
+              font-weight: 800;
+              font-size: 14px;
+              border: 2.5px solid #ffffff;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            ">
+              ☕
+            </div>
+          </div>
+
+        </div>
+      `;
+
+      el.addEventListener('click', (e) => {
+        if (onSelectRestaurantById) {
+          onSelectRestaurantById(restData.id);
+        }
+      });
+
+      const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([restLng, restLat])
+        .addTo(map);
+
+      markersRef.current.push(marker);
+    });
+
+    // 4. RENDER TOURIST ATTRACTION CHECKPOINTS (Points of interest along current route)
+    route.checkpoints
+      .filter(cp => cp.type !== 'restaurant')
+      .forEach((cp, idx) => {
+        const el = document.createElement('div');
+        el.className = 'custom-mapbox-attraction-marker cursor-pointer';
+        el.style.zIndex = '50';
         el.innerHTML = `
           <div style="position: relative; display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.4));">
             <div style="
@@ -326,28 +331,27 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
         el.addEventListener('click', () => {
           setSelectedCheckpoint(cp);
         });
-      }
 
-      const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-        .setLngLat([cp.lng, cp.lat])
-        .addTo(map);
+        const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+          .setLngLat([cp.lng, cp.lat])
+          .addTo(map);
 
-      markersRef.current.push(marker);
+        markersRef.current.push(marker);
+      });
 
-      if (isTarget) {
-        targetMarkerToOpen = marker;
-      }
-    });
-
-    // If focusing on a specific restaurant, fly straight to it and center viewport on map
+    // 5. CAMERA POSITIONING
     if (autoFocusRefId) {
-      const targetCp = route.checkpoints.find(cp => cp.refId === autoFocusRefId);
+      const targetRest = RESTAURANTS_DATA.find(r => r.id === autoFocusRefId);
+      const targetCp = targetRest 
+        ? { lng: targetRest.coordinates.lng, lat: targetRest.coordinates.lat }
+        : route.checkpoints.find(cp => cp.refId === autoFocusRefId);
+
       if (targetCp) {
         map.flyTo({
           center: [targetCp.lng, targetCp.lat],
-          zoom: 16.5,
+          zoom: 16.8,
           pitch: 58,
-          bearing: 20,
+          bearing: -15,
           duration: 2000,
           essential: true
         });
@@ -359,25 +363,16 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
         }, 200);
       }
     } else {
-      // Find first restaurant in route to give immediate prominent focus to affiliate cards
-      const firstRestaurantCp = route.checkpoints.find(cp => cp.type === 'restaurant');
-      if (firstRestaurantCp) {
+      // Default: Center on the primary registered restaurant (Kaffia)
+      const primaryRest = RESTAURANTS_DATA[0];
+      if (primaryRest) {
         map.flyTo({
-          center: [firstRestaurantCp.lng, firstRestaurantCp.lat],
-          zoom: 15.8,
+          center: [primaryRest.coordinates.lng, primaryRest.coordinates.lat],
+          zoom: 16.2,
           pitch: 55,
           bearing: -15,
           duration: 1800,
           essential: true
-        });
-      } else if (coordinates.length > 1) {
-        const bounds = coordinates.reduce((b, coord) => b.extend(coord), new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
-        map.fitBounds(bounds, {
-          padding: { top: 70, bottom: 70, left: 60, right: 60 },
-          pitch: is3DMode ? 55 : 0,
-          bearing: is3DMode ? -20 : 0,
-          duration: 2000,
-          maxZoom: 13
         });
       }
     }
@@ -484,19 +479,22 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
     updateRouteLayers(mapRef.current, currentRoute);
   }, [activeRouteId, isMapLoaded]);
 
-  // Fly to selected checkpoint from sidebar
+  // Fly to selected checkpoint from sidebar & open modal if it is a restaurant
   const handleCheckpointClick = (cp) => {
     setSelectedCheckpoint(cp);
     if (mapRef.current) {
       mapRef.current.flyTo({
         center: [cp.lng, cp.lat],
-        zoom: cp.type === 'restaurant' ? 17 : 15.5,
-        pitch: 60,
-        bearing: 25,
+        zoom: cp.type === 'restaurant' ? 17.2 : 15.5,
+        pitch: 58,
+        bearing: -15,
         speed: 1.2,
         curve: 1.4,
         essential: true
       });
+    }
+    if (cp.refId && onSelectRestaurantById) {
+      onSelectRestaurantById(cp.refId);
     }
   };
 
