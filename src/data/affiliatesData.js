@@ -18,25 +18,46 @@ export const AFFILIATES_DATA = {
   },
   boardMembers: [
     {
-      role: "Presidente de la Cámara",
-      name: "Lic. Rodolfo Carrasquero",
-      email: "presidencia@camaragastronomicamerida.org",
-      phone: "+58 274 252 8810",
-      bio: "Empresario gastronómico y sommelier con 25 años impulsando la proyección turística de Mérida."
+      role: "Presidente",
+      name: "Julio Alberto Daza Celis",
+      email: "presidencia@meridagastronomica.com",
+      phone: "+58 414 8817137",
+      bio: "Dirección institucional, alianzas estratégicas y proyección global de la marca Mérida Gastronómica."
     },
     {
-      role: "Vicepresidenta de Calidad & Certificaciones",
-      name: "Chef María Eugenia Febres-Cordero",
-      email: "certificaciones@camaragastronomicamerida.org",
-      phone: "+58 274 252 8811",
-      bio: "Investigadora culinaria y docente de gastronomía andina."
+      role: "Vicepresidente 01",
+      name: "Maryuri Carolina Carmona Campos",
+      email: "vicepresidencia1@meridagastronomica.com",
+      phone: "+58 412 6666954",
+      bio: "Gestión de calidad, coordinación institucional y normativas del sector gastronómico regional."
     },
     {
-      role: "Director de Relaciones Institucionales & Turismo",
-      name: "Arq. Manuel D'Alessandro",
-      email: "turismo@camaragastronomicamerida.org",
-      phone: "+58 274 252 8812",
-      bio: "Especialista en desarrollo de destinos turísticos y rutas patrimoniales."
+      role: "Vicepresidente 02",
+      name: "María Laura Molina Barillas",
+      email: "vicepresidencia2@meridagastronomica.com",
+      phone: "+58 274 2521448",
+      bio: "Relaciones públicas, desarrollo de eventos patrimoniales y enlace con prestadores de servicios turísticos."
+    },
+    {
+      role: "Director Operativo",
+      name: "Marisabel Prieto Pérez",
+      email: "operaciones@meridagastronomica.com",
+      phone: "+58 274 2528812",
+      bio: "Supervisión de operaciones, rutas gastronómicas, auditorías de campo y certificación de afiliados."
+    },
+    {
+      role: "Tesorero",
+      name: "Edixon Xavier Reyes Dávila",
+      email: "tesoreria@meridagastronomica.com",
+      phone: "+58 274 2528813",
+      bio: "Administración financiera, conciliación de membresías gremiales, convenios y compras conjuntas."
+    },
+    {
+      role: "Director Administrativo",
+      name: "Mary Giovanna Vera",
+      email: "administracion@meridagastronomica.com",
+      phone: "+58 274 2528814",
+      bio: "Secretaría general, control de expedientes de agremiados, asesoría legal y atención a los miembros."
     }
   ],
   internalCourses: [

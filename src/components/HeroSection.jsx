@@ -54,21 +54,13 @@ export function HeroSection({ t, setActiveTab, onQuickSearch }) {
         <div className="absolute inset-0 bg-black/10" />
       </div>
 
-      {/* Floating Location Tag (Top Right) */}
-      <div className="absolute top-24 right-4 sm:right-8 z-20 hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/85 backdrop-blur-md border border-white/60 text-slate-900 shadow-xl">
-        <MapPin className="w-3.5 h-3.5 text-amber-600" />
-        <span className="font-sans font-bold text-xs tracking-wide">
-          Sierra Nevada & Tradición de Altura
-        </span>
-      </div>
-
       {/* Main Hero Editorial Content */}
       <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 w-full text-center text-white">
         
-        {/* Prestige Institutional Badge */}
-        <div className="inline-flex items-center gap-2.5 px-5 py-1.5 rounded-full bg-white/90 border border-amber-400 backdrop-blur-md mb-6 shadow-xl animate-fadeIn">
-          <ShieldCheck className="w-4 h-4 text-amber-600" />
-          <span className="text-[11px] sm:text-xs font-extrabold tracking-[0.2em] uppercase text-amber-900 font-sans">
+        {/* Prestige Institutional Badge (Translucent & Soft) */}
+        <div className="inline-flex items-center gap-2.5 px-5 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/25 mb-6 shadow-xl animate-fadeIn">
+          <ShieldCheck className="w-4 h-4 text-amber-400" />
+          <span className="text-[10px] sm:text-xs font-extrabold tracking-[0.2em] uppercase text-white font-sans">
             CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA
           </span>
         </div>
@@ -86,11 +78,11 @@ export function HeroSection({ t, setActiveTab, onQuickSearch }) {
           Mérida se posiciona como marca gastronómica global. Descubra la herencia culinaria de los Andes, el café de especialidad y el cacao fino de aroma frente a las cumbres nevadas.
         </p>
 
-        {/* Search Bar */}
+        {/* Translucent Search Bar */}
         <div className="mt-8 max-w-2xl mx-auto">
           <form 
             onSubmit={handleSearchSubmit}
-            className="relative flex items-center bg-white/90 backdrop-blur-xl border-2 border-amber-400 rounded-2xl p-1.5 shadow-2xl focus-within:border-amber-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-amber-400/30 transition-all text-slate-900"
+            className="relative flex items-center bg-white/80 backdrop-blur-md border border-white/50 rounded-2xl p-1.5 shadow-xl focus-within:border-amber-400 focus-within:bg-white focus-within:ring-4 focus-within:ring-amber-400/20 transition-all text-slate-900"
           >
             <div className="pl-3 pr-2 text-amber-600">
               <Search className="w-5 h-5" />
@@ -110,25 +102,6 @@ export function HeroSection({ t, setActiveTab, onQuickSearch }) {
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </form>
-        </div>
-
-        {/* Action Buttons (White with subtle transparency) */}
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
-          <button
-            onClick={() => setActiveTab('guide')}
-            className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-white/90 hover:bg-white text-slate-900 font-sans font-bold text-sm hover:shadow-2xl transition-all duration-300 flex items-center justify-center gap-2.5 shadow-xl hover:scale-105 border border-white/60 backdrop-blur-md"
-          >
-            <UtensilsCrossed className="w-4 h-4 text-amber-600" />
-            <span>Guía de Restaurantes & Menús</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('lidar')}
-            className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-white/80 hover:bg-white text-slate-900 border border-white/60 font-bold text-sm tracking-wide transition-all duration-300 flex items-center justify-center gap-2.5 shadow-xl backdrop-blur-md hover:scale-105"
-          >
-            <Compass className="w-4 h-4 text-sky-600" />
-            <span>Ver Rutas en el Mapa</span>
-          </button>
         </div>
 
         {/* Stats Grid */}

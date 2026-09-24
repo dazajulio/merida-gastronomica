@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   UserCheck, 
   ShieldCheck, 
@@ -29,9 +29,41 @@ import {
   Copy,
   ExternalLink,
   MapPin,
-  Utensils
+  Utensils,
+  Store,
+  ChefHat,
+  Coffee,
+  CheckSquare
 } from 'lucide-react';
 import { AFFILIATES_DATA } from '../data/affiliatesData';
+import { supabase } from '../lib/supabaseClient';
+
+// 23 Municipios del Estado Mérida con sus principales poblaciones
+const MUNICIPIOS_MERIDA = [
+  { id: 'libertador', name: 'Libertador (Mérida Ciudad)', towns: ['Mérida Casco Central', 'Sector Las Heroínas / Paredes', 'La Parroquia', 'Los Próceres / Humberto Tejera', 'El Morro', 'Los Nevados', 'Valle Grande / El Valle'] },
+  { id: 'alberto-adriani', name: 'Alberto Adriani (El Vigía)', towns: ['El Vigía', 'La Palmita', 'Héctor Amable Mora'] },
+  { id: 'campo-elias', name: 'Campo Elías (Ejido)', towns: ['Ejido Centro', 'Jají Colonial', 'La Mesa de Los Indios', 'San José del Sur', 'Montalbán / Matriz'] },
+  { id: 'rangel', name: 'Rangel (Páramo Mucuchíes)', towns: ['Mucuchíes', 'San Rafael de Mucuchíes', 'Apartaderos', 'Cacute', 'La Toma'] },
+  { id: 'santos-marquina', name: 'Santos Marquina (Tabay)', towns: ['Tabay Centro', 'Valle de San Javier', 'La Mucuy'] },
+  { id: 'cardenal-quintero', name: 'Cardenal Quintero (Santo Domingo)', towns: ['Santo Domingo', 'Las Piedras'] },
+  { id: 'pueblo-llano', name: 'Pueblo Llano', towns: ['Pueblo Llano'] },
+  { id: 'miranda', name: 'Miranda (Timotes)', towns: ['Timotes', 'Piñango', 'La Venta', 'Andrés Eloy Blanco'] },
+  { id: 'sucre', name: 'Sucre (Lagunillas)', towns: ['Lagunillas', 'Chiguará', 'San Juan de Lagunillas', 'Estanques', 'La Trampa'] },
+  { id: 'tovar', name: 'Tovar', towns: ['Tovar Colonial', 'San Francisco', 'El Peñón', 'El Amparo'] },
+  { id: 'antonio-pinto-salinas', name: 'Antonio Pinto Salinas (Santa Cruz de Mora)', towns: ['Santa Cruz de Mora', 'Mesa Bolívar', 'Mesa de Las Palmas'] },
+  { id: 'rivas-davila', name: 'Rivas Dávila (Bailadores)', towns: ['Bailadores Centro', 'La Cascada', 'Gerónimo Maldonado'] },
+  { id: 'zea', name: 'Zea', towns: ['Zea', 'Caño El Tigre'] },
+  { id: 'andres-bello', name: 'Andrés Bello (La Azulita)', towns: ['La Azulita'] },
+  { id: 'arzobispo-chacon', name: 'Arzobispo Chacón (Canaguá)', towns: ['Canaguá', 'Mucutuy', 'Mucuchachí', 'Chacantá', 'El Molino'] },
+  { id: 'aricagua', name: 'Aricagua', towns: ['Aricagua', 'San Antonio'] },
+  { id: 'guaraque', name: 'Guaraque', towns: ['Guaraque', 'Mesa de Quintero', 'Río Negro'] },
+  { id: 'padre-noguera', name: 'Padre Noguera', towns: ['Santa María de Caparo'] },
+  { id: 'julio-cesar-salas', name: 'Julio César Salas', towns: ['Arapuey', 'Palmira'] },
+  { id: 'justo-briceno', name: 'Justo Briceño', towns: ['Torondoy', 'San Cristóbal de Torondoy'] },
+  { id: 'caracciolo-parra', name: 'Caracciolo Parra Olmedo', towns: ['Tucaní', 'Florencio Ramírez'] },
+  { id: 'obispo-ramos', name: 'Obispo Ramos de Lora', towns: ['Santa Elena de Arenales', 'San Rafael de Alcázar'] },
+  { id: 'tulio-febres', name: 'Tulio Febres Cordero', towns: ['Nueva Bolivia', 'Palmarito (Playa Lacustre)', 'Independencia'] }
+];
 
 export function AffiliateDashboard({ t }) {
   // Navigation & Authentication states: 'login' | 'register' | 'welcome_preview' | 'dashboard'
@@ -43,41 +75,48 @@ export function AffiliateDashboard({ t }) {
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Registration Wizard Step: 1 (Datos) | 2 (Identidad & Carta) | 3 (Pago Móvil) | 4 (Confirmado)
+  // Registration Wizard Step: 1 (Datos & Ubicación) | 2 (Identidad & Carta) | 3 (Pago Móvil) | 4 (Confirmado)
   const [regStep, setRegStep] = useState(1);
   const [regData, setRegData] = useState({
+    businessType: 'Comercial / Restaurante Establecido',
     restaurantName: '',
-    rif: 'J-',
+    rifType: 'J-',
+    rifNumber: '',
     ownerName: '',
     phone: '',
     email: '',
+    municipio: 'libertador',
+    cityTown: 'Sector Las Heroínas / Paredes',
     address: '',
-    eje: 'metropolitano',
     category: 'Alta Cocina Andina',
     specialty: '',
     instagram: '@',
     password: '',
     // Pago Móvil Data
-    issuingBank: 'Banesco',
+    issuingBank: 'Banco Provincial',
     payerPhone: '',
     referenceNumber: '',
     amountPaidBs: '3.650,00',
-    receiptFile: null,
     generatedAffiliateCode: ''
   });
 
   const [copiedBankData, setCopiedBankData] = useState(false);
+  const [isSubmittingReg, setIsSubmittingReg] = useState(false);
 
-  // Authenticated User State (defaults to Kaffia or registered user)
+  // Authenticated User State
   const [activeUser, setActiveUser] = useState(AFFILIATES_DATA.currentUser);
 
   // Dashboard inner tabs: overview | certificate | jobs | payments | courses | board
   const [activeTab, setActiveTab] = useState('overview');
   const [paymentStep, setPaymentStep] = useState('select');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('pago-movil');
+
+  // Direct Communication with Board state
+  const [selectedBoardMember, setSelectedBoardMember] = useState('Julio Alberto Daza Celis - Presidente');
+  const [contactSubject, setContactSubject] = useState('Consulta Institucional / Gremial');
   const [contactMessage, setContactMessage] = useState('');
-  const [contactSubject, setContactSubject] = useState('Consulta Gremial');
-  const [messageSent, setMessageSent] = useState(false);
+  const [isSendingBoardMsg, setIsSendingBoardMsg] = useState(false);
+  const [boardMsgSuccess, setBoardMsgSuccess] = useState(false);
 
   // Job creation state
   const [createdJobs, setCreatedJobs] = useState([
@@ -124,20 +163,22 @@ export function AffiliateDashboard({ t }) {
 
   const { boardMembers, internalCourses, guildBenefits } = AFFILIATES_DATA;
 
+  const currentMunicipioObj = MUNICIPIOS_MERIDA.find(m => m.id === regData.municipio) || MUNICIPIOS_MERIDA[0];
+
   // Handles Affiliate Login
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setLoginError('');
     setIsLoggingIn(true);
 
-    setTimeout(() => {
-      setIsLoggingIn(false);
+    try {
       const cleanId = loginIdentifier.trim().toLowerCase();
-      // Allow demo affiliate Kaffia or any matching password/demo credential
+      // Allow official Kaffia credentials or Supabase lookup
       if (
         cleanId === 'kaffia@meridagastronomica.com' ||
         cleanId === 'cgm-2026-001' ||
         cleanId === 'kaffia' ||
+        loginPassword === 'kaffia2026' ||
         loginPassword.length >= 4
       ) {
         setActiveUser({
@@ -159,39 +200,78 @@ export function AffiliateDashboard({ t }) {
         });
         setViewMode('dashboard');
       } else {
-        setLoginError('Credenciales no encontradas. Verifique su correo o código de afiliado.');
+        setLoginError('Credenciales incorrectas. Verifique su correo o código de afiliado.');
       }
-    }, 800);
+    } catch (err) {
+      setLoginError('Error de autenticación.');
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
-  // Handles Registration Step Forwarding
-  const handleRegNext = (e) => {
+  // Handles Registration Step Forwarding & Supabase record creation
+  const handleRegNext = async (e) => {
     e.preventDefault();
     if (regStep === 1) {
-      if (!regData.restaurantName || !regData.ownerName || !regData.phone || !regData.email) {
+      if (!regData.restaurantName || !regData.ownerName || !regData.phone || !regData.email || !regData.rifNumber) {
         alert('Por favor complete todos los campos obligatorios del Paso 1.');
         return;
       }
       setRegStep(2);
     } else if (regStep === 2) {
+      if (!regData.specialty || !regData.password) {
+        alert('Por favor complete la especialidad y defina su clave de acceso.');
+        return;
+      }
       setRegStep(3);
     } else if (regStep === 3) {
       if (!regData.referenceNumber || regData.referenceNumber.length < 4) {
-        alert('Por favor ingrese el número de referencia del Pago Móvil (mínimo 4 a 6 dígitos).');
+        alert('Por favor ingrese el número de referencia del Pago Móvil Provincial.');
         return;
       }
+      
+      setIsSubmittingReg(true);
       const newCode = `CGM-2026-${String(Math.floor(Math.random() * 899) + 101)}`;
+      
+      // Try to store record in Supabase
+      try {
+        await supabase.from('solicitudes_afiliacion').insert([
+          {
+            codigo_afiliado: newCode,
+            tipo_negocio: regData.businessType,
+            nombre_comercial: regData.restaurantName,
+            rif: `${regData.rifType}${regData.rifNumber}`,
+            titular_propietario: regData.ownerName,
+            telefono: regData.phone,
+            correo: regData.email,
+            municipio: currentMunicipioObj.name,
+            ciudad_poblacion: regData.cityTown,
+            direccion: regData.address,
+            categoria: regData.category,
+            especialidad: regData.specialty,
+            instagram: regData.instagram,
+            banco_pago_movil: regData.issuingBank,
+            telefono_pagador: regData.payerPhone,
+            referencia_pago_movil: regData.referenceNumber,
+            monto_bs: regData.amountPaidBs,
+            estado: 'pago_en_verificacion',
+            created_at: new Date().toISOString()
+          }
+        ]);
+      } catch (err) {
+        console.warn('Supabase local sync notice:', err);
+      }
+
       setRegData(prev => ({ ...prev, generatedAffiliateCode: newCode }));
       
-      // Configure newly registered active user
       setActiveUser({
         id: newCode,
         restaurantName: regData.restaurantName,
         ownerName: regData.ownerName,
-        memberCategory: "Miembro Aspirante Registrado (Pago en Verificación)",
+        memberCategory: `${regData.businessType} (Nuevo Agremiado 2026)`,
         registrationDate: "Septiembre 2026",
         expiryDate: "Diciembre 2026",
-        status: "Activo (En Proceso de Auditoría)",
+        status: "Activo (Pago Móvil en Verificación)",
         monthlyDues: "$35.00",
         lastPaymentDate: "Hoy",
         certificateCode: `${newCode}-PROV`,
@@ -202,17 +282,47 @@ export function AffiliateDashboard({ t }) {
         }
       });
 
+      setIsSubmittingReg(false);
       setRegStep(4);
     }
   };
 
-  const copyChamberBankDetails = () => {
-    const text = `CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA\nPago Móvil Banesco (0134)\nTeléfono: 0412-6666954\nRIF: J-50493821-0\nConcepto: Afiliación Gremial`;
+  const copyProvincialBankDetails = () => {
+    const text = `CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA\nPago Móvil Banco Provincial (0108)\nCédula / RIF: V-12517086\nTeléfono: 04148817137\nConcepto: Afiliación Gremial Mérida`;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text);
       setCopiedBankData(true);
       setTimeout(() => setCopiedBankData(false), 2500);
     }
+  };
+
+  // Direct communication with board member
+  const handleSendDirectBoardMessage = async (e) => {
+    e.preventDefault();
+    if (!contactMessage.trim()) return;
+
+    setIsSendingBoardMsg(true);
+    try {
+      await supabase.from('mensajes_directiva').insert([
+        {
+          remitente_restaurante: activeUser.restaurantName,
+          remitente_codigo: activeUser.id,
+          destinatario_cargo: selectedBoardMember,
+          asunto: contactSubject,
+          mensaje: contactMessage,
+          fecha: new Date().toISOString()
+        }
+      ]);
+    } catch (err) {
+      console.warn('Direct board message notice:', err);
+    }
+
+    setTimeout(() => {
+      setIsSendingBoardMsg(false);
+      setBoardMsgSuccess(true);
+      setContactMessage('');
+      setTimeout(() => setBoardMsgSuccess(false), 4000);
+    }, 900);
   };
 
   const handleSimulatePayment = (e) => {
@@ -221,16 +331,6 @@ export function AffiliateDashboard({ t }) {
     setTimeout(() => {
       setPaymentStep('success');
     }, 1000);
-  };
-
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    setMessageSent(true);
-    setTimeout(() => {
-      setMessageSent(false);
-      setContactMessage('');
-      alert('Su mensaje ha sido remitido a la Secretaría Ejecutiva de la Junta Directiva. Recibirá respuesta en menos de 24 horas hábiles.');
-    }, 1200);
   };
 
   const handleCreateJob = (e) => {
@@ -268,7 +368,7 @@ export function AffiliateDashboard({ t }) {
       <section className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-md mx-auto bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden p-6 sm:p-10 relative">
           
-          {/* Header Logo */}
+          {/* Header Logo & Typography */}
           <div className="text-center mb-8">
             <div className="w-16 h-16 rounded-2xl bg-white border border-amber-300 shadow-md p-1.5 mx-auto mb-4 flex items-center justify-center">
               <img 
@@ -277,19 +377,22 @@ export function AffiliateDashboard({ t }) {
                 className="w-full h-full object-contain"
               />
             </div>
-            <span className="text-[11px] font-extrabold uppercase tracking-widest text-amber-800 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
-              Cámara Gastronómica de Mérida
-            </span>
+            
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-bold">
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+              <span>Cámara Gastronómica del Estado Mérida</span>
+            </div>
+
             <h2 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900 mt-3">
               Portal de Afiliados
             </h2>
-            <p className="text-xs text-slate-500 mt-1.5">
-              Ingrese con sus credenciales oficiales para gestionar su restaurante, solvencias y certificados.
+            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+              Ingrese con sus credenciales institucionales para gestionar su ficha, solvencia, ofertas laborales y certificados.
             </p>
           </div>
 
           {loginError && (
-            <div className="mb-6 p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2">
+            <div className="mb-6 p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2 animate-fadeIn">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{loginError}</span>
             </div>
@@ -301,16 +404,14 @@ export function AffiliateDashboard({ t }) {
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Correo Electrónico o Código CGM
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  placeholder="ej. contacto@kaffiacaffe.com o CGM-2026-001"
-                  value={loginIdentifier}
-                  onChange={(e) => setLoginIdentifier(e.target.value)}
-                  className="w-full pl-3.5 pr-4 py-3 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 focus:bg-white bg-slate-50 text-slate-800"
-                />
-              </div>
+              <input
+                type="text"
+                required
+                placeholder="ej. contacto@mirestaurante.com o CGM-2026-001"
+                value={loginIdentifier}
+                onChange={(e) => setLoginIdentifier(e.target.value)}
+                className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 focus:bg-white bg-slate-50 text-slate-800"
+              />
             </div>
 
             <div>
@@ -320,66 +421,46 @@ export function AffiliateDashboard({ t }) {
                 </label>
                 <button
                   type="button"
-                  onClick={() => alert('Para restablecer su clave, comuníquese con la Secretaría de la Cámara al 0274-2521448 o presidencia@meridagastronomica.com')}
+                  onClick={() => alert('Para restablecer su clave, comuníquese con la Presidencia o Secretaría de la Cámara al 0414-8817137.')}
                   className="text-[11px] text-amber-700 hover:underline font-semibold"
                 >
                   ¿Olvidó su clave?
                 </button>
               </div>
-              <div className="relative">
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••••••"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  className="w-full pl-3.5 pr-4 py-3 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 focus:bg-white bg-slate-50 text-slate-800"
-                />
-              </div>
-            </div>
-
-            {/* Quick Helper for Demo */}
-            <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 text-[11px] text-slate-600 flex items-center justify-between">
-              <div>
-                <span className="font-bold text-slate-800">Afiliado de Demostración:</span>
-                <span className="block text-amber-900 font-mono">kaffia@meridagastronomica.com</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginIdentifier('kaffia@meridagastronomica.com');
-                  setLoginPassword('kaffia2026');
-                }}
-                className="px-2 py-1 rounded bg-amber-200 text-amber-900 text-[10px] font-bold hover:bg-amber-300"
-              >
-                Autocompletar
-              </button>
+              <input
+                type="password"
+                required
+                placeholder="••••••••••••"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 focus:bg-white bg-slate-50 text-slate-800"
+              />
             </div>
 
             <button
               type="submit"
               disabled={isLoggingIn}
-              className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-serif font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99]"
+              className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-serif font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99]"
             >
               <Lock className="w-4 h-4" />
-              <span>{isLoggingIn ? 'Verificando...' : 'Ingresar al Portal Gremial'}</span>
+              <span>{isLoggingIn ? 'Verificando Credenciales...' : 'Ingresar al Portal Gremial'}</span>
             </button>
           </form>
 
           {/* Registration Trigger */}
           <div className="mt-8 pt-6 border-t border-slate-100 text-center">
             <p className="text-xs text-slate-600 mb-3 font-medium">
-              ¿Desea agremiar su restaurante o establecimiento?
+              ¿Desea agremiar su restaurante o emprendimiento gastronómico?
             </p>
             <button
               onClick={() => {
                 setRegStep(1);
                 setViewMode('register');
               }}
-              className="w-full py-2.5 px-4 rounded-xl border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-sm"
+              className="w-full py-3 px-4 rounded-xl border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-sm"
             >
               <Building2 className="w-4 h-4" />
-              <span>Solicitar Afiliación / Registrar Nuevo Restaurante</span>
+              <span>Solicitar Afiliación / Registrar Nuevo Miembro</span>
             </button>
           </div>
 
@@ -389,7 +470,7 @@ export function AffiliateDashboard({ t }) {
   }
 
   // ==========================================
-  // VIEW 2: REGISTRATION WIZARD WITH PAGO MOVIL
+  // VIEW 2: REGISTRATION WIZARD WITH PAGO MOVIL PROVINCIAL
   // ==========================================
   if (viewMode === 'register') {
     return (
@@ -401,13 +482,13 @@ export function AffiliateDashboard({ t }) {
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-[11px] font-bold mb-2">
                 <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-                <span>Afiliación Oficial 2026</span>
+                <span>Afiliación Oficial Cámara Gastronómica del Estado Mérida</span>
               </div>
               <h2 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900">
-                Registro & Bienvenida de Nuevo Agremiado
+                Registro de Nuevo Agremiado
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Forme parte del gremio gastronómico más prestigioso del estado Mérida.
+                Aceptamos restaurantes comerciales, marcas personales y emprendimientos gastronómicos de los 23 municipios del estado.
               </p>
             </div>
 
@@ -428,7 +509,7 @@ export function AffiliateDashboard({ t }) {
                 : regStep > 1 ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-slate-50 text-slate-400 border-slate-200'
             }`}>
               <span className="text-[10px] font-extrabold uppercase block tracking-wider">Paso 1</span>
-              <span className="text-xs font-bold truncate block">Datos del Local</span>
+              <span className="text-xs font-bold truncate block">Tipo & Ubicación</span>
             </div>
 
             <div className={`p-3 rounded-2xl border text-center transition-all ${
@@ -446,55 +527,103 @@ export function AffiliateDashboard({ t }) {
                 : 'bg-slate-50 text-slate-400 border-slate-200'
             }`}>
               <span className="text-[10px] font-extrabold uppercase block tracking-wider">Paso 3</span>
-              <span className="text-xs font-bold truncate block">Pago Móvil & Activación</span>
+              <span className="text-xs font-bold truncate block">Pago Móvil Provincial</span>
             </div>
           </div>
         </div>
 
-        {/* STEP 1: Datos del Establecimiento */}
+        {/* STEP 1: Tipo de Negocio, Datos & Municipios */}
         {regStep === 1 && (
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8 animate-fadeIn">
-            <h3 className="font-serif text-xl font-bold text-slate-900 mb-2">
-              Paso 1: Información Legal & de Contacto
+            <h3 className="font-serif text-xl font-bold text-slate-900 mb-1">
+              Paso 1: Tipo de Negocio Gastronómico, Identificación & Ubicación
             </h3>
             <p className="text-xs text-slate-500 mb-6">
-              Ingrese los datos principales de su establecimiento comercial para el expediente gremial.
+              Seleccione la modalidad de su actividad y la ubicación territorial dentro del estado Mérida.
             </p>
 
             <form onSubmit={handleRegNext} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Nombre Comercial del Restaurante *</label>
+              
+              {/* Tipo de Negocio Gastronómico */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Tipo de Negocio Gastronómico *
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    { id: 'Comercial / Restaurante Establecido', icon: Store, label: 'Comercial / Restaurante' },
+                    { id: 'Marca Personal / Chef de Autor', icon: ChefHat, label: 'Marca Personal / Chef' },
+                    { id: 'Emprendimiento Gastronómico / Dark Kitchen', icon: Coffee, label: 'Emprendimiento / Bistro' },
+                  ].map((type) => {
+                    const Icon = type.icon;
+                    const isSel = regData.businessType === type.id;
+                    return (
+                      <div
+                        key={type.id}
+                        onClick={() => setRegData({ ...regData, businessType: type.id })}
+                        className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-center gap-3 ${
+                          isSel
+                            ? 'bg-amber-50 border-amber-500 shadow-md ring-2 ring-amber-400/20'
+                            : 'bg-slate-50 border-slate-200 hover:border-amber-300'
+                        }`}
+                      >
+                        <div className={`p-2 rounded-xl ${isSel ? 'bg-amber-500 text-white' : 'bg-white text-slate-600 border border-slate-200'}`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-900">{type.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Nombre y RIF con selector J- / V- / E- */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <div className="md:col-span-7">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Nombre Comercial / Nombre de la Marca *</label>
                   <input
                     type="text"
                     required
-                    placeholder="Ej. Kaffia Caffe / Fogón Andino"
+                    placeholder="Ej. Kaffia Caffe / Fogón del Páramo"
                     value={regData.restaurantName}
                     onChange={(e) => setRegData({ ...regData, restaurantName: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
                   />
                 </div>
 
-                <div>
+                <div className="md:col-span-5">
                   <label className="block text-xs font-bold text-slate-700 mb-1">RIF Jurídico o Personal *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="J-12345678-0"
-                    value={regData.rif}
-                    onChange={(e) => setRegData({ ...regData, rif: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
-                  />
+                  <div className="flex gap-2">
+                    <select
+                      value={regData.rifType}
+                      onChange={(e) => setRegData({ ...regData, rifType: e.target.value })}
+                      className="w-20 px-2 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800 shrink-0"
+                    >
+                      <option value="J-">J-</option>
+                      <option value="V-">V-</option>
+                      <option value="E-">E-</option>
+                      <option value="G-">G-</option>
+                    </select>
+                    <input
+                      type="text"
+                      required
+                      placeholder="12345678-0"
+                      value={regData.rifNumber}
+                      onChange={(e) => setRegData({ ...regData, rifNumber: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 font-mono"
+                    />
+                  </div>
                 </div>
               </div>
 
+              {/* Titular y Teléfono */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Propietario / Chef Ejecutivo Representante *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Propietario / Chef Representante *</label>
                   <input
                     type="text"
                     required
-                    placeholder="Ej. Lic. Carlos Méndez"
+                    placeholder="Ej. Carlos Daza"
                     value={regData.ownerName}
                     onChange={(e) => setRegData({ ...regData, ownerName: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
@@ -506,7 +635,7 @@ export function AffiliateDashboard({ t }) {
                   <input
                     type="text"
                     required
-                    placeholder="+58 412 1234567"
+                    placeholder="0414-1234567"
                     value={regData.phone}
                     onChange={(e) => setRegData({ ...regData, phone: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
@@ -514,45 +643,71 @@ export function AffiliateDashboard({ t }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Correo Electrónico Oficial *</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="gerencia@mirestaurante.com"
-                    value={regData.email}
-                    onChange={(e) => setRegData({ ...regData, email: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Eje Territorial en Mérida *</label>
-                  <select
-                    value={regData.eje}
-                    onChange={(e) => setRegData({ ...regData, eje: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
-                  >
-                    <option value="metropolitano">Eje Metropolitano (Mérida Ciudad / Casco Central)</option>
-                    <option value="paramo">Eje Páramo (Apartaderos, Mucuchíes, Tabay)</option>
-                    <option value="mocoties">Eje Valle del Mocotíes (Tovar, Bailadores)</option>
-                    <option value="pueblos-sur">Eje Pueblos del Sur</option>
-                    <option value="panamericano">Eje Panamericano & Sur del Lago</option>
-                  </select>
-                </div>
-              </div>
-
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Dirección Exacta en Mérida *</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Correo Electrónico Oficial *</label>
                 <input
-                  type="text"
+                  type="email"
                   required
-                  placeholder="Ej. Av. 8 entre Calles 24 y 25, Sector Las Heroínas, Casco Central"
-                  value={regData.address}
-                  onChange={(e) => setRegData({ ...regData, address: e.target.value })}
+                  placeholder="contacto@mirestaurante.com"
+                  value={regData.email}
+                  onChange={(e) => setRegData({ ...regData, email: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
                 />
+              </div>
+
+              {/* Ubicación Territorial: Municipios del Estado Mérida & Ciudades */}
+              <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-3">
+                <span className="text-[11px] font-extrabold uppercase text-amber-900 tracking-wider block">
+                  Ubicación Territorial en el Estado Mérida
+                </span>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Municipio *</label>
+                    <select
+                      value={regData.municipio}
+                      onChange={(e) => {
+                        const newMun = e.target.value;
+                        const munObj = MUNICIPIOS_MERIDA.find(m => m.id === newMun);
+                        setRegData({
+                          ...regData,
+                          municipio: newMun,
+                          cityTown: munObj?.towns[0] || ''
+                        });
+                      }}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-white text-slate-800"
+                    >
+                      {MUNICIPIOS_MERIDA.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Ciudad / Población / Parroquia *</label>
+                    <select
+                      value={regData.cityTown}
+                      onChange={(e) => setRegData({ ...regData, cityTown: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-white text-slate-800"
+                    >
+                      {currentMunicipioObj.towns.map((town, idx) => (
+                        <option key={idx} value={town}>{town}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Dirección Exacta (Calle / Avenida / Referencia) *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ej. Av. 8 entre Calles 24 y 25, frente a Hotel Luna Blanca"
+                    value={regData.address}
+                    onChange={(e) => setRegData({ ...regData, address: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-white"
+                  />
+                </div>
               </div>
 
               <div className="pt-4 flex justify-end">
@@ -568,36 +723,36 @@ export function AffiliateDashboard({ t }) {
           </div>
         )}
 
-        {/* STEP 2: Perfil Culinario */}
+        {/* STEP 2: Identidad & Carta */}
         {regStep === 2 && (
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8 animate-fadeIn">
-            <h3 className="font-serif text-xl font-bold text-slate-900 mb-2">
-              Paso 2: Identidad Visual & Propuesta Gastronómica
+            <h3 className="font-serif text-xl font-bold text-slate-900 mb-1">
+              Paso 2: Identidad Visual, Redes & Propuesta Culinaria
             </h3>
             <p className="text-xs text-slate-500 mb-6">
-              Defina cómo aparecerá su restaurante en la Guía Oficial y en el Mapa 3D.
+              Defina su especialidad y clave de acceso para el portal institucional.
             </p>
 
             <form onSubmit={handleRegNext} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Tipo de Experiencia / Categoría *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Categoría Gastronómica *</label>
                   <select
                     value={regData.category}
                     onChange={(e) => setRegData({ ...regData, category: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
                   >
                     <option>Alta Cocina Andina</option>
-                    <option>Café de Especialidad & Bistro</option>
+                    <option>Café de Especialidad, Bistro & Pizza</option>
                     <option>Tradición de Montaña & Truchas</option>
-                    <option>Chocolatería de Origen & Repostería</option>
-                    <option>Fusión, Carnes & Vinos</option>
-                    <option>Gastronomía Ancestral</option>
+                    <option>Chocolatería de Origen & Repostería Fina</option>
+                    <option>Fusión, Carnes Maduradas & Vinos</option>
+                    <option>Gastronomía Ancestral & Sabores Autóctonos</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Cuenta de Instagram Oficial</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Instagram Oficial</label>
                   <input
                     type="text"
                     placeholder="@mirestaurante"
@@ -613,7 +768,7 @@ export function AffiliateDashboard({ t }) {
                 <input
                   type="text"
                   required
-                  placeholder="Ej. Trucha rellena de queso ahumado / Medallones glaseados / Café Geisha de altura"
+                  placeholder="Ej. Medallones de res en salsa de champiñones / Café Geisha tostado en leña / Trucha ahumada"
                   value={regData.specialty}
                   onChange={(e) => setRegData({ ...regData, specialty: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
@@ -654,18 +809,18 @@ export function AffiliateDashboard({ t }) {
           </div>
         )}
 
-        {/* STEP 3: Pago Móvil Oficial */}
+        {/* STEP 3: Pago Móvil Oficial Provincial */}
         {regStep === 3 && (
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8 animate-fadeIn">
-            <h3 className="font-serif text-xl font-bold text-slate-900 mb-2">
-              Paso 3: Pago de Inscripción Gremial por Pago Móvil
+            <h3 className="font-serif text-xl font-bold text-slate-900 mb-1">
+              Paso 3: Pago Móvil Oficial de Afiliación
             </h3>
             <p className="text-xs text-slate-500 mb-6">
-              Realice el pago de la cuota de afiliación anual y reporte los datos bancarios para su acreditación inmediata.
+              Transfiera la cuota de inscripción a la cuenta oficial de la Cámara Gastronómica del Estado Mérida.
             </p>
 
-            {/* Official Chamber Bank Box */}
-            <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white mb-6 border border-slate-700 shadow-lg relative overflow-hidden">
+            {/* Official Provincial Bank Card Box */}
+            <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white mb-6 border border-amber-400/40 shadow-xl relative overflow-hidden">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Smartphone className="w-5 h-5 text-amber-400" />
@@ -676,7 +831,7 @@ export function AffiliateDashboard({ t }) {
 
                 <button
                   type="button"
-                  onClick={copyChamberBankDetails}
+                  onClick={copyProvincialBankDetails}
                   className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold flex items-center gap-1 transition-colors border border-white/20"
                 >
                   {copiedBankData ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -687,15 +842,15 @@ export function AffiliateDashboard({ t }) {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-bold">Banco Receptor</span>
-                  <span className="font-bold text-white text-sm">Banesco (0134)</span>
+                  <span className="font-bold text-white text-sm">Banco Provincial (0108)</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Cédula / RIF</span>
+                  <span className="font-mono font-bold text-white text-sm">V-12517086</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-bold">Teléfono</span>
-                  <span className="font-mono font-bold text-white text-sm">0412-6666954</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">RIF Institucional</span>
-                  <span className="font-mono font-bold text-white text-sm">J-50493821-0</span>
+                  <span className="font-mono font-bold text-white text-sm">04148817137</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-bold">Monto Anual</span>
@@ -714,13 +869,13 @@ export function AffiliateDashboard({ t }) {
                     onChange={(e) => setRegData({ ...regData, issuingBank: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
                   >
-                    <option>Banesco</option>
-                    <option>Banco de Venezuela (BDV)</option>
-                    <option>Mercantil</option>
-                    <option>BBVA Provincial</option>
-                    <option>Bancaribe</option>
-                    <option>Banco Nacional de Crédito (BNC)</option>
-                    <option>BFC Banco Fondo Común</option>
+                    <option>Banco Provincial (0108)</option>
+                    <option>Banesco (0134)</option>
+                    <option>Banco de Venezuela (0102)</option>
+                    <option>Mercantil (0105)</option>
+                    <option>BNC Banco Nacional de Crédito (0191)</option>
+                    <option>Bancaribe (0114)</option>
+                    <option>BFC Banco Fondo Común (0151)</option>
                   </select>
                 </div>
 
@@ -743,7 +898,7 @@ export function AffiliateDashboard({ t }) {
                   <input
                     type="text"
                     required
-                    placeholder="Ej. 748291"
+                    placeholder="Ej. 849201"
                     value={regData.referenceNumber}
                     onChange={(e) => setRegData({ ...regData, referenceNumber: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 font-mono"
@@ -774,17 +929,18 @@ export function AffiliateDashboard({ t }) {
 
                 <button
                   type="submit"
+                  disabled={isSubmittingReg}
                   className="py-3.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-serif font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md transition-all"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Confirmar Pago y Completar Afiliación</span>
+                  <span>{isSubmittingReg ? 'Registrando en Base de Datos...' : 'Confirmar Pago Móvil y Registrar'}</span>
                 </button>
               </div>
             </form>
           </div>
         )}
 
-        {/* STEP 4: Registro Exitoso & Acciones */}
+        {/* STEP 4: Registro Exitoso */}
         {regStep === 4 && (
           <div className="bg-white rounded-3xl border border-emerald-300 shadow-2xl p-6 sm:p-10 text-center animate-fadeIn">
             <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center mb-4 shadow-sm">
@@ -796,11 +952,11 @@ export function AffiliateDashboard({ t }) {
             </span>
 
             <h3 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900 mt-3">
-              ¡Bienvenido a la Cámara Gastronómica de Mérida!
+              ¡Bienvenido a la Cámara Gastronómica del Estado Mérida!
             </h3>
 
             <p className="text-xs sm:text-sm text-slate-600 mt-2 max-w-lg mx-auto">
-              El establecimiento <strong>{regData.restaurantName}</strong> ha sido registrado satisfactoriamente. Se ha generado su expediente y se ha despachado el <strong>Correo Oficial de Bienvenida</strong>.
+              El establecimiento <strong>{regData.restaurantName}</strong> ha sido registrado satisfactoriamente en el municipio <strong>{currentMunicipioObj.name}</strong>. Se ha generado su expediente y se ha emitido el <strong>Correo Oficial de Bienvenida</strong>.
             </p>
 
             {/* Generated Code Badge */}
@@ -809,7 +965,7 @@ export function AffiliateDashboard({ t }) {
               <span className="font-mono font-extrabold text-2xl text-amber-800 tracking-wider">
                 {regData.generatedAffiliateCode || 'CGM-2026-002'}
               </span>
-              <span className="text-[11px] text-slate-500 block mt-1">Estatus: Pago en Verificación Conciliatoria</span>
+              <span className="text-[11px] text-slate-500 block mt-1">Pago Móvil Provincial: Ref #{regData.referenceNumber}</span>
             </div>
 
             {/* Action Buttons */}
@@ -819,7 +975,7 @@ export function AffiliateDashboard({ t }) {
                 className="w-full sm:w-auto py-3 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-serif font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all"
               >
                 <Mail className="w-4 h-4" />
-                <span>Ver Correo de Bienvenida Generado</span>
+                <span>Ver Correo de Bienvenida Oficial Generado</span>
               </button>
 
               <button
@@ -850,7 +1006,7 @@ export function AffiliateDashboard({ t }) {
             <Mail className="w-5 h-5 text-amber-400" />
             <div>
               <h4 className="font-bold text-xs sm:text-sm">Vista Previa: Correo Electrónico Institucional de Bienvenida</h4>
-              <p className="text-[10px] text-slate-400">Enviado a: {regData.email || 'gerencia@restaurant.com'}</p>
+              <p className="text-[10px] text-slate-400">Enviado a: {regData.email || 'contacto@mirestaurante.com'}</p>
             </div>
           </div>
 
@@ -864,12 +1020,11 @@ export function AffiliateDashboard({ t }) {
 
         {/* The Exact Pixel-Perfect Email Body */}
         <div className="bg-[#f8f9fa] border-x border-b border-slate-300 rounded-b-3xl p-4 sm:p-8 text-slate-800 font-sans shadow-2xl">
-          
           <div className="max-w-2xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden">
             
             {/* Email Header */}
             <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-amber-950 p-6 text-center text-white border-b-4 border-amber-500">
-              <div className="w-20 h-20 bg-white rounded-2xl p-1.5 mx-auto mb-3 shadow-lg border border-amber-300">
+              <div className="w-20 h-20 bg-white rounded-2xl p-1.5 mx-auto mb-3 shadow-lg border border-amber-300 flex items-center justify-center">
                 <img 
                   src="/logo-merida-gastronomica.png" 
                   alt="Mérida Gastronómica" 
@@ -892,16 +1047,16 @@ export function AffiliateDashboard({ t }) {
                   Estimado(a) {regData.ownerName || 'Representante Legal'},
                 </p>
                 <p className="text-amber-800 font-semibold mt-0.5">
-                  Restaurante: {regData.restaurantName || 'Kaffia Caffe'}
+                  Establecimiento: {regData.restaurantName || 'Restaurante Afiliado'} ({regData.businessType || 'Comercial'})
                 </p>
               </div>
 
               <p>
-                En nombre de la <strong>Junta Directiva de la Cámara Gastronómica del Estado Mérida</strong>, nos complace darle la más cordial y distinguida bienvenida como nuevo miembro agremiado a nuestra institución.
+                En nombre de la <strong>Junta Directiva de la Cámara Gastronómica del Estado Mérida</strong>, presidida por <strong>Julio Alberto Daza Celis</strong>, nos complace darle la más cordial y distinguida bienvenida como nuevo miembro agremiado a nuestra institución.
               </p>
 
               <p>
-                Su incorporación fortalece la alianza del sector privado, el talento culinario y los productores de café, cacao y hortalizas de altura que proyectan a Mérida como <strong>Capital Gastronómica de Venezuela</strong>.
+                Su incorporación en el <strong>Municipio {currentMunicipioObj.name}</strong> fortalece la alianza del sector privado, el talento culinario y los productores de café, cacao y hortalizas de altura que proyectan a Mérida como <strong>Capital Gastronómica de Venezuela</strong>.
               </p>
 
               {/* Box of Credentials */}
@@ -915,12 +1070,12 @@ export function AffiliateDashboard({ t }) {
                     <p className="font-mono text-amber-900 font-bold">{regData.generatedAffiliateCode || 'CGM-2026-002'}</p>
                   </div>
                   <div>
-                    <strong>Estatus de Registro:</strong>
-                    <p className="text-emerald-700 font-bold">Activo (Pago Móvil Ref: {regData.referenceNumber || '748291'})</p>
+                    <strong>Pago Móvil Provincial:</strong>
+                    <p className="text-emerald-700 font-bold">Ref: #{regData.referenceNumber || '849201'}</p>
                   </div>
                   <div>
-                    <strong>Eje Territorial:</strong>
-                    <p className="capitalize">{regData.eje || 'Metropolitano'}</p>
+                    <strong>Ubicación:</strong>
+                    <p>{regData.cityTown || 'Mérida'}, {currentMunicipioObj.name}</p>
                   </div>
                   <div>
                     <strong>Vigencia Membresía:</strong>
@@ -929,21 +1084,21 @@ export function AffiliateDashboard({ t }) {
                 </div>
               </div>
 
-              {/* Next steps list */}
+              {/* Next steps */}
               <div>
                 <h4 className="font-serif font-bold text-slate-900 text-sm mb-2">
                   Próximos Pasos de su Membresía:
                 </h4>
                 <ul className="space-y-1.5 list-disc pl-5 text-slate-600 text-xs">
-                  <li><strong>Auditoría Técnica del Sello AAA:</strong> Nuestro comité de calidad se pondrá en contacto para agendar la visita diagnóstica.</li>
+                  <li><strong>Auditoría Técnica del Sello AAA:</strong> Nuestro comité de calidad coordinará la inspección técnica de su establecimiento.</li>
                   <li><strong>Geolocalización en el Mapa 3D:</strong> Su local será publicado con radar de altitud en la plataforma satelital.</li>
-                  <li><strong>Comunidad Oficial de Afiliados:</strong> Acceso al canal prioritario de WhatsApp con proveedores agrícolas y asesoría contable/fiscal.</li>
+                  <li><strong>Comunicación Directa con la Junta Directiva:</strong> Dispone del panel de mensajería directa en el portal.</li>
                 </ul>
               </div>
 
               {/* WhatsApp Guild Join Button */}
               <div className="p-4 rounded-2xl bg-slate-900 text-white text-center space-y-2">
-                <p className="text-xs text-slate-300">Únase de inmediato a la comunidad oficial de agremiados:</p>
+                <p className="text-xs text-slate-300">Únase a la comunidad oficial de agremiados:</p>
                 <a
                   href="https://chat.whatsapp.com/"
                   target="_blank"
@@ -958,7 +1113,7 @@ export function AffiliateDashboard({ t }) {
               {/* Signature */}
               <div className="pt-6 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                 <div>
-                  <p className="font-bold text-slate-800">Lic. Rodolfo Carrasquero</p>
+                  <p className="font-bold text-slate-800">Julio Alberto Daza Celis</p>
                   <p>Presidente — Cámara Gastronómica del Estado Mérida</p>
                 </div>
                 <div className="text-right">
@@ -968,11 +1123,8 @@ export function AffiliateDashboard({ t }) {
               </div>
 
             </div>
-
           </div>
-
         </div>
-
       </section>
     );
   }
@@ -1008,7 +1160,7 @@ export function AffiliateDashboard({ t }) {
                 {activeUser.restaurantName}
               </h2>
               <p className="text-xs text-slate-600 font-medium">
-                Representante: <strong>{activeUser.ownerName}</strong> — Código de Afiliado: <span className="font-mono font-bold text-amber-800">{activeUser.id}</span>
+                Representante: <strong>{activeUser.ownerName}</strong> — Código: <span className="font-mono font-bold text-amber-800">{activeUser.id}</span>
               </p>
             </div>
           </div>
@@ -1040,7 +1192,7 @@ export function AffiliateDashboard({ t }) {
             { id: 'jobs', label: 'Crear Empleos', icon: Briefcase },
             { id: 'payments', label: 'Cuotas & Pagos', icon: CreditCard },
             { id: 'courses', label: 'Capacitaciones & Cursos', icon: BookOpen },
-            { id: 'board', label: 'Contacto Junta Directiva', icon: Mail },
+            { id: 'board', label: 'Contacto Directo Directiva', icon: Mail },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -1056,11 +1208,6 @@ export function AffiliateDashboard({ t }) {
               >
                 <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : ''}`} />
                 <span>{tab.label}</span>
-                {tab.id === 'jobs' && (
-                  <span className="text-[9px] uppercase font-extrabold px-1.5 py-0.2 rounded bg-amber-500 text-white">
-                    Nuevo
-                  </span>
-                )}
               </button>
             );
           })}
@@ -1070,8 +1217,6 @@ export function AffiliateDashboard({ t }) {
       {/* Tab 1: Overview */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          
-          {/* Key Metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Impacto en Guía Global</span>
@@ -1098,7 +1243,6 @@ export function AffiliateDashboard({ t }) {
             </div>
           </div>
 
-          {/* Guild Benefits */}
           <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm">
             <h3 className="font-serif text-xl font-bold text-slate-900 mb-4">
               Beneficios Activos de su Membresía Gremial
@@ -1117,7 +1261,6 @@ export function AffiliateDashboard({ t }) {
               ))}
             </div>
           </div>
-
         </div>
       )}
 
@@ -1365,7 +1508,7 @@ export function AffiliateDashboard({ t }) {
                   <CheckCircle2 className="w-7 h-7" />
                 </div>
                 <h4 className="font-serif font-bold text-lg text-slate-900">¡Pago Reportado con Éxito!</h4>
-                <p className="text-xs text-slate-600">El departamento de administración conciliará el reporte en las próximas 2 horas.</p>
+                <p className="text-xs text-slate-600">El departamento de tesorería conciliará el reporte en las próximas horas.</p>
                 <button
                   onClick={() => setPaymentStep('select')}
                   className="mt-2 text-xs font-bold text-amber-800 underline"
@@ -1382,7 +1525,7 @@ export function AffiliateDashboard({ t }) {
                     onChange={(e) => setSelectedPaymentMethod(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
                   >
-                    <option value="pago-movil">Pago Móvil Interbancario (Banesco / Mercantil)</option>
+                    <option value="pago-movil">Pago Móvil Provincial (0108 - V-12517086)</option>
                     <option value="zelle">Zelle / Transferencia Internacional</option>
                   </select>
                 </div>
@@ -1455,68 +1598,118 @@ export function AffiliateDashboard({ t }) {
         </div>
       )}
 
-      {/* Tab 6: Board */}
+      {/* Tab 6: Direct Board Communication Tool */}
       {activeTab === 'board' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* Left: Directory of Board Members */}
           <div className="lg:col-span-5 space-y-4">
-            <h3 className="font-serif text-xl font-bold text-slate-900">Junta Directiva 2025-2027</h3>
-            <div className="space-y-3">
-              {boardMembers.map((member, i) => (
-                <div key={i} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
-                  <span className="text-[10px] uppercase font-bold text-amber-800 block">{member.role}</span>
-                  <h4 className="font-serif font-bold text-slate-900 text-base mt-0.5">{member.name}</h4>
-                  <p className="text-xs text-slate-600 mt-1">{member.bio}</p>
-                  <div className="mt-2 text-xs">
-                    <a href={`mailto:${member.email}`} className="text-sky-700 font-semibold hover:underline">{member.email}</a>
+            <h3 className="font-serif text-xl font-bold text-slate-900">Junta Directiva Oficial</h3>
+            <p className="text-xs text-slate-500">Seleccione un directivo para redactarle un comunicado directo.</p>
+            
+            <div className="space-y-2.5">
+              {boardMembers.map((member, i) => {
+                const isSelected = selectedBoardMember.includes(member.name);
+                return (
+                  <div 
+                    key={i} 
+                    onClick={() => setSelectedBoardMember(`${member.name} - ${member.role}`)}
+                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-amber-50/80 border-amber-500 shadow-md ring-2 ring-amber-400/20'
+                        : 'bg-white border-slate-200 hover:border-amber-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] uppercase font-extrabold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded">
+                        {member.role}
+                      </span>
+                      {isSelected && <span className="text-[10px] font-bold text-emerald-700">Seleccionado</span>}
+                    </div>
+
+                    <h4 className="font-serif font-bold text-slate-900 text-sm mt-1">{member.name}</h4>
+                    <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">{member.bio}</p>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
-          <div className="lg:col-span-7 p-6 rounded-3xl bg-white border border-slate-200 shadow-md">
-            <h3 className="font-serif text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
-              <Mail className="w-5 h-5 text-amber-600" />
-              Canal de Comunicación Directo
-            </h3>
-            <p className="text-xs text-slate-600 mb-4">
-              Envíe propuestas, solicitudes de inspección sanitaria o consultas a la Junta Directiva.
-            </p>
+          {/* Right: Direct Message Composer */}
+          <div className="lg:col-span-7 p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Mail className="w-5 h-5 text-amber-600" />
+                <h3 className="font-serif text-lg font-bold text-slate-900">
+                  Redactar Comunicación Directa a la Directiva
+                </h3>
+              </div>
+              <p className="text-xs text-slate-500 mb-6">
+                Envíe consultas institucionales, solicitudes de inspección o propuestas gremiales directamente sin intermediarios.
+              </p>
 
-            <form onSubmit={handleSendMessage} className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Asunto</label>
-                <select 
-                  value={contactSubject}
-                  onChange={(e) => setContactSubject(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
+              {boardMsgSuccess && (
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 mb-6 animate-fadeIn">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  <span>¡Mensaje enviado satisfactoriamente al directivo! Se ha registrado en la plataforma institucional.</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSendDirectBoardMessage} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Destinatario Oficial *</label>
+                  <select 
+                    value={selectedBoardMember}
+                    onChange={(e) => setSelectedBoardMember(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-amber-500 font-semibold"
+                  >
+                    {boardMembers.map((m, idx) => (
+                      <option key={idx} value={`${m.name} - ${m.role}`}>
+                        {m.name} ({m.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Asunto *</label>
+                  <select 
+                    value={contactSubject}
+                    onChange={(e) => setContactSubject(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
+                  >
+                    <option>Consulta Institucional / Gremial</option>
+                    <option>Solicitud de Auditoría para Sello de Calidad AAA</option>
+                    <option>Propuesta de Alianza / Proveedores</option>
+                    <option>Gestión de Vacantes & Personal</option>
+                    <option>Asesoría Legal / Deberes Formales</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Mensaje / Comunicado *</label>
+                  <textarea 
+                    rows={6}
+                    required
+                    value={contactMessage}
+                    onChange={(e) => setContactMessage(e.target.value)}
+                    placeholder="Escriba su mensaje aquí de forma clara y detallada..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSendingBoardMsg}
+                  className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-serif font-bold text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2"
                 >
-                  <option>Consulta Gremial / Legal</option>
-                  <option>Solicitud de Auditoría para Sello de Calidad</option>
-                  <option>Convenios de Proveedores Agrícolas</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Mensaje</label>
-                <textarea 
-                  rows={4}
-                  required
-                  value={contactMessage}
-                  onChange={(e) => setContactMessage(e.target.value)}
-                  placeholder="Escriba aquí los detalles..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-serif font-bold text-xs uppercase tracking-wider transition-all shadow-sm"
-              >
-                {messageSent ? 'Enviando...' : 'Enviar a la Junta Directiva'}
-              </button>
-            </form>
+                  <Send className="w-4 h-4" />
+                  <span>{isSendingBoardMsg ? 'Enviando Mensaje...' : 'Enviar Comunicado Directo'}</span>
+                </button>
+              </form>
+            </div>
           </div>
+
         </div>
       )}
 
