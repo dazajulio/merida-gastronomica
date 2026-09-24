@@ -84,11 +84,13 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
             onClick={() => { setActiveTab('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             className="flex items-center gap-2.5 cursor-pointer group shrink-0"
           >
-            <div className={`relative w-10 h-10 rounded-2xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform text-white ${
-              isTransparent ? 'bg-gradient-to-br from-amber-500 to-terracotta border border-white/30' : 'bg-gradient-to-br from-amber-500 to-terracotta'
-            }`}>
-              <Mountain className="w-5 h-5" />
-              <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full ring-2 ring-white" />
+            <div className="relative w-11 h-11 rounded-2xl overflow-hidden shadow-md group-hover:scale-105 transition-transform bg-white/95 p-1 border border-amber-300/80 shrink-0">
+              <img 
+                src="/logo-merida-gastronomica.png" 
+                alt="Mérida Gastronómica Logo Oficial" 
+                className="w-full h-full object-contain filter drop-shadow-sm"
+              />
+              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">

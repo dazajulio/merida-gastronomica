@@ -29,8 +29,12 @@ export function Footer({ setActiveTab, t }) {
           {/* Col 1 & 2: Brand */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-terracotta flex items-center justify-center text-white shadow-md">
-                <Mountain className="w-7 h-7" />
+              <div className="w-13 h-13 rounded-2xl bg-white/95 border border-amber-400/50 p-1 flex items-center justify-center shadow-lg shrink-0">
+                <img 
+                  src="/logo-merida-gastronomica.png" 
+                  alt="Mérida Gastronómica Logo Oficial" 
+                  className="w-11 h-11 object-contain"
+                />
               </div>
               <div>
                 <span className="font-serif font-bold text-xl text-white tracking-tight block">
