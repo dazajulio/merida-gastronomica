@@ -11,8 +11,13 @@ import {
   Mountain, 
   Calendar, 
   CheckCircle2, 
-  Sparkles,
-  Utensils
+  Sparkles, 
+  Utensils,
+  Share2,
+  Copy,
+  Check,
+  Compass,
+  Send
 } from 'lucide-react';
 
 export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
@@ -22,8 +27,42 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
   const [resName, setResName] = useState('');
   const [resPhone, setResPhone] = useState('');
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [showShareBar, setShowShareBar] = useState(false);
 
   if (!restaurant) return null;
+
+  const currentUrl = typeof window !== 'undefined' ? window.location.origin : 'https://meridagastronomica.com';
+  const shareMessage = `¡Mira ${restaurant.name} en Mérida Gastronómica! 🍽️✨%0A${restaurant.tagline}%0AUbicación: ${restaurant.location}%0A%0AExplora su carta y reserva en la Guía Oficial:%0A${currentUrl}`;
+
+  const handleNativeShare = async () => {
+    const shareData = {
+      title: `${restaurant.name} | Guía Oficial Mérida Gastronómica`,
+      text: `${restaurant.name}: ${restaurant.tagline}. Consulta su carta, fotos y reserva con el Sello Oficial de la Cámara Gastronómica.`,
+      url: currentUrl
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          setShowShareBar(true);
+        }
+      }
+    } else {
+      setShowShareBar(!showShareBar);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(currentUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    }
+  };
 
   const handleBookingSubmit = (e) => {
     e.preventDefault();
@@ -43,11 +82,11 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
         {/* Header Bar */}
         <div className="p-4 sm:p-6 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-amber-500 flex items-center justify-center text-white shadow-sm">
+            <div className="w-11 h-11 rounded-2xl bg-amber-500 flex items-center justify-center text-white shadow-sm shrink-0">
               <ChefHat className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="font-serif text-xl sm:text-2xl font-bold text-slate-900">
                   {restaurant.name}
                 </h2>
@@ -64,15 +103,17 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {onViewOnMap && (
               <button
                 onClick={() => onViewOnMap(restaurant)}
                 className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-amber-300 border border-slate-700 text-xs font-semibold hover:bg-slate-800 transition-colors shadow-sm"
               >
+                <Compass className="w-3.5 h-3.5 text-amber-400" />
                 <span>📍 Ver en Mapa 3D</span>
               </button>
             )}
+
             {restaurant.instagramUrl && (
               <a
                 href={restaurant.instagramUrl}
@@ -83,6 +124,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
                 <span>Instagram</span>
               </a>
             )}
+
             {restaurant.facebookUrl && (
               <a
                 href={restaurant.facebookUrl}
@@ -93,6 +135,17 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
                 <span>Facebook</span>
               </a>
             )}
+
+            {/* Compartir Button */}
+            <button
+              onClick={handleNativeShare}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shadow-sm active:scale-95"
+              title="Compartir restaurante"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Compartir</span>
+            </button>
+
             <button
               onClick={onClose}
               className="p-2 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 transition-colors"
@@ -100,6 +153,62 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
               <X className="w-5 h-5" />
             </button>
           </div>
+        </div>
+
+        {/* Social Sharing Sub-Bar (Visible directly or toggled) */}
+        <div className="bg-amber-50/80 px-4 sm:px-6 py-2.5 border-b border-amber-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+          
+          <div className="flex items-center gap-2 text-slate-700 font-semibold">
+            <Share2 className="w-4 h-4 text-amber-700" />
+            <span>Compartir este restaurante:</span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* WhatsApp Share */}
+            <a
+              href={`https://api.whatsapp.com/send?text=${shareMessage}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-sm"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              <span>Por WhatsApp</span>
+            </a>
+
+            {/* Facebook Share */}
+            <a
+              href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors shadow-sm"
+            >
+              <span>Facebook</span>
+            </a>
+
+            {/* X / Twitter Share */}
+            <a
+              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Descubre ${restaurant.name} en la Guía Oficial de Mérida Gastronómica`)}&url=${encodeURIComponent(currentUrl)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors shadow-sm"
+            >
+              <span>X (Twitter)</span>
+            </a>
+
+            {/* Copy Link */}
+            <button
+              onClick={handleCopyLink}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-sm ${
+                copiedLink 
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-600" />}
+              <span>{copiedLink ? '¡Enlace Copiado!' : 'Copiar Enlace'}</span>
+            </button>
+          </div>
+
         </div>
 
         {/* Scrollable Content Body */}
@@ -110,7 +219,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
             <div className="relative h-64 sm:h-96 rounded-2xl overflow-hidden border border-slate-200 shadow-md bg-slate-100">
               <img 
                 src={activeImage} 
-                alt={restaurant.name}
+                alt={restaurant.name} 
                 className="w-full h-full object-cover"
               />
               <div className="absolute top-4 right-4 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold text-white flex items-center gap-1.5">
@@ -326,7 +435,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
                     <option value="1 persona">1 persona</option>
                     <option value="2 personas">2 personas (Mesa Romántica)</option>
                     <option value="4 personas">4 personas (Familiar)</option>
-                    <option value="6 a 10 personas">6 a 10 personas (Grupo)</option>
+                    <option value="6 a 10 personas">6 a 10 personas (Grupo / Banquete)</option>
                     <option value="Evento Privado +10">Evento Privado (+10 personas)</option>
                   </select>
                 </div>
