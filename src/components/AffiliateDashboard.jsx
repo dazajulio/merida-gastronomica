@@ -443,7 +443,7 @@ export function AffiliateDashboard({ t }) {
               <input
                 type="text"
                 required
-                placeholder="ej. contacto@mirestaurante.com o CGM-2026-001"
+                placeholder="ej. correo@empresa.com o CGM-0000-000"
                 value={loginIdentifier}
                 onChange={(e) => setLoginIdentifier(e.target.value)}
                 className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 focus:bg-white bg-slate-50 text-slate-800"
@@ -616,11 +616,11 @@ export function AffiliateDashboard({ t }) {
               {/* Nombre y RIF con selector J- / V- / E- */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                 <div className="md:col-span-7">
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Nombre Comercial / Nombre de la Marca *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Nombre Comercial / Razón Social *</label>
                   <input
                     type="text"
                     required
-                    placeholder="Ej. Kaffia Caffe / Fogón del Páramo"
+                    placeholder="Ej. Nombre del Establecimiento / Razón Social"
                     value={regData.restaurantName}
                     onChange={(e) => setRegData({ ...regData, restaurantName: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
@@ -643,7 +643,7 @@ export function AffiliateDashboard({ t }) {
                     <input
                       type="text"
                       required
-                      placeholder="12345678-0"
+                      placeholder="Ej. 12345678-9"
                       value={regData.rifNumber}
                       onChange={(e) => setRegData({ ...regData, rifNumber: e.target.value })}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 font-mono"
@@ -655,11 +655,11 @@ export function AffiliateDashboard({ t }) {
               {/* Titular y Teléfono */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Propietario / Chef Representante *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Representante Legal / Titular *</label>
                   <input
                     type="text"
                     required
-                    placeholder="Ej. Carlos Daza"
+                    placeholder="Ej. Nombre y Apellido del Representante Legal"
                     value={regData.ownerName}
                     onChange={(e) => setRegData({ ...regData, ownerName: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
@@ -667,11 +667,11 @@ export function AffiliateDashboard({ t }) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Teléfono / WhatsApp Directo *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Teléfono / WhatsApp de Contacto *</label>
                   <input
                     type="text"
                     required
-                    placeholder="0414-1234567"
+                    placeholder="Ej. 0414-0000000 / 0412-0000000"
                     value={regData.phone}
                     onChange={(e) => setRegData({ ...regData, phone: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
@@ -684,7 +684,7 @@ export function AffiliateDashboard({ t }) {
                 <input
                   type="email"
                   required
-                  placeholder="contacto@mirestaurante.com"
+                  placeholder="Ej. contacto@empresa.com"
                   value={regData.email}
                   onChange={(e) => setRegData({ ...regData, email: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
@@ -738,7 +738,7 @@ export function AffiliateDashboard({ t }) {
                   <input
                     type="text"
                     required
-                    placeholder="Ej. Av. 8 entre Calles 24 y 25, frente a Hotel Luna Blanca"
+                    placeholder="Ej. Avenida Principal, Edificio / Local Comercial N° 1"
                     value={regData.address}
                     onChange={(e) => setRegData({ ...regData, address: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-white"
@@ -791,7 +791,7 @@ export function AffiliateDashboard({ t }) {
                   <label className="block text-xs font-bold text-slate-700 mb-1">Instagram Oficial</label>
                   <input
                     type="text"
-                    placeholder="@mirestaurante"
+                    placeholder="Ej. @cuenta_oficial"
                     value={regData.instagram}
                     onChange={(e) => setRegData({ ...regData, instagram: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
@@ -804,7 +804,7 @@ export function AffiliateDashboard({ t }) {
                 <input
                   type="text"
                   required
-                  placeholder="Ej. Medallones de res en salsa de champiñones / Café Geisha tostado en leña / Trucha ahumada"
+                  placeholder="Ej. Describa la especialidad gastronómica o propuesta culinaria de la casa"
                   value={regData.specialty}
                   onChange={(e) => setRegData({ ...regData, specialty: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
@@ -816,7 +816,7 @@ export function AffiliateDashboard({ t }) {
                 <input
                   type="password"
                   required
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="Ingrese una clave segura (mínimo 6 caracteres)"
                   value={regData.password}
                   onChange={(e) => setRegData({ ...regData, password: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
@@ -936,7 +936,7 @@ export function AffiliateDashboard({ t }) {
                   <input
                     type="text"
                     required
-                    placeholder="0414-1234567"
+                    placeholder="Ej. 0414-0000000 / 0412-0000000"
                     value={regData.payerPhone}
                     onChange={(e) => setRegData({ ...regData, payerPhone: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
@@ -950,7 +950,7 @@ export function AffiliateDashboard({ t }) {
                   <input
                     type="text"
                     required
-                    placeholder="Ej. 849201"
+                    placeholder="Ej. 123456"
                     value={regData.referenceNumber}
                     onChange={(e) => setRegData({ ...regData, referenceNumber: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 font-mono"

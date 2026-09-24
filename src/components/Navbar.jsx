@@ -37,11 +37,11 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
   // Main navigation items shown on desktop bar
   const mainBarItems = [
     { id: 'home', label: 'Inicio' },
-    { id: 'guide', label: 'Guía de Restaurantes', icon: UtensilsCrossed },
-    { id: 'lidar', label: 'Mapa Gastronómico', icon: Compass },
-    { id: 'terroir', label: 'Rutas Mérida', icon: Sparkles },
-    { id: 'cultural', label: 'Distrito Cultural', icon: Palette },
-    { id: 'services', label: 'Servicios Turísticos', icon: MapPin },
+    { id: 'guide', label: 'Guía de Restaurantes' },
+    { id: 'lidar', label: 'Mapa Gastronómico' },
+    { id: 'terroir', label: 'Rutas Mérida' },
+    { id: 'cultural', label: 'Distrito Cultural' },
+    { id: 'services', label: 'Servicios Turísticos' },
   ];
 
   // Complete catalog of all sections for the "☰ Todos" drawer/modal
@@ -148,13 +148,12 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
 
               {/* Main Visible Items */}
               {mainBarItems.map((item) => {
-                const Icon = item.icon;
                 const isActive = activeTab === item.id;
                 return (
                   <button
                     key={item.id}
                     onClick={() => handleNavClick(item.id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 flex items-center ${
                       isActive 
                         ? 'bg-white text-slate-900 shadow-md font-extrabold scale-105'
                         : isTransparent
@@ -162,7 +161,6 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
                           : 'text-slate-600 hover:text-amber-700 hover:bg-white/70'
                     }`}
                   >
-                    {Icon && <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-amber-600' : ''}`} />}
                     <span>{item.label}</span>
                   </button>
                 );
