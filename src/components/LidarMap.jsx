@@ -345,10 +345,10 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
       if (targetCp) {
         map.flyTo({
           center: [targetCp.lng, targetCp.lat],
-          zoom: 17,
-          pitch: 60,
-          bearing: 25,
-          duration: 2200,
+          zoom: 16.5,
+          pitch: 58,
+          bearing: 20,
+          duration: 2000,
           essential: true
         });
         setTimeout(() => {
@@ -358,16 +358,28 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
           }
         }, 200);
       }
-    } else if (coordinates.length > 1) {
-      const bounds = coordinates.reduce((b, coord) => b.extend(coord), new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
-      
-      map.fitBounds(bounds, {
-        padding: { top: 70, bottom: 70, left: 60, right: 60 },
-        pitch: is3DMode ? 55 : 0,
-        bearing: is3DMode ? -20 : 0,
-        duration: 2000,
-        maxZoom: 13
-      });
+    } else {
+      // Find first restaurant in route to give immediate prominent focus to affiliate cards
+      const firstRestaurantCp = route.checkpoints.find(cp => cp.type === 'restaurant');
+      if (firstRestaurantCp) {
+        map.flyTo({
+          center: [firstRestaurantCp.lng, firstRestaurantCp.lat],
+          zoom: 15.8,
+          pitch: 55,
+          bearing: -15,
+          duration: 1800,
+          essential: true
+        });
+      } else if (coordinates.length > 1) {
+        const bounds = coordinates.reduce((b, coord) => b.extend(coord), new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+        map.fitBounds(bounds, {
+          padding: { top: 70, bottom: 70, left: 60, right: 60 },
+          pitch: is3DMode ? 55 : 0,
+          bearing: is3DMode ? -20 : 0,
+          duration: 2000,
+          maxZoom: 13
+        });
+      }
     }
   };
 
