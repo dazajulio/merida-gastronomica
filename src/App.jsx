@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { RestaurantGuide } from './components/RestaurantGuide';
@@ -38,6 +38,41 @@ export function App() {
   const [guideSearchTerm, setGuideSearchTerm] = useState('');
 
   const t = translations[lang] || translations.es;
+
+  // Handle URL deep link query parameter (?restaurante=slug or ?restaurant=id)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const restParam = params.get('restaurante') || params.get('restaurant') || params.get('r');
+      const hash = window.location.hash.replace('#', '');
+      
+      const targetQuery = restParam || hash;
+      if (targetQuery) {
+        const found = RESTAURANTS_DATA.find(r => 
+          r.id.toLowerCase() === targetQuery.toLowerCase() || 
+          (r.slug && r.slug.toLowerCase() === targetQuery.toLowerCase())
+        );
+        if (found) {
+          setSelectedRestaurant(found);
+        }
+      }
+    }
+  }, []);
+
+  // Sync URL when modal is opened or closed
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (selectedRestaurant) {
+        const newUrl = `${window.location.pathname}?restaurante=${selectedRestaurant.slug || selectedRestaurant.id}`;
+        window.history.replaceState(null, '', newUrl);
+      } else {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('restaurante') || params.has('restaurant') || params.has('r')) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+      }
+    }
+  }, [selectedRestaurant]);
 
   const handleSelectRestaurantById = (id) => {
     const found = RESTAURANTS_DATA.find(r => r.id === id);

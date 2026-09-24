@@ -32,8 +32,9 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
 
   if (!restaurant) return null;
 
-  const currentUrl = typeof window !== 'undefined' ? window.location.origin : 'https://meridagastronomica.com';
-  const shareMessage = `¡Mira ${restaurant.name} en Mérida Gastronómica! 🍽️✨%0A${restaurant.tagline}%0AUbicación: ${restaurant.location}%0A%0AExplora su carta y reserva en la Guía Oficial:%0A${currentUrl}`;
+  const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://meridagastronomica.com';
+  const currentUrl = `${currentOrigin}/?restaurante=${restaurant.slug || restaurant.id}`;
+  const shareMessage = `¡Mira *${restaurant.name}* en la Guía Oficial de Mérida Gastronómica! 🍽️✨%0A%0A"${restaurant.tagline}"%0A📍 *Ubicación:* ${restaurant.location}%0A%0A📲 *Ver Ficha Completa, Fotos y Reservar:*%0A${currentUrl}`;
 
   const handleNativeShare = async () => {
     const shareData = {

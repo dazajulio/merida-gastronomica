@@ -324,6 +324,16 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
         duration: 2000,
         maxZoom: 13
       });
+
+      // Automatically open the first affiliate restaurant popup on the map
+      const firstRestMarker = markersRef.current.find((m, i) => route.checkpoints[i]?.type === 'restaurant');
+      if (firstRestMarker && !firstRestMarker.getPopup().isOpen()) {
+        setTimeout(() => {
+          if (!firstRestMarker.getPopup().isOpen()) {
+            firstRestMarker.togglePopup();
+          }
+        }, 1200);
+      }
     }
   };
 
@@ -428,19 +438,30 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
     updateRouteLayers(mapRef.current, currentRoute);
   }, [activeRouteId, isMapLoaded]);
 
-  // Fly to selected checkpoint from sidebar
+  // Fly to selected checkpoint from sidebar and open its popup card immediately
   const handleCheckpointClick = (cp) => {
     setSelectedCheckpoint(cp);
     if (mapRef.current) {
       mapRef.current.flyTo({
         center: [cp.lng, cp.lat],
-        zoom: 15.5,
-        pitch: 65,
-        bearing: 30,
+        zoom: cp.type === 'restaurant' ? 17 : 15.5,
+        pitch: 60,
+        bearing: 25,
         speed: 1.2,
         curve: 1.4,
         essential: true
       });
+
+      // Find matching marker and open its preview popup
+      const targetMarker = markersRef.current.find(m => {
+        const lngLat = m.getLngLat();
+        return Math.abs(lngLat.lng - cp.lng) < 0.0003 && Math.abs(lngLat.lat - cp.lat) < 0.0003;
+      });
+      if (targetMarker) {
+        if (!targetMarker.getPopup().isOpen()) {
+          targetMarker.togglePopup();
+        }
+      }
     }
   };
 
