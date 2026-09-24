@@ -69,6 +69,42 @@ export function AffiliateDashboard({ t }) {
   // Navigation & Authentication states: 'login' | 'register' | 'welcome_preview' | 'dashboard'
   const [viewMode, setViewMode] = useState('login');
   
+  // BCV Official Exchange Rate State & $30 USD Fee
+  const ANNUAL_FEE_USD = 30;
+  const [bcvRate, setBcvRate] = useState(null);
+  const [bcvLoading, setBcvLoading] = useState(true);
+  const [bcvDate, setBcvDate] = useState('');
+
+  // Fetch BCV Rate automatically from API
+  useEffect(() => {
+    const fetchBcvRate = async () => {
+      try {
+        const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.promedio) {
+            const rate = data.promedio;
+            setBcvRate(rate);
+            const totalBs = (ANNUAL_FEE_USD * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            setRegData(prev => ({
+              ...prev,
+              amountPaidBs: totalBs
+            }));
+            if (data.fechaActualizacion) {
+              const d = new Date(data.fechaActualizacion);
+              setBcvDate(d.toLocaleDateString('es-VE'));
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('BCV API fallback notice:', e);
+      } finally {
+        setBcvLoading(false);
+      }
+    };
+    fetchBcvRate();
+  }, []);
+
   // Login Form State
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -96,7 +132,7 @@ export function AffiliateDashboard({ t }) {
     issuingBank: 'Banco Provincial',
     payerPhone: '',
     referenceNumber: '',
-    amountPaidBs: '3.650,00',
+    amountPaidBs: 'Calculando...',
     generatedAffiliateCode: ''
   });
 
@@ -288,7 +324,7 @@ export function AffiliateDashboard({ t }) {
   };
 
   const copyProvincialBankDetails = () => {
-    const text = `CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA\nPago Móvil Banco Provincial (0108)\nCédula / RIF: V-12517086\nTeléfono: 04148817137\nConcepto: Afiliación Gremial Mérida`;
+    const text = `CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA\nPago Móvil Banco Provincial (0108)\nCédula / RIF: V-12517086\nTeléfono: 04148817137\nMonto: $30 USD (Bs. ${regData.amountPaidBs} al cambio oficial BCV)\nConcepto: Afiliación Gremial Mérida`;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text);
       setCopiedBankData(true);
@@ -853,8 +889,24 @@ export function AffiliateDashboard({ t }) {
                   <span className="font-mono font-bold text-white text-sm">04148817137</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Monto Anual</span>
-                  <span className="font-bold text-amber-400 text-sm">$50 USD (Tasa BCV)</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Cuota de Afiliación</span>
+                  <span className="font-bold text-amber-400 text-sm">$30 USD</span>
+                </div>
+              </div>
+
+              {/* Dynamic Live BCV Official Rate Conversion Banner */}
+              <div className="mt-4 pt-3 border-t border-slate-700/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="text-slate-300">
+                    Tasa Oficial BCV del Día: <strong className="text-white font-mono">{bcvRate ? `Bs. ${bcvRate.toFixed(2)}` : 'Consultando BCV...'}</strong> {bcvDate && <span className="text-slate-400 text-[10px]">({bcvDate})</span>}
+                  </span>
+                </div>
+
+                <div className="bg-amber-500/20 px-3.5 py-1.5 rounded-xl border border-amber-500/40">
+                  <span className="text-amber-300 font-bold text-xs">
+                    Total a Pagar en Bs: <span className="text-white text-sm font-mono font-extrabold ml-1">Bs. {regData.amountPaidBs}</span>
+                  </span>
                 </div>
               </div>
             </div>
