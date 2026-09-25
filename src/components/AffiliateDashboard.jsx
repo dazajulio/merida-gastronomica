@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { AFFILIATES_DATA } from '../data/affiliatesData';
 import { supabase } from '../lib/supabaseClient';
+import { sendAffiliateWelcomeEmail } from '../lib/emailService';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -731,6 +732,21 @@ export function AffiliateDashboard({ t }) {
         ]);
       } catch (err) {
         console.warn('Supabase local sync notice:', err);
+      }
+
+      // Enviar correo oficial de bienvenida y comprobante de afiliación con Resend
+      if (regData.email) {
+        sendAffiliateWelcomeEmail({
+          affiliateCode: newCode,
+          restaurantName: regData.restaurantName,
+          ownerName: regData.ownerName,
+          email: regData.email,
+          phone: regData.phone,
+          businessType: regData.businessType,
+          category: regData.category,
+          referenceNumber: regData.referenceNumber,
+          amountBs: regData.amountPaidBs,
+        }).catch(err => console.warn('Error al enviar correo de bienvenida con Resend:', err));
       }
 
       setRegData(prev => ({ ...prev, generatedAffiliateCode: newCode }));
