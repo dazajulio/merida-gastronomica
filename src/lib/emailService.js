@@ -259,17 +259,77 @@ export async function sendAffiliateWelcomeEmail({
       <p style="margin: 4px 0;"><strong>Estado:</strong> <span style="color: #059669; font-weight: bold;">Activo (Pago en Verificación)</span></p>
     </div>
 
-    <h3 style="color: #0f172a; font-size: 15px; margin-top: 20px;">Beneficios Activos de su Membresía:</h3>
-    <ul style="padding-left: 20px; margin: 10px 0; color: #475569;">
-      <li>Presencia oficial en la Guía Gastronómica y Mapa 3D interactivo.</li>
-      <li>Postulación al Sello de Calidad Gastronómica Mérida AAA.</li>
-      <li>Acceso al Centro de Recursos Jurídicos, Fiscales y Sanitarios.</li>
-      <li>Bolsa de Empleo con aspirantes formados por la ULA y Hotel Escuela.</li>
-      <li>Portal privado de agremiados para descarga de solvencias y certificados.</li>
-    </ul>
+    <h3 style="color: #0f172a; font-size: 16px; margin-top: 24px; margin-bottom: 12px; font-weight: 700; border-bottom: 2px solid #fed7aa; padding-bottom: 6px;">
+      Beneficios Exclusivos de su Membresía Gremial:
+    </h3>
+    
+    <table style="width: 100%; border-collapse: collapse; margin-top: 8px;">
+      <tbody>
+        <tr>
+          <td style="padding: 8px 0; vertical-align: top; width: 24px; color: #ea580c; font-weight: bold;">✓</td>
+          <td style="padding: 8px 0; vertical-align: top; color: #334155;">
+            <strong>Presencia en la Guía Gastronómica y Mapa 3D:</strong> Ficha oficial y georreferenciación en <a href="https://www.meridagastronomica.com" target="_blank" style="color: #c2410c; text-decoration: underline; font-weight: 600;">www.meridagastronomica.com</a>.
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; vertical-align: top; width: 24px; color: #ea580c; font-weight: bold;">✓</td>
+          <td style="padding: 8px 0; vertical-align: top; color: #334155;">
+            <strong>Postulación al Sello de Calidad "Mérida Gastronómica":</strong> Acceso al proceso de auditoría y certificación de excelencia culinaria.
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; vertical-align: top; width: 24px; color: #ea580c; font-weight: bold;">✓</td>
+          <td style="padding: 8px 0; vertical-align: top; color: #334155;">
+            <strong>Integración al Ecosistema Tecnológico Comercial (Glubbi):</strong> Digitalización y delivery predictivo con IA en <a href="https://www.glubii.app" target="_blank" style="color: #c2410c; text-decoration: underline; font-weight: 600;">www.glubii.app</a>.
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; vertical-align: top; width: 24px; color: #ea580c; font-weight: bold;">✓</td>
+          <td style="padding: 8px 0; vertical-align: top; color: #334155;">
+            <strong>Acceso al Centro de Recursos Jurídicos y Operativos:</strong> Asesoría en normativas tributarias (SENIAT/SAMAT), ordenanzas y permisos sanitarios.
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; vertical-align: top; width: 24px; color: #ea580c; font-weight: bold;">✓</td>
+          <td style="padding: 8px 0; vertical-align: top; color: #334155;">
+            <strong>Bolsa de Empleo Especializada:</strong> Conexión prioritaria con talento formado en la ULA y Hotel Escuela de Los Andes.
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; vertical-align: top; width: 24px; color: #ea580c; font-weight: bold;">✓</td>
+          <td style="padding: 8px 0; vertical-align: top; color: #334155;">
+            <strong>Portal Privado de Autogestión de Agremiados:</strong> Emisión digital de solvencias, certificados y control de cuotas.
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; vertical-align: top; width: 24px; color: #ea580c; font-weight: bold;">✓</td>
+          <td style="padding: 8px 0; vertical-align: top; color: #334155;">
+            <strong>Participación en los Desayunos Corporativos Mensuales:</strong> Espacios gremiales de networking, negocios y alianzas estratégicas.
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; vertical-align: top; width: 24px; color: #ea580c; font-weight: bold;">✓</td>
+          <td style="padding: 8px 0; vertical-align: top; color: #334155;">
+            <strong>Descarga de Herramientas Operativas (Academia CGEM):</strong> Manuales de servicio, fichas técnicas de costos y programas de formación.
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; vertical-align: top; width: 24px; color: #ea580c; font-weight: bold;">✓</td>
+          <td style="padding: 8px 0; vertical-align: top; color: #334155;">
+            <strong>Precedencia y Beneficios en la Expo Gastronómica 2027:</strong> Descuentos exclusivos y ubicación preferencial en el mayor evento culinario andino.
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; vertical-align: top; width: 24px; color: #ea580c; font-weight: bold;">✓</td>
+          <td style="padding: 8px 0; vertical-align: top; color: #334155;">
+            <strong>Canal Directo para Asesoría Estratégica:</strong> Enlace institucional y acompañamiento continuo por parte de la Junta Directiva.
+          </td>
+        </tr>
+      </tbody>
+    </table>
 
-    <p style="font-size: 13px; color: #64748b; margin-top: 24px;">
-      Puede ingresar en cualquier momento a su panel privado utilizando su correo electrónico o su código de afiliado: <strong>${affiliateCode}</strong>.
+    <p style="font-size: 13px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+      Puede ingresar en cualquier momento a su panel privado utilizando su correo electrónico o su código de afiliado: <strong>${affiliateCode}</strong> en <a href="https://www.meridagastronomica.com" target="_blank" style="color: #c2410c; font-weight: 600;">meridagastronomica.com</a>.
     </p>
   `;
 

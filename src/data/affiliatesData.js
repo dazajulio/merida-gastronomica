@@ -93,10 +93,15 @@ export const AFFILIATES_DATA = {
     }
   ],
   guildBenefits: [
-    "Sello Digital Oficial y Placa Física de 'Restaurante Certificado'",
-    "Aparición destacada con geolocalización en la Guía Turística Internacional",
-    "Descuentos de hasta 30% en compras conjuntas de insumos y hortalizas del páramo",
-    "Asesoría jurídica y contable gremial permanente",
-    "Participación prioritaria en las Ferias Internacionales del Sol y ferias mundiales"
+    "Presencia en la Guía Gastronómica y Mapa 3D de www.meridagastronomica.com",
+    "Postulación al Sello de Calidad 'Mérida Gastronómica'",
+    "Integración al Ecosistema Tecnológico Comercial (Glubbi) www.glubii.app",
+    "Acceso al Centro de Recursos Jurídicos y Operativos",
+    "Bolsa de Empleo Especializada (Convenio ULA y Hotel Escuela)",
+    "Portal Privado de Autogestión de Agremiados (Solvencias y Certificados)",
+    "Participación en los Desayunos Corporativos Mensuales de Networking",
+    "Descarga de Herramientas Operativas (Academia CGEM)",
+    "Precedencia y Beneficios Exclusivos en la Expo Gastronómica 2027",
+    "Canal Directo para Asesoría Estratégica con la Junta Directiva"
   ]
 };
