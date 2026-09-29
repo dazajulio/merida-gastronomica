@@ -38,7 +38,10 @@ import {
   Navigation,
   Globe,
   Layers,
-  Search
+  Search,
+  Play,
+  Film,
+  Video
 } from 'lucide-react';
 import { AFFILIATES_DATA } from '../data/affiliatesData';
 import { supabase } from '../lib/supabaseClient';
@@ -575,6 +578,17 @@ export function AffiliateDashboard({ t }) {
   const [copiedBankData, setCopiedBankData] = useState(false);
   const [isSubmittingReg, setIsSubmittingReg] = useState(false);
 
+  // Motivational Affiliate Video Modal State
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const videoRef = useRef(null);
+
+  const handleCloseVideoModal = () => {
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
+    setShowVideoModal(false);
+  };
+
   // Authenticated User State
   const [activeUser, setActiveUser] = useState(AFFILIATES_DATA.currentUser);
 
@@ -943,10 +957,11 @@ export function AffiliateDashboard({ t }) {
               onClick={() => {
                 setRegStep(1);
                 setViewMode('register');
+                setShowVideoModal(true);
               }}
-              className="w-full py-3 px-4 rounded-xl border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-sm"
+              className="w-full py-3.5 px-4 rounded-xl border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-sm group"
             >
-              <Building2 className="w-4 h-4" />
+              <Building2 className="w-4 h-4 text-amber-600 group-hover:text-amber-400 transition-colors" />
               <span>Solicitar Afiliación / Registrar Nuevo Miembro</span>
             </button>
           </div>
@@ -961,8 +976,82 @@ export function AffiliateDashboard({ t }) {
   // ==========================================
   if (viewMode === 'register') {
     return (
-      <section className="py-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         
+        {/* VIDEO MODAL MOTIVACIONAL DE AFILIACIÓN */}
+        {showVideoModal && (
+          <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
+            <div className="bg-slate-900 border border-amber-500/30 w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+              
+              {/* Modal Header */}
+              <div className="px-5 sm:px-6 py-4 border-b border-slate-800 flex items-center justify-between gap-4 bg-slate-950/60">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-amber-400 block">
+                      Cámara Gastronómica del Estado Mérida
+                    </span>
+                    <h3 className="font-serif text-base sm:text-lg font-bold text-white leading-tight">
+                      ¿Por qué afiliarte a nuestra Cámara Gastronómica?
+                    </h3>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleCloseVideoModal}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  title="Cerrar video"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Video Player Container */}
+              <div className="p-3 sm:p-5 bg-black flex-1 flex flex-col items-center justify-center overflow-hidden">
+                <div className="w-full relative rounded-2xl overflow-hidden shadow-2xl bg-black border border-slate-800 flex items-center justify-center">
+                  <video
+                    ref={videoRef}
+                    controls
+                    autoPlay
+                    playsInline
+                    preload="metadata"
+                    className="w-full max-h-[55vh] object-contain rounded-xl"
+                  >
+                    <source src="/video-afiliacion.mp4" type="video/mp4" />
+                    <source src="/Video%20Afiliacion.mp4" type="video/mp4" />
+                    Su navegador no soporta el formato de video.
+                  </video>
+                </div>
+              </div>
+
+              {/* Modal Footer & Call to Action */}
+              <div className="px-5 sm:px-6 py-4 border-t border-slate-800 bg-slate-950/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p className="text-xs text-slate-300 text-center sm:text-left leading-relaxed">
+                  🌟 Impulsa tu establecimiento con el respaldo gremial, visibilidad en el mapa satelital 3D y sello de calidad oficial.
+                </p>
+
+                <div className="flex items-center gap-3 w-full sm:w-auto shrink-0">
+                  <button
+                    onClick={handleCloseVideoModal}
+                    className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 text-xs font-semibold transition-all text-center"
+                  >
+                    Omitir e Ir al Formulario
+                  </button>
+                  <button
+                    onClick={handleCloseVideoModal}
+                    className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-serif font-bold text-xs shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>Llenar Datos (Paso 1)</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Wizard Header */}
         <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8 mb-8">
           <div className="flex items-center justify-between gap-4 pb-6 border-b border-slate-100">
@@ -1022,6 +1111,32 @@ export function AffiliateDashboard({ t }) {
         {/* STEP 1: Tipo de Negocio, Datos & Municipios */}
         {regStep === 1 && (
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8 animate-fadeIn">
+            
+            {/* Banner Motivacional / Reproducir Video de Afiliación */}
+            <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-slate-50 border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
+                  <Film className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900">
+                    Video Institucional de Afiliación Gremial
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Descubre los beneficios, respaldo jurídico y proyección del sector gastronómico merideño.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowVideoModal(true)}
+                className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all shrink-0"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>Ver Video Motivacional</span>
+              </button>
+            </div>
+
             <h3 className="font-serif text-xl font-bold text-slate-900 mb-1">
               Paso 1: Tipo de Negocio Gastronómico, Identificación & Ubicación
             </h3>
