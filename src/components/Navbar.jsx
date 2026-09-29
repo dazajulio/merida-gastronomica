@@ -18,7 +18,8 @@ import {
   Scale,
   ChevronDown,
   Layers,
-  LayoutGrid
+  LayoutGrid,
+  Coffee
 } from 'lucide-react';
 
 export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
@@ -52,7 +53,9 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
         { id: 'home', label: 'Inicio', desc: 'Portada editorial y bienvenida oficial', icon: Mountain },
         { id: 'guide', label: 'Guía de Restaurantes', desc: 'Fichas oficiales, menús, fotos y reservas', icon: UtensilsCrossed },
         { id: 'lidar', label: 'Mapa Gastronómico 3D', desc: 'Cartografía satelital con radar de altitud', icon: Compass },
-        { id: 'terroir', label: 'Rutas Mérida', desc: 'Café de especialidad, cacao porcelana y páramo', icon: Sparkles },
+        { id: 'terroir', label: 'Rutas Mérida', desc: 'Productos de páramo, piso térmico y terruño', icon: Sparkles },
+        { id: 'cafe', label: 'Café de Especialidad', desc: 'Rutas andinas, microclimas y métodos de extracción', icon: Coffee },
+        { id: 'cacao', label: 'Cacao Porcelana', desc: 'Genética criolla pura, bean-to-bar y maridajes', icon: Sparkles },
         { id: 'cultural', label: 'Distrito Cultural', desc: 'Muralismo, jazz, speakeasies y casco colonial', icon: Palette },
         { id: 'services', label: 'Servicios Turísticos', desc: 'Teleférico VIP, 4x4, posadas y guías', icon: MapPin },
         { id: 'events', label: 'Calendario de Eventos', desc: 'Festivales del Sol, catas y congresos', icon: Calendar },
@@ -62,6 +65,7 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
       category: "Gremio & Desarrollo Empresarial",
       items: [
         { id: 'affiliates', label: 'Portal de Afiliados', desc: 'Acceso con clave, solvencias y certificados', icon: ShieldCheck },
+        { id: 'beneficios', label: 'Beneficios de Ser Agremiado', desc: 'Los 10 pilares estratégicos y valor institucional', icon: Award },
         { id: 'sello', label: 'Sello de Calidad AAA', desc: 'Norma técnica de 226 ítems de excelencia', icon: Award },
         { id: 'jobs', label: 'Bolsa de Empleo Agremiada', desc: 'Ofertas laborales en sala, cocina y barismo', icon: Briefcase },
         { id: 'academy', label: 'Academia & Expo 2027', desc: 'Alianza ULA, Hotel Escuela y formación', icon: GraduationCap },

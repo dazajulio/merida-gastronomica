@@ -13,6 +13,9 @@ import { CulturalDistrict } from './components/CulturalDistrict';
 import { SelloGastronomico } from './components/SelloGastronomico';
 import { AcademyGlubbiSection } from './components/AcademyGlubbiSection';
 import { LegalResourceCenter } from './components/LegalResourceCenter';
+import { CoffeeSection } from './components/CoffeeSection';
+import { CacaoSection } from './components/CacaoSection';
+import { GuildBenefitsSection } from './components/GuildBenefitsSection';
 import { Footer } from './components/Footer';
 
 import { RESTAURANTS_DATA } from './data/restaurantsData';
@@ -500,6 +503,41 @@ export function App() {
         {activeTab === 'services' && (
           <div className="pt-24 pb-16">
             <TouristServices t={t} />
+          </div>
+        )}
+
+        {/* Dedicated Page: Café de Especialidad */}
+        {activeTab === 'cafe' && (
+          <div className="pt-24 pb-16">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <CoffeeSection 
+                setActiveTab={setActiveTab} 
+                onQuickSearch={handleQuickSearch} 
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Dedicated Page: Cacao Porcelana */}
+        {activeTab === 'cacao' && (
+          <div className="pt-24 pb-16">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <CacaoSection 
+                setActiveTab={setActiveTab} 
+                onQuickSearch={handleQuickSearch} 
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Dedicated Page: Beneficios de Ser Agremiado */}
+        {activeTab === 'beneficios' && (
+          <div className="pt-24 pb-16">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <GuildBenefitsSection 
+                setActiveTab={setActiveTab} 
+              />
+            </div>
           </div>
         )}
 

@@ -81,6 +81,16 @@ export function Footer({ setActiveTab, t }) {
                 </button>
               </li>
               <li>
+                <button onClick={() => { setActiveTab('cafe'); scrollToTop(); }} className="hover:text-amber-400 transition-colors">
+                  ☕ Café de Especialidad
+                </button>
+              </li>
+              <li>
+                <button onClick={() => { setActiveTab('cacao'); scrollToTop(); }} className="hover:text-amber-400 transition-colors">
+                  🍫 Cacao Porcelana
+                </button>
+              </li>
+              <li>
                 <button onClick={() => { setActiveTab('cultural'); scrollToTop(); }} className="hover:text-amber-400 transition-colors flex items-center gap-1">
                   <Palette className="w-3.5 h-3.5 text-pink-400" />
                   <span>Distrito Cultural Urbano</span>
@@ -105,6 +115,12 @@ export function Footer({ setActiveTab, t }) {
               Gremio & Academia
             </h4>
             <ul className="space-y-2 text-xs">
+              <li>
+                <button onClick={() => { setActiveTab('beneficios'); scrollToTop(); }} className="hover:text-amber-400 transition-colors flex items-center gap-1 text-amber-400 font-bold">
+                  <Award className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Beneficios de Ser Agremiado</span>
+                </button>
+              </li>
               <li>
                 <button onClick={() => { setActiveTab('sello'); scrollToTop(); }} className="hover:text-amber-400 transition-colors flex items-center gap-1 text-amber-300">
                   <Award className="w-3.5 h-3.5 text-amber-400" />
