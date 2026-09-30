@@ -122,12 +122,22 @@ export function BoardAdminPortal({ t, onNavigate }) {
       const saved = localStorage.getItem('cgem_directorio_agremiados');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed.filter(item => item && item.id !== 'cgm-dir-001');
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.filter(item => item && item.id !== 'cgm-dir-001').map(item => {
+            if (item.codigo_afiliado === 'CGM-2026-001' && item.email === 'kaffia@meridagastronomica.com') {
+              return {
+                ...item,
+                email: 'cafe.kaffia@gmail.com',
+                direccion_completa: 'Av. 8 entre Calles 24 y 25, Sector Las Heroínas, Casco Central, Mérida',
+                monto_cuota_mensual: 10
+              };
+            }
+            return item;
+          });
         }
       }
     } catch (e) {}
-    return [];
+    return INITIAL_DIRECTORY_DATA;
   });
 
   const [isLoadingDirectory, setIsLoadingDirectory] = useState(false);
