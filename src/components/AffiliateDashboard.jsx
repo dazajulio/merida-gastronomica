@@ -504,9 +504,18 @@ function GpsCalibrationTab({ activeUser }) {
   );
 }
 
-export function AffiliateDashboard({ t }) {
+export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo = false }) {
   // Navigation & Authentication states: 'login' | 'register' | 'welcome_preview' | 'dashboard'
-  const [viewMode, setViewMode] = useState('login');
+  const [viewMode, setViewMode] = useState(initialViewMode);
+
+  useEffect(() => {
+    if (initialViewMode) {
+      setViewMode(initialViewMode);
+      if (initialViewMode === 'register' && autoOpenVideo) {
+        setShowVideoModal(true);
+      }
+    }
+  }, [initialViewMode, autoOpenVideo]);
   
   // BCV Official Exchange Rate State & $30 USD Fee
   const ANNUAL_FEE_USD = 30;
@@ -579,7 +588,7 @@ export function AffiliateDashboard({ t }) {
   const [isSubmittingReg, setIsSubmittingReg] = useState(false);
 
   // Motivational Affiliate Video Modal State
-  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(autoOpenVideo || false);
   const videoRef = useRef(null);
 
   const handleCloseVideoModal = () => {

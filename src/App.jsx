@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { RestaurantGuide } from './components/RestaurantGuide';
@@ -16,25 +16,50 @@ import { LegalResourceCenter } from './components/LegalResourceCenter';
 import { CoffeeSection } from './components/CoffeeSection';
 import { CacaoSection } from './components/CacaoSection';
 import { GuildBenefitsSection } from './components/GuildBenefitsSection';
+import { BoardAdminPortal } from './components/BoardAdminPortal';
 import { Footer } from './components/Footer';
 
 import { RESTAURANTS_DATA } from './data/restaurantsData';
 import { translations } from './data/translations';
 import { 
   Sparkles, 
-  ArrowRight,
-  Award,
-  Palette,
-  Briefcase,
-  GraduationCap,
-  Scale,
-  ShieldCheck,
-  Building2,
-  CheckCircle2
+  ArrowRight, 
+  Award, 
+  Palette, 
+  Briefcase, 
+  GraduationCap, 
+  Scale, 
+  ShieldCheck, 
+  Building2, 
+  CheckCircle2,
+  Lock
 } from 'lucide-react';
 
+// Route Definitions with Canonical URLs and Meta Titles
+const ROUTE_CONFIG = [
+  { tab: 'home', paths: ['/', '/inicio', ''], url: '/', title: 'Mérida Gastronómica | Cámara Gastronómica del Estado Mérida' },
+  { tab: 'guide', paths: ['/guia-restaurantes', '/restaurantes', '/directorio'], url: '/guia-restaurantes', title: 'Guía Oficial de Restaurantes | Mérida Gastronómica' },
+  { tab: 'lidar', paths: ['/mapa', '/mapa-3d', '/lidar'], url: '/mapa', title: 'Mapa Gastronómico 3D & Cartografía | Mérida Gastronómica' },
+  { tab: 'terroir', paths: ['/rutas-origen', '/terroir', '/rutas'], url: '/rutas-origen', title: 'Rutas & Sabores de Origen Andino | Mérida Gastronómica' },
+  { tab: 'cafe', paths: ['/cafe-especialidad', '/cafe', '/cafes'], url: '/cafe-especialidad', title: 'Café de Especialidad de Altura | Mérida Gastronómica' },
+  { tab: 'cacao', paths: ['/cacao-porcelana', '/cacao'], url: '/cacao-porcelana', title: 'Cacao Porcelana del Sur del Lago | Mérida Gastronómica' },
+  { tab: 'cultural', paths: ['/distrito-cultural', '/cultural'], url: '/distrito-cultural', title: 'Distrito Cultural Urbano | Mérida Gastronómica' },
+  { tab: 'sello', paths: ['/sello-calidad', '/sello', '/sello-aaa'], url: '/sello-calidad', title: 'Sello de Calidad AAA (226 Ítems) | Mérida Gastronómica' },
+  { tab: 'beneficios', paths: ['/beneficios-agremiados', '/beneficios'], url: '/beneficios-agremiados', title: 'Beneficios de Ser Agremiado | Mérida Gastronómica' },
+  { tab: 'jobs', paths: ['/bolsa-empleo', '/empleo', '/jobs'], url: '/bolsa-empleo', title: 'Bolsa de Empleo Agremiada | Mérida Gastronómica' },
+  { tab: 'academy', paths: ['/academia', '/expo-2027', '/academia-ula'], url: '/academia', title: 'Academia Gastronómica & Expo 2027 | Mérida Gastronómica' },
+  { tab: 'legal', paths: ['/marco-legal', '/legal', '/seniat'], url: '/marco-legal', title: 'Marco Jurídico & SENIAT/SAMAT | Mérida Gastronómica' },
+  { tab: 'events', paths: ['/eventos', '/agenda'], url: '/eventos', title: 'Calendario Oficial de Eventos | Mérida Gastronómica' },
+  { tab: 'services', paths: ['/servicios-turisticos', '/servicios'], url: '/servicios-turisticos', title: 'Servicios Turísticos & Concierge | Mérida Gastronómica' },
+  { tab: 'affiliates', paths: ['/afiliacion', '/afiliados', '/portal-afiliados'], url: '/afiliacion', title: 'Portal Oficial de Afiliados | Mérida Gastronómica' },
+  { tab: 'affiliates_register', paths: ['/afiliacion/registro', '/solicitar-afiliacion', '/registro'], url: '/afiliacion/registro', title: 'Solicitar Afiliación / Registrar Nuevo Miembro | Mérida Gastronómica' },
+  { tab: 'admin', paths: ['/admin', '/junta-directiva', '/directiva'], url: '/admin', title: 'Portal Junta Directiva & Agenda | Cámara Gastronómica de Mérida' },
+];
+
 export function App() {
-  const [activeTab, setActiveTab] = useState('home'); // home | guide | lidar | events | terroir | jobs | cultural | sello | academy | legal | services | affiliates
+  const [activeTab, setActiveTab] = useState('home');
+  const [affiliateViewMode, setAffiliateViewMode] = useState('login');
+  const [affiliateAutoVideo, setAffiliateAutoVideo] = useState(false);
   const [lang, setLang] = useState('es');
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
   const [focusRestaurantId, setFocusRestaurantId] = useState(null);
@@ -42,64 +67,142 @@ export function App() {
 
   const t = translations[lang] || translations.es;
 
-  // Handle URL deep link query parameter (?restaurante=slug or ?restaurant=id)
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const restParam = params.get('restaurante') || params.get('restaurant') || params.get('r');
-      const hash = window.location.hash.replace('#', '');
-      
-      const targetQuery = restParam || hash;
-      if (targetQuery) {
-        const found = RESTAURANTS_DATA.find(r => 
-          r.id.toLowerCase() === targetQuery.toLowerCase() || 
-          (r.slug && r.slug.toLowerCase() === targetQuery.toLowerCase())
-        );
-        if (found) {
-          // Navigate straight to Lidar 3D Map, focusing on this restaurant marker with preview card
-          setFocusRestaurantId(found.id);
-          setActiveTab('lidar');
-          setTimeout(() => {
-            const mapBoxEl = document.getElementById('mapa-lidar-box') || document.getElementById('mapa-lidar');
-            if (mapBoxEl) {
-              mapBoxEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-          }, 350);
-        }
+  // Process and parse current URL location
+  const parseCurrentUrl = useCallback(() => {
+    if (typeof window === 'undefined') return;
+
+    const pathname = window.location.pathname.toLowerCase().replace(/\/$/, '') || '/';
+    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash.replace('#', '').toLowerCase();
+
+    // 1. Check direct restaurant slug in path: /restaurante/:slug
+    if (pathname.startsWith('/restaurante/')) {
+      const slug = pathname.replace('/restaurante/', '');
+      const found = RESTAURANTS_DATA.find(r => 
+        (r.slug && r.slug.toLowerCase() === slug) || 
+        r.id.toLowerCase() === slug
+      );
+      if (found) {
+        setSelectedRestaurant(found);
+        setActiveTab('guide');
+        document.title = `${found.name} | Guía Mérida Gastronómica`;
+        return;
       }
     }
+
+    // 2. Check query param: ?restaurante=slug or ?restaurant=id or ?r=id
+    const restParam = params.get('restaurante') || params.get('restaurant') || params.get('r') || hash;
+    if (restParam) {
+      const found = RESTAURANTS_DATA.find(r => 
+        r.id.toLowerCase() === restParam.toLowerCase() || 
+        (r.slug && r.slug.toLowerCase() === restParam.toLowerCase())
+      );
+      if (found) {
+        setFocusRestaurantId(found.id);
+        setSelectedRestaurant(found);
+        setActiveTab('lidar');
+        document.title = `${found.name} en Mapa 3D | Mérida Gastronómica`;
+        setTimeout(() => {
+          const mapBoxEl = document.getElementById('mapa-lidar-box') || document.getElementById('mapa-lidar');
+          if (mapBoxEl) {
+            mapBoxEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 350);
+        return;
+      }
+    }
+
+    // 3. Match Route configuration
+    for (const route of ROUTE_CONFIG) {
+      if (route.paths.includes(pathname)) {
+        if (route.tab === 'affiliates_register') {
+          setActiveTab('affiliates');
+          setAffiliateViewMode('register');
+          setAffiliateAutoVideo(true);
+        } else {
+          setActiveTab(route.tab);
+          if (route.tab === 'affiliates') {
+            setAffiliateViewMode('login');
+            setAffiliateAutoVideo(false);
+          }
+        }
+        document.title = route.title;
+        return;
+      }
+    }
+
+    // Default to home
+    setActiveTab('home');
+    document.title = 'Mérida Gastronómica | Cámara Gastronómica del Estado Mérida';
   }, []);
 
-  // Sync URL when modal is opened or closed
+  // Listen to browser navigation (back / forward) and initial load
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if (selectedRestaurant) {
-        const newUrl = `${window.location.pathname}?restaurante=${selectedRestaurant.slug || selectedRestaurant.id}`;
-        window.history.replaceState(null, '', newUrl);
-      } else {
-        const params = new URLSearchParams(window.location.search);
-        if (params.has('restaurante') || params.has('restaurant') || params.has('r')) {
-          window.history.replaceState(null, '', window.location.pathname);
-        }
+    parseCurrentUrl();
+
+    const handlePopState = () => {
+      parseCurrentUrl();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [parseCurrentUrl]);
+
+  // Navigate function with URL update and history pushing
+  const navigateTo = (tabName, extra = {}) => {
+    let targetUrl = '/';
+    let targetTitle = 'Mérida Gastronómica | Cámara Gastronómica del Estado Mérida';
+
+    if (tabName === 'affiliates_register' || (tabName === 'affiliates' && extra.viewMode === 'register')) {
+      setActiveTab('affiliates');
+      setAffiliateViewMode('register');
+      setAffiliateAutoVideo(extra.autoVideo ?? true);
+      targetUrl = '/afiliacion/registro';
+      targetTitle = 'Solicitar Afiliación / Registrar Nuevo Miembro | Mérida Gastronómica';
+    } else {
+      const matchRoute = ROUTE_CONFIG.find(r => r.tab === tabName);
+      if (matchRoute) {
+        targetUrl = matchRoute.url;
+        targetTitle = matchRoute.title;
+      }
+      setActiveTab(tabName);
+      if (tabName === 'affiliates') {
+        setAffiliateViewMode(extra.viewMode || 'login');
+        setAffiliateAutoVideo(false);
       }
     }
-  }, [selectedRestaurant]);
+
+    document.title = targetTitle;
+    if (window.location.pathname !== targetUrl) {
+      window.history.pushState(null, '', targetUrl);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleSelectRestaurantById = (id) => {
     const found = RESTAURANTS_DATA.find(r => r.id === id);
     if (found) {
       setSelectedRestaurant(found);
+      const newUrl = `/restaurante/${found.slug || found.id}`;
+      window.history.pushState(null, '', newUrl);
+      document.title = `${found.name} | Guía Mérida Gastronómica`;
     }
+  };
+
+  const handleCloseRestaurantModal = () => {
+    setSelectedRestaurant(null);
+    const matchRoute = ROUTE_CONFIG.find(r => r.tab === activeTab);
+    const targetUrl = matchRoute ? matchRoute.url : '/';
+    window.history.replaceState(null, '', targetUrl);
+    document.title = matchRoute ? matchRoute.title : 'Mérida Gastronómica';
   };
 
   const handleViewOnMap = (restaurant) => {
     setSelectedRestaurant(null);
     setFocusRestaurantId(restaurant.id);
     setActiveTab('lidar');
-    if (typeof window !== 'undefined') {
-      const newUrl = `${window.location.pathname}?restaurante=${restaurant.slug || restaurant.id}`;
-      window.history.replaceState(null, '', newUrl);
-    }
+    const newUrl = `${window.location.pathname}?restaurante=${restaurant.slug || restaurant.id}`;
+    window.history.replaceState(null, '', newUrl);
     setTimeout(() => {
       const mapBoxEl = document.getElementById('mapa-lidar-box') || document.getElementById('mapa-lidar');
       if (mapBoxEl) {
@@ -110,8 +213,7 @@ export function App() {
 
   const handleQuickSearch = (term) => {
     setGuideSearchTerm(term);
-    setActiveTab('guide');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    navigateTo('guide');
   };
 
   const handleBookDirect = (restaurant) => {
@@ -121,13 +223,10 @@ export function App() {
   return (
     <div className="min-h-screen bg-[#fcfbf9] text-slate-800 flex flex-col font-sans selection:bg-amber-500 selection:text-white">
       
-      {/* Fixed Navigation */}
+      {/* Fixed Navigation (Hidden when on private board admin portal for clean executive focus) */}
       <Navbar 
         activeTab={activeTab} 
-        setActiveTab={(tab) => {
-          setActiveTab(tab);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
+        setActiveTab={(tab) => navigateTo(tab)}
         lang={lang} 
         setLang={setLang} 
         t={t}
@@ -135,12 +234,16 @@ export function App() {
 
       {/* Main Content Areas */}
       <main className="flex-1">
+        
+        {/* ========================================================= */}
+        {/* 1. PORTADA PRINCIPAL / HOME LANDING                       */}
+        {/* ========================================================= */}
         {activeTab === 'home' && (
           <div>
             {/* Hero Landing */}
             <HeroSection 
               t={t} 
-              setActiveTab={setActiveTab} 
+              setActiveTab={(tab) => navigateTo(tab)} 
               onQuickSearch={handleQuickSearch} 
             />
 
@@ -149,16 +252,16 @@ export function App() {
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-10 gap-4">
                   <div>
-                    <span className="text-xs uppercase font-bold text-amber-800 flex items-center gap-1.5 mb-2">
+                    <span className="text-xs uppercase font-extrabold text-amber-800 flex items-center gap-1.5 mb-2">
                       <Sparkles className="w-4 h-4 text-amber-600" />
                       Joyas Culinarias de la Cordillera
                     </span>
-                    <h2 className="font-serif text-3xl sm:text-4xl font-bold text-slate-900">
+                    <h2 className="font-serif text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tight">
                       Restaurantes Destacados & Cocina de Autor
                     </h2>
                   </div>
                   <button
-                    onClick={() => { setActiveTab('guide'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    onClick={() => navigateTo('guide')}
                     className="py-2.5 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all"
                   >
                     <span>Ver Directorio Completo</span>
@@ -186,19 +289,19 @@ export function App() {
                       <Award className="w-3.5 h-3.5" />
                       <span>Norma Técnica Oficial de la Cámara</span>
                     </div>
-                    <h2 className="font-serif text-3xl sm:text-5xl font-bold text-white leading-tight">
+                    <h2 className="font-serif text-3xl sm:text-5xl font-black text-white uppercase tracking-tight leading-tight">
                       Sello Mérida Gastronómica
                     </h2>
-                    <p className="font-serif text-amber-200/90 italic text-base">
+                    <p className="font-sans text-amber-200/90 italic text-base">
                       "Para ser referentes globales, la excelencia debe ser medible."
                     </p>
-                    <p className="text-sm text-slate-300 leading-relaxed max-w-2xl">
+                    <p className="text-sm text-slate-300 leading-relaxed max-w-2xl font-sans">
                       A través de una rigurosa auditoría de <strong>226 ítems</strong> sustentada en tres pilares —<strong>Calidad, Servicio y Limpieza</strong>—, evaluamos la gestión operativa, la seguridad alimentaria, el manejo de mermas y la excelencia de servicio. Quien ostente este sello en su fachada acredita ante Venezuela y el mundo una <strong>Calificación AAA</strong>.
                     </p>
                     <div className="pt-2 flex flex-wrap items-center gap-3">
                       <button
-                        onClick={() => { setActiveTab('sello'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                        className="py-3 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all"
+                        onClick={() => navigateTo('sello')}
+                        className="py-3 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg transition-all"
                       >
                         <span>Conocer los 226 Ítems del Sello</span>
                         <ArrowRight className="w-4 h-4" />
@@ -208,23 +311,23 @@ export function App() {
 
                   <div className="lg:col-span-5 grid grid-cols-1 gap-3">
                     <div className="p-4 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-md">
-                      <span className="text-xl font-serif font-bold text-amber-400 block">Pilar I: Calidad (80 Ítems)</span>
-                      <p className="text-xs text-slate-300 mt-1">Estandarización de recetas, trazabilidad de origen andino y termorregulación.</p>
+                      <span className="text-xl font-serif font-black text-amber-400 block uppercase">Pilar I: Calidad (80 Ítems)</span>
+                      <p className="text-xs text-slate-300 mt-1 font-sans">Estandarización de recetas, trazabilidad de origen andino y termorregulación.</p>
                     </div>
                     <div className="p-4 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-md">
-                      <span className="text-xl font-serif font-bold text-sky-400 block">Pilar II: Servicio (72 Ítems)</span>
-                      <p className="text-xs text-slate-300 mt-1">Hospitalidad andina, comanda cronometrada y cata de café y vinos.</p>
+                      <span className="text-xl font-serif font-black text-sky-400 block uppercase">Pilar II: Servicio (72 Ítems)</span>
+                      <p className="text-xs text-slate-300 mt-1 font-sans">Hospitalidad andina, comanda cronometrada y cata de café y vinos.</p>
                     </div>
                     <div className="p-4 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-md">
-                      <span className="text-xl font-serif font-bold text-emerald-400 block">Pilar III: Limpieza & Mermas (74 Ítems)</span>
-                      <p className="text-xs text-slate-300 mt-1">Inocuidad HACCP, desinfección profunda y economía circular de residuos.</p>
+                      <span className="text-xl font-serif font-black text-emerald-400 block uppercase">Pilar III: Limpieza & Mermas (74 Ítems)</span>
+                      <p className="text-xs text-slate-300 mt-1 font-sans">Inocuidad HACCP, desinfección profunda y economía circular de residuos.</p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Featured Section 3: Real Interactive Leaflet Route Map */}
+            {/* Featured Section 3: Leaflet Route Map */}
             <div className="border-t border-slate-200 bg-[#f8f6f0] py-16">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <LidarMap 
@@ -238,75 +341,41 @@ export function App() {
             <div className="border-t border-slate-200 bg-white py-16">
               <TerroirSection 
                 t={t}
-                setActiveTab={setActiveTab}
+                setActiveTab={(tab) => navigateTo(tab)}
                 onQuickSearch={handleQuickSearch}
               />
             </div>
 
-            {/* Featured Section 5: Distrito Cultural Urbano (Wynwood / Barcelona) */}
+            {/* Featured Section 5: Distrito Cultural Urbano */}
             <div className="border-t border-slate-200 bg-[#faf8f5] py-16">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-10 gap-4">
                   <div>
-                    <span className="text-xs uppercase font-bold text-purple-800 flex items-center gap-1.5 mb-2">
-                      <Palette className="w-4 h-4 text-purple-600" />
-                      Turismo Urbano, Arte & Gastronomía
+                    <span className="text-xs uppercase font-extrabold text-amber-800 flex items-center gap-1.5 mb-2">
+                      <Palette className="w-4 h-4 text-pink-600" />
+                      Arte, Gastronomía & Vida Nocturna
                     </span>
-                    <h2 className="font-serif text-3xl sm:text-4xl font-bold text-slate-900">
-                      Distrito Cultural & Gastronómico Urbano
+                    <h2 className="font-serif text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tight">
+                      Distrito Cultural Urbano de Mérida
                     </h2>
-                    <p className="text-xs sm:text-sm text-slate-600 mt-1">
-                      Mérida fusiona el muralismo andino monumental, el street food de autor, los cafés literarios y las cavas de jazz en una vibrante experiencia peatonal.
-                    </p>
                   </div>
                   <button
-                    onClick={() => { setActiveTab('cultural'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    className="py-2.5 px-5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all"
+                    onClick={() => navigateTo('cultural')}
+                    className="py-2.5 px-5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all"
                   >
-                    <span>Explorar Circuitos Urbanos</span>
+                    <span>Explorar el Distrito</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all">
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-purple-100 text-purple-900">Muralismo & Street Art</span>
-                    <h3 className="font-serif font-bold text-lg text-slate-900 mt-2">Bulevar Santa Juana</h3>
-                    <p className="text-xs text-slate-600 mt-1">Más de 1.200 m² de intervenciones artísticas, luces de guirnalda y cervecería artesanal de páramo.</p>
-                  </div>
-                  <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all">
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-900">Patrimonio & Cafés</span>
-                    <h3 className="font-serif font-bold text-lg text-slate-900 mt-2">Portales del Casco Histórico</h3>
-                    <p className="text-xs text-slate-600 mt-1">Cafés de tertulia, librerías coloniales y dulcería abrillantada tradicional desde 1948.</p>
-                  </div>
-                  <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all">
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-sky-100 text-sky-900">Mixología & Noche</span>
-                    <h3 className="font-serif font-bold text-lg text-slate-900 mt-2">Ruta de Jazz & Tapas</h3>
-                    <p className="text-xs text-slate-600 mt-1">Speakeasies con botánicos andinos, chimeneas urbanas y música en vivo.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Featured Section 6: Ecosystem Grid (Bolsa de Empleo, Academia ULA & Marco Jurídico) */}
-            <div className="border-t border-slate-200 bg-white py-16">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="text-center max-w-3xl mx-auto mb-12">
-                  <span className="text-xs uppercase font-bold text-amber-800 tracking-wider">Ecosistema Gremial Integral</span>
-                  <h2 className="font-serif text-3xl sm:text-4xl font-bold text-slate-900 mt-1">
-                    Servicios, Formación & Seguridad Jurídica
-                  </h2>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  
                   {/* Card 1: Jobs */}
                   <div className="p-8 rounded-3xl bg-slate-50 border border-slate-200 flex flex-col justify-between hover:border-amber-400 hover:bg-white transition-all shadow-sm">
                     <div>
                       <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mb-4">
                         <Briefcase className="w-6 h-6" />
                       </div>
-                      <h3 className="font-serif font-bold text-xl text-slate-900">
+                      <h3 className="font-serif font-black text-xl text-slate-900 uppercase">
                         Bolsa de Empleo Agremiada
                       </h3>
                       <p className="text-xs text-slate-600 mt-2 leading-relaxed">
@@ -314,7 +383,7 @@ export function App() {
                       </p>
                     </div>
                     <button
-                      onClick={() => { setActiveTab('jobs'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                      onClick={() => navigateTo('jobs')}
                       className="mt-6 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all"
                     >
                       <span>Ver Vacantes Activas</span>
@@ -328,7 +397,7 @@ export function App() {
                       <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-800 flex items-center justify-center mb-4">
                         <GraduationCap className="w-6 h-6" />
                       </div>
-                      <h3 className="font-serif font-bold text-xl text-slate-900">
+                      <h3 className="font-serif font-black text-xl text-slate-900 uppercase">
                         Academia Gastronómica & Expo 2027
                       </h3>
                       <p className="text-xs text-slate-600 mt-2 leading-relaxed">
@@ -336,7 +405,7 @@ export function App() {
                       </p>
                     </div>
                     <button
-                      onClick={() => { setActiveTab('academy'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                      onClick={() => navigateTo('academy')}
                       className="mt-6 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all"
                     >
                       <span>Conocer Alianza & Expo</span>
@@ -350,7 +419,7 @@ export function App() {
                       <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-800 flex items-center justify-center mb-4">
                         <Scale className="w-6 h-6" />
                       </div>
-                      <h3 className="font-serif font-bold text-xl text-slate-900">
+                      <h3 className="font-serif font-black text-xl text-slate-900 uppercase">
                         Centro de Recursos & Marco Jurídico
                       </h3>
                       <p className="text-xs text-slate-600 mt-2 leading-relaxed">
@@ -358,7 +427,7 @@ export function App() {
                       </p>
                     </div>
                     <button
-                      onClick={() => { setActiveTab('legal'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                      onClick={() => navigateTo('legal')}
                       className="mt-6 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all"
                     >
                       <span>Consultar Normativas</span>
@@ -375,7 +444,7 @@ export function App() {
               <EventsCalendar t={t} />
             </div>
 
-            {/* Featured Section 8: Tourist Concierge & Experiences */}
+            {/* Featured Section 8: Tourist Concierge */}
             <div className="border-t border-slate-200 bg-white py-16">
               <TouristServices t={t} />
             </div>
@@ -384,28 +453,40 @@ export function App() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
               <div className="p-8 sm:p-10 rounded-3xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
                 <div className="space-y-2">
-                  <span className="text-xs uppercase font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  <span className="text-xs uppercase font-extrabold px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
                     Gremio Empresarial
                   </span>
-                  <h3 className="font-serif text-2xl sm:text-3xl font-bold text-white">
+                  <h3 className="font-serif text-2xl sm:text-3xl font-black text-white uppercase tracking-wide">
                     ¿Es Propietario o Chef de un Restaurante en Mérida?
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-300 max-w-2xl">
+                  <p className="text-xs sm:text-sm text-slate-300 max-w-2xl font-sans">
                     Únase a la Cámara Gastronómica del Estado Mérida. Obtenga el Sello Oficial de Calidad AAA, auditorías sanitarias, compras conjuntas y posicionamiento en guías turísticas internacionales.
                   </p>
                 </div>
-                <button
-                  onClick={() => { setActiveTab('affiliates'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                  className="py-3.5 px-6 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-serif font-bold text-xs uppercase tracking-wider shadow-md shrink-0 transition-all"
-                >
-                  Acceder al Portal de Afiliados
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => navigateTo('affiliates_register')}
+                    className="py-3.5 px-6 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider shadow-md shrink-0 transition-all"
+                  >
+                    Solicitar Afiliación
+                  </button>
+                  <button
+                    onClick={() => navigateTo('affiliates')}
+                    className="py-3.5 px-6 rounded-2xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 font-serif font-black text-xs uppercase tracking-wider shadow-md shrink-0 transition-all"
+                  >
+                    Portal de Agremiados
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Dedicated Page: Guía de Restaurantes */}
+        {/* ========================================================= */}
+        {/* 2. RUTAS DEDICADAS DE LA PLATAFORMA                       */}
+        {/* ========================================================= */}
+
+        {/* Dedicated Page: Guía de Restaurantes (/guia-restaurantes) */}
         {activeTab === 'guide' && (
           <div className="pt-24 pb-16">
             <RestaurantGuide 
@@ -419,7 +500,7 @@ export function App() {
           </div>
         )}
 
-        {/* Dedicated Page: Mapa */}
+        {/* Dedicated Page: Mapa (/mapa) */}
         {activeTab === 'lidar' && (
           <div className="pt-24 pb-16">
             <LidarMap 
@@ -430,136 +511,151 @@ export function App() {
           </div>
         )}
 
-        {/* Dedicated Page: Rutas & Sabores de Origen (Anteriormente Atributos & Terroir) */}
+        {/* Dedicated Page: Rutas & Sabores de Origen (/rutas-origen) */}
         {activeTab === 'terroir' && (
           <div className="pt-24 pb-16">
             <TerroirSection 
               t={t}
-              setActiveTab={setActiveTab}
+              setActiveTab={(tab) => navigateTo(tab)}
               onQuickSearch={handleQuickSearch}
             />
           </div>
         )}
 
-        {/* Dedicated Page: Sello Mérida Gastronómica (226 Ítems AAA) */}
+        {/* Dedicated Page: Sello Mérida Gastronómica (/sello-calidad) */}
         {activeTab === 'sello' && (
           <div className="pt-24 pb-16">
             <SelloGastronomico 
               t={t}
-              setActiveTab={setActiveTab}
+              setActiveTab={(tab) => navigateTo(tab)}
             />
           </div>
         )}
 
-        {/* Dedicated Page: Distrito Cultural Urbano (Wynwood / Barcelona) */}
+        {/* Dedicated Page: Distrito Cultural Urbano (/distrito-cultural) */}
         {activeTab === 'cultural' && (
           <div className="pt-24 pb-16">
             <CulturalDistrict 
               t={t}
-              setActiveTab={setActiveTab}
+              setActiveTab={(tab) => navigateTo(tab)}
               onQuickSearch={handleQuickSearch}
             />
           </div>
         )}
 
-        {/* Dedicated Page: Bolsa de Empleo Agremiada */}
+        {/* Dedicated Page: Bolsa de Empleo Agremiada (/bolsa-empleo) */}
         {activeTab === 'jobs' && (
           <div className="pt-24 pb-16">
             <JobsSection 
               t={t}
-              setActiveTab={setActiveTab}
+              setActiveTab={(tab) => navigateTo(tab)}
             />
           </div>
         )}
 
-        {/* Dedicated Page: Academia, Glubbi AI & Expo 2027 */}
+        {/* Dedicated Page: Academia, Glubbi AI & Expo 2027 (/academia) */}
         {activeTab === 'academy' && (
           <div className="pt-24 pb-16">
             <AcademyGlubbiSection 
               t={t}
-              setActiveTab={setActiveTab}
+              setActiveTab={(tab) => navigateTo(tab)}
             />
           </div>
         )}
 
-        {/* Dedicated Page: Centro de Recursos y Marco Jurídico */}
+        {/* Dedicated Page: Centro de Recursos y Marco Jurídico (/marco-legal) */}
         {activeTab === 'legal' && (
           <div className="pt-24 pb-16">
             <LegalResourceCenter 
               t={t}
-              setActiveTab={setActiveTab}
+              setActiveTab={(tab) => navigateTo(tab)}
             />
           </div>
         )}
 
-        {/* Dedicated Page: Eventos */}
+        {/* Dedicated Page: Eventos (/eventos) */}
         {activeTab === 'events' && (
           <div className="pt-24 pb-16">
             <EventsCalendar t={t} />
           </div>
         )}
 
-        {/* Dedicated Page: Vinculaciones Turísticas */}
+        {/* Dedicated Page: Vinculaciones Turísticas (/servicios-turisticos) */}
         {activeTab === 'services' && (
           <div className="pt-24 pb-16">
             <TouristServices t={t} />
           </div>
         )}
 
-        {/* Dedicated Page: Café de Especialidad */}
+        {/* Dedicated Page: Café de Especialidad (/cafe-especialidad) */}
         {activeTab === 'cafe' && (
           <div className="pt-24 pb-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <CoffeeSection 
-                setActiveTab={setActiveTab} 
+                setActiveTab={(tab) => navigateTo(tab)} 
                 onQuickSearch={handleQuickSearch} 
               />
             </div>
           </div>
         )}
 
-        {/* Dedicated Page: Cacao Porcelana */}
+        {/* Dedicated Page: Cacao Porcelana (/cacao-porcelana) */}
         {activeTab === 'cacao' && (
           <div className="pt-24 pb-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <CacaoSection 
-                setActiveTab={setActiveTab} 
+                setActiveTab={(tab) => navigateTo(tab)} 
                 onQuickSearch={handleQuickSearch} 
               />
             </div>
           </div>
         )}
 
-        {/* Dedicated Page: Beneficios de Ser Agremiado */}
+        {/* Dedicated Page: Beneficios de Ser Agremiado (/beneficios-agremiados) */}
         {activeTab === 'beneficios' && (
           <div className="pt-24 pb-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <GuildBenefitsSection 
-                setActiveTab={setActiveTab} 
+                setActiveTab={(tab) => navigateTo(tab)} 
               />
             </div>
           </div>
         )}
 
-        {/* Dedicated Page: Portal de Afiliados */}
+        {/* Dedicated Page: Portal de Afiliados y Registro (/afiliacion, /afiliacion/registro) */}
         {activeTab === 'affiliates' && (
           <div className="pt-24 pb-16">
-            <AffiliateDashboard t={t} />
+            <AffiliateDashboard 
+              t={t} 
+              initialViewMode={affiliateViewMode}
+              autoOpenVideo={affiliateAutoVideo}
+            />
           </div>
         )}
+
+        {/* Dedicated Page: Portal Junta Directiva (/admin) */}
+        {activeTab === 'admin' && (
+          <div>
+            <BoardAdminPortal 
+              t={t} 
+              onNavigate={(tab) => navigateTo(tab)}
+            />
+          </div>
+        )}
+
       </main>
 
       {/* Full Restaurant Modal */}
       {selectedRestaurant && (
         <RestaurantModal 
           restaurant={selectedRestaurant} 
-          onClose={() => setSelectedRestaurant(null)}
+          onClose={handleCloseRestaurantModal}
           onViewOnMap={handleViewOnMap}
         />
       )}
 
       {/* Footer */}
-      <Footer setActiveTab={setActiveTab} t={t} />
+      <Footer setActiveTab={(tab) => navigateTo(tab)} t={t} />
 
     </div>
   );

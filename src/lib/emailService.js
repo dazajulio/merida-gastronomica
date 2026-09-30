@@ -342,3 +342,63 @@ export async function sendAffiliateWelcomeEmail({
   });
 }
 
+/**
+ * Notificación de Confirmación de Asistencia a Actividad de Junta Directiva
+ * Envía confirmación al miembro directivo y copia a Dirección Ejecutiva / Presidencia
+ */
+export async function sendBoardAttendanceEmail({
+  memberName,
+  memberRole,
+  memberEmail,
+  eventTitle,
+  eventType,
+  eventDate,
+  eventTime,
+  eventLocation,
+  isVirtual,
+  virtualLink
+}) {
+  const subject = `Confirmación de Asistencia en Agenda Directiva: ${memberName} (${memberRole}) - ${eventTitle}`;
+
+  const content = `
+    <h2 style="color: #0f172a; margin-top: 0;">Confirmación Oficial de Asistencia a Actividad Gremial</h2>
+    <p>Se ha registrado formalmente la participación de un miembro de la <strong>Junta Directiva</strong> en la agenda oficial de la Cámara Gastronómica.</p>
+    
+    <div class="info-box">
+      <p style="margin: 4px 0;"><strong>Directivo:</strong> <span style="font-size: 15px; color: #b45309; font-weight: bold;">${memberName}</span></p>
+      <p style="margin: 4px 0;"><strong>Cargo / Responsabilidad:</strong> ${memberRole}</p>
+      <p style="margin: 4px 0;"><strong>Correo Electrónico:</strong> ${memberEmail}</p>
+      <p style="margin: 4px 0;"><strong>Actividad:</strong> ${eventTitle}</p>
+      <p style="margin: 4px 0;"><strong>Tipo de Convocatoria:</strong> ${eventType || 'Institucional'}</p>
+      <p style="margin: 4px 0;"><strong>Fecha Convocada:</strong> ${eventDate}</p>
+      <p style="margin: 4px 0;"><strong>Horario:</strong> ${eventTime || 'Por confirmar'}</p>
+      <p style="margin: 4px 0;"><strong>Sede / Ubicación:</strong> ${isVirtual ? `Enlace Virtual: ${virtualLink || 'Por definir'}` : eventLocation}</p>
+      <p style="margin: 4px 0;"><strong>Estado de Asistencia:</strong> <span style="color: #059669; font-weight: bold;">✓ CONFIRMADO / VOY A ASISTIR</span></p>
+    </div>
+
+    <p style="font-size: 13px; color: #64748b; margin-top: 16px;">
+      Esta notificación ha sido enviada automáticamente al buzón del directivo y a la Dirección Ejecutiva para fines de quórum, acreditación y protocolo institucional.
+    </p>
+  `;
+
+  // Send to board member
+  const memberResult = await sendEmail({
+    to: memberEmail,
+    subject,
+    html: getEmailBaseTemplate(subject, content),
+    text: `Confirmación de asistencia para ${memberName} (${memberRole}) al evento: ${eventTitle} el ${eventDate}.`
+  });
+
+  // Also send notification to Direccion Ejecutiva
+  sendEmail({
+    to: 'info@camaragastronomicamerida.org',
+    replyTo: memberEmail,
+    subject: `[Agenda Directiva] Asistencia confirmada: ${memberName} (${memberRole}) a ${eventTitle}`,
+    html: getEmailBaseTemplate(`Asistencia Directiva: ${memberName}`, content),
+    text: `${memberName} (${memberRole}) ha confirmado asistencia a: ${eventTitle} el ${eventDate}.`
+  }).catch(() => {});
+
+  return memberResult;
+}
+
+

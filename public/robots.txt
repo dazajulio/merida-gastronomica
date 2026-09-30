@@ -1,0 +1,37 @@
+# Robots.txt Oficial - Cámara Gastronómica del Estado Mérida
+# https://www.meridagastronomica.com
+
+User-agent: *
+Allow: /
+Disallow: /admin
+
+# Rastreadores de Motores de Inteligencia Artificial (AEO)
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+# Mapa de Sitio XML Canónico
+Sitemap: https://www.meridagastronomica.com/sitemap.xml

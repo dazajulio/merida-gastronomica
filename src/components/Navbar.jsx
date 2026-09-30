@@ -70,6 +70,7 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
         { id: 'jobs', label: 'Bolsa de Empleo Agremiada', desc: 'Ofertas laborales en sala, cocina y barismo', icon: Briefcase },
         { id: 'academy', label: 'Academia & Expo 2027', desc: 'Alianza ULA, Hotel Escuela y formación', icon: GraduationCap },
         { id: 'legal', label: 'Marco Jurídico & SENIAT', desc: 'Normativas SAMAT, SACS y ordenanzas', icon: Scale },
+        { id: 'admin', label: 'Portal Junta Directiva', desc: 'Acceso privado de planificación, agenda y actas', icon: Lock },
       ]
     }
   ];

@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <!-- Página Principal / Portada Editorial -->
+  <url>
+    <loc>https://www.meridagastronomica.com/</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://www.meridagastronomica.com/logo-merida-gastronomica.png</image:loc>
+      <image:title>Mérida Gastronómica - Cámara Gastronómica del Estado Mérida</image:title>
+    </image:image>
+  </url>
+
+  <!-- Guía Oficial de Restaurantes & Alta Cocina -->
+  <url>
+    <loc>https://www.meridagastronomica.com/guia-restaurantes</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+  </url>
+
+  <!-- Ficha de Restaurante: Kaffia Caffe -->
+  <url>
+    <loc>https://www.meridagastronomica.com/restaurante/kaffia-caffe-merida</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+    <image:image>
+      <image:loc>https://www.meridagastronomica.com/images/kaffia/kaffia-fachada-hd.jpg</image:loc>
+      <image:title>Kaffia Caffe - Restaurante Afiliado Oficial en Las Heroínas Mérida</image:title>
+    </image:image>
+  </url>
+
+  <!-- Mapa Gastronómico 3D & Cartografía LiDAR -->
+  <url>
+    <loc>https://www.meridagastronomica.com/mapa</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- Sello Mérida Gastronómica (Norma Técnica 226 Ítems AAA) -->
+  <url>
+    <loc>https://www.meridagastronomica.com/sello-calidad</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- Café de Especialidad & Rutas de Altura -->
+  <url>
+    <loc>https://www.meridagastronomica.com/cafe-especialidad</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- Cacao Porcelana del Sur del Lago -->
+  <url>
+    <loc>https://www.meridagastronomica.com/cacao-porcelana</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- Rutas & Sabores de Origen (Terroir Andino) -->
+  <url>
+    <loc>https://www.meridagastronomica.com/rutas-origen</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- Distrito Cultural Urbano (Wynwood / Barcelona) -->
+  <url>
+    <loc>https://www.meridagastronomica.com/distrito-cultural</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- Beneficios de Ser Agremiado (10 Pilares Estratégicos) -->
+  <url>
+    <loc>https://www.meridagastronomica.com/beneficios</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- Portal de Afiliación Gremial -->
+  <url>
+    <loc>https://www.meridagastronomica.com/afiliacion</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- Formulario Directo: Solicitar Afiliación / Registro Nuevo Miembro -->
+  <url>
+    <loc>https://www.meridagastronomica.com/afiliacion/registro</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- Bolsa de Empleo Agremiada -->
+  <url>
+    <loc>https://www.meridagastronomica.com/bolsa-empleo</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+
+  <!-- Academia Gastronómica, Glubbi AI & Expo 2027 -->
+  <url>
+    <loc>https://www.meridagastronomica.com/academia</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.80</priority>
+  </url>
+
+  <!-- Centro de Recursos Jurídicos & SENIAT/SAMAT -->
+  <url>
+    <loc>https://www.meridagastronomica.com/marco-legal</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.80</priority>
+  </url>
+
+  <!-- Calendario de Eventos & Festivales -->
+  <url>
+    <loc>https://www.meridagastronomica.com/eventos</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.80</priority>
+  </url>
+
+  <!-- Servicios y Vinculaciones Turísticas -->
+  <url>
+    <loc>https://www.meridagastronomica.com/servicios-turisticos</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+
+</urlset>

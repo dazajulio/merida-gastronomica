@@ -32,10 +32,17 @@ export default {
         }
       },
       fontFamily: {
-        cinzel: ['"Cinzel"', 'serif'],
-        cormorant: ['"Cormorant Garamond"', 'Georgia', 'serif'],
-        serif: ['"Playfair Display"', 'Georgia', 'serif'],
-        sans: ['"Plus Jakarta Sans"', '"Outfit"', 'system-ui', 'sans-serif'],
+        // Extra Condensed / Tall Display font for headings and high impact titles
+        serif: ['"Barlow Condensed"', '"Oswald"', '"Outfit"', 'sans-serif'],
+        condensed: ['"Barlow Condensed"', '"Oswald"', 'sans-serif'],
+        display: ['"Barlow Condensed"', '"Oswald"', 'sans-serif'],
+        // Clean and open geometric sans for reading, body and UI
+        sans: ['"Montserrat"', '"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+      },
+      letterSpacing: {
+        'tightest': '-0.04em',
+        'tighter': '-0.02em',
+        'widest-xl': '0.25em',
       },
       boxShadow: {
         'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.04)',

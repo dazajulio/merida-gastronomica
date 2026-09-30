@@ -175,10 +175,10 @@ export function Footer({ setActiveTab, t }) {
 
             <div className="pt-2">
               <button
-                onClick={() => { setActiveTab('affiliates'); scrollToTop(); }}
-                className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/40 text-xs font-bold text-center block transition-all"
+                onClick={() => { setActiveTab('admin'); scrollToTop(); }}
+                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/30 hover:from-amber-500 hover:to-amber-600 text-amber-300 hover:text-slate-950 border border-amber-500/50 text-xs font-serif font-black uppercase tracking-wider text-center block transition-all shadow-sm"
               >
-                Portal Privado de Afiliados
+                Portal Junta Directiva
               </button>
             </div>
           </div>
