@@ -1,182 +1,278 @@
-export const CULTURAL_CIRCUITS = [
-  {
-    id: 'casco-historico',
-    title: 'Circuito Casco Histórico & Portales del Saber',
-    subtitle: 'El corazón patrimonial: casonas coloniales, cafés literarios y repostería de convento',
-    tag: 'Patrimonio & Cafés',
-    icon: 'Landmark',
-    gradient: 'from-amber-600 to-amber-800',
-    distance: '2.4 km peatonales',
-    timeEst: '2 - 3 horas',
-    vibe: 'Bohemio colonial, tertulias universitarias, aroma a café recién tostado y arquitectura de siglos XVIII al XX con vista imponente a la Sierra.',
-    heroImage: '/images/distrito_bulevar_montana.png',
-    spots: [
+export const CULTURAL_DISTRICT_DATA = {
+  hero: {
+    locationBadge: 'Centro Histórico, Mérida - Venezuela',
+    title: 'Distrito Cultural y Creativo Mérida',
+    subtitle: 'Entre callejones y casonas coloniales, el corazón de Mérida late con fuerza propia. Sumérgete en un circuito donde el arte, la historia y nuestra gente se encuentran.',
+    videoLooperUrl: 'https://patchamamatours.com/wp-content/uploads/2026/09/fondo-looper.mp4',
+    logoUrl: 'https://patchamamatours.com/wp-content/uploads/2026/09/logo-distrito.webp',
+    logoPositiveUrl: 'https://patchamamatours.com/wp-content/uploads/2026/09/logo_versi_n_positivo_1.webp'
+  },
+  spectrum: {
+    title: 'El Espectro Cultural',
+    headline: 'Una ciudad que se lee en capas: Arte, Cultura y Patrimonio.',
+    description: 'Cada rincón del centro histórico guarda un relato que trasciende en el tiempo. Aquí la identidad cultural se entrelaza con la creatividad de nuestros artistas y el calor de su gente. Descubre una Mérida que se marca a través de cada expresión cultural.',
+    pillars: [
       {
-        name: 'Bulevar Colonial de la Cordillera',
-        type: 'Bulevar Peatonal',
-        address: 'Paseo de las Casonas - Casco Central',
-        highlight: 'Paseo adoquinado con balcones de madera, terrazas de café andino y vista frontal a los picos nevados.',
-        badge: 'Parada Icónica'
+        id: 'arte-vivo',
+        title: 'Arte Vivo',
+        tag: 'Vanguardia & Expresión',
+        description: 'Murales, performance y galerías experimentales que cambian de piel cada temporada.',
+        icon: 'Palette',
+        color: 'from-amber-500 to-orange-600'
       },
       {
-        name: 'Pasaje San Jerónimo & Cafés de Tertulia',
-        type: 'Café & Librería',
-        address: 'Calle 23 entre Av. 3 y 4',
-        highlight: 'Café pour-over de microlote de Canaguá servido en vajilla de barro esmaltado.',
-        badge: 'Parada Imperdible'
+        id: 'patrimonio',
+        title: 'Patrimonio Histórico',
+        tag: 'Memoria & Arquitectura',
+        description: 'Casonas de tapia y teja, arquitectura colonial andina y los archivos que sostienen su memoria.',
+        icon: 'Landmark',
+        color: 'from-orange-600 to-red-700'
       },
       {
-        name: 'Dulcera Doña Carmen (Desde 1948)',
-        type: 'Dulcería Tradicional',
-        address: 'Av. 4 con Calle 20',
-        highlight: 'Dulces abrillantados artesanales, alfajores de canela y aliados merideños tradicionales.',
-        badge: 'Patrimonio Vivo'
-      },
-      {
-        name: 'Patio de las Esculturas & Galería ULA',
-        type: 'Galería & Vino',
-        address: 'Edificio Central ULA',
-        highlight: 'Exposiciones de artistas plásticos andinos con degustación de quesos madurados y vinos de mora.',
-        badge: 'Cultura & Maridaje'
+        id: 'comunidad',
+        title: 'Comunidad',
+        tag: 'Gente & Tradición',
+        description: 'Vecinos, artesanos y colectivos que sostienen el distrito día a día, más allá del evento.',
+        icon: 'Users',
+        color: 'from-purple-600 to-indigo-800'
       }
-    ],
-    tips: [
-      'Camine despacio disfrutando las fachadas coloniales con las montañas al fondo.',
-      'Excelente para recorrer entre 3:00 PM y 7:00 PM cuando cae la neblina vespertina.',
-      'Conexión directa con la estación central del Sistema Teleférico Mukumbarí.'
     ]
   },
-  {
-    id: 'santa-juana-street',
-    title: 'Circuito Bohemio Santa Juana & Los Sauzales',
-    subtitle: 'El "Wynwood Merideño": Street Art monumental, muralismo andino y gastronomía urbana',
-    tag: 'Arte Urbano & Street Food',
-    icon: 'Palette',
-    gradient: 'from-purple-600 to-pink-700',
-    distance: '1.8 km peatonales',
-    timeEst: '2 - 4 horas',
-    vibe: 'Vibrante, juvenil, murales gigantes hiperrealistas de flora y fauna andina, música indie en vivo y gastronomía urbana de vanguardia.',
-    heroImage: '/images/distrito_mural_arte.png',
-    spots: [
+  spaces: [
+    {
+      id: 'museo-arte-colonial',
+      type: 'Museo',
+      name: 'Museo de Arte Colonial',
+      location: 'Av. 4 entre Calles 18 y 19, Centro Histórico',
+      description: 'Una casona tradicional que detiene el tiempo para transportarnos a la época antillana y colonial de Mérida, conservando imaginería y arte sacro de los siglos XVI al XVIII.',
+      badge: 'Patrimonio Colonial',
+      imageUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=800&auto=format&fit=crop&q=80'
+    },
+    {
+      id: 'museo-arqueologico',
+      type: 'Museo',
+      name: 'Museo Arqueológico Gonzalo Rincón Gutiérrez (ULA)',
+      location: 'Edificio del Rectorado ULA, Calle 23 entre Av. 2 y 3',
+      description: 'Un fascinante recorrido por las raíces ancestrales y los vestigios precolombinos de nuestra región, exhibiendo cerámicas líticas, tumbas de pozo y cosmovisión aborigen de la cordillera.',
+      badge: 'Investigación & Arqueología',
+      imageUrl: 'https://images.unsplash.com/photo-1544967082-d9d25d867d66?w=800&auto=format&fit=crop&q=80'
+    },
+    {
+      id: 'museo-arte-contemporaneo',
+      type: 'Museo',
+      name: 'Museo de Arte Contemporáneo',
+      location: 'Centro Histórico / Plaza Bolívar',
+      description: 'Un espacio vibrante donde la creatividad vanguardista y el talento plástico se dan cita en el corazón de los Andes venezolanos.',
+      badge: 'Vanguardia Plástica',
+      imageUrl: 'https://images.unsplash.com/photo-1561214115-f2f134cc4912?w=800&auto=format&fit=crop&q=80'
+    },
+    {
+      id: 'centro-cultural-tulio-febres',
+      type: 'Centro Cultural',
+      name: 'Centro Cultural Tulio Febres Cordero',
+      location: 'Calle 21 entre Avenidas 2 y 3',
+      description: 'El complejo artístico más emblemático de la ciudad. Alberga la Sala Gonzalo Picón Febres, salas de exposición fotográfica y pictórica, y talleres permanentes.',
+      badge: 'Escenario Central',
+      imageUrl: 'https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=800&auto=format&fit=crop&q=80'
+    },
+    {
+      id: 'teatro-cesar-rengifo',
+      type: 'Teatro',
+      name: 'Teatro César Rengifo (ULA)',
+      location: 'Calle 23 entre Avenidas 2 y 3, frente al Rectorado',
+      description: 'Templo de las artes escénicas, danza contemporánea y sede del ciclo continuo "Cine Documental Hecho en Casa".',
+      badge: 'Artes Escénicas',
+      imageUrl: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=800&auto=format&fit=crop&q=80'
+    },
+    {
+      id: 'plaza-bolivar',
+      type: 'Plaza & Patrimonio',
+      name: 'Plaza Bolívar de Mérida',
+      location: 'Avenidas 3 y 4 con Calles 22 y 23',
+      description: 'El corazón histórico de Mérida, rodeado de arquitectura colonial, la Catedral Metropolitana y majestuosas palmeras, donde convergen la cultura, la vida y la memoria de la ciudad.',
+      badge: 'Epicentro Histórico',
+      imageUrl: 'https://images.unsplash.com/photo-1539650116574-75c0c6d73f6e?w=800&auto=format&fit=crop&q=80'
+    },
+    {
+      id: 'plaza-milla',
+      type: 'Plaza Tradicional',
+      name: 'Plaza Milla',
+      location: 'Av. 2 con Calle 13, Casco Norte',
+      description: 'Un rincón tradicional y bohemio que conserva el encanto de la vieja Mérida, entre su hermosa iglesia, la brisa fresca de la montaña y la calidez de su gente.',
+      badge: 'Bohemio & Tradicional',
+      imageUrl: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=800&auto=format&fit=crop&q=80'
+    },
+    {
+      id: 'plaza-las-heroinas',
+      type: 'Plaza & Monumento',
+      name: 'Plaza Las Heroínas',
+      location: 'Calle 24 entre Avenidas 6 y 7, Sector Barinitas',
+      description: 'Un homenaje a las valientes mujeres merideñas que lucharon por la independencia nacional, con una vista privilegiada hacia la majestuosidad de la Sierra Nevada y la estación inicial del Teleférico Mukumbarí.',
+      badge: 'Mirador & Monumento',
+      imageUrl: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&auto=format&fit=crop&q=80'
+    }
+  ],
+  circuits: [
+    {
+      id: 'free-tours',
+      title: 'Free Tours Patrimoniales',
+      category: 'Sin Costo',
+      description: 'Descubre las calles, casonas solariegas y las leyendas del centro histórico a tu propio ritmo.',
+      distance: '2.0 km peatonales',
+      timeEst: '1.5 - 2 horas',
+      badge: 'Paseo Libre',
+      icon: 'Footprints'
+    },
+    {
+      id: 'walking-tours',
+      title: 'Walking Tours Temáticos',
+      category: 'Temáticos',
+      description: 'Recorridos a pie especializados por el centro histórico guiados por historiadores, arquitectos y anfitriones certificados.',
+      distance: '2.8 km peatonales',
+      timeEst: '2.5 - 3 horas',
+      badge: 'Guiado Oficial',
+      icon: 'Compass'
+    },
+    {
+      id: 'casas-creativas',
+      title: 'Casas Creativas & Talleres de Oficio',
+      category: 'Inmersivo',
+      description: 'Descubre dónde crean los artistas plásticos, alfareros y chocolateros. Apoya la economía local y vive de cerca los saberes y oficios de nuestra comunidad.',
+      distance: '1.8 km peatonales',
+      timeEst: '2 - 3 horas',
+      badge: 'Experiencia Viva',
+      icon: 'Palette'
+    }
+  ],
+  agenda: [
+    {
+      id: 'ev-01',
+      dateBadge: '06/09 al 06/10',
+      title: 'Convocatoria Exposición de Fotografía',
+      location: 'Museo de Arte Cinematográfico de Venezuela José Manuel Funes',
+      time: 'Horario de sala: 09:00 AM - 04:00 PM',
+      category: 'Fotografía & Artes Visuales',
+      description: 'Muestra colectiva de fotografía documental, paisajes andinos y retratos de la identidad contemporánea del estado Mérida.'
+    },
+    {
+      id: 'ev-02',
+      dateBadge: '10 OCT',
+      title: 'Concierto de Películas',
+      location: 'Centro Cultural Tulio Febres Cordero — Sala Gonzalo Picón Febres',
+      time: '04:00 PM',
+      category: 'Música & Banda Sonora',
+      description: 'Gala musical con orquestación en vivo de las bandas sonoras más memorables de la historia del cine universal y venezolano.'
+    },
+    {
+      id: 'ev-03',
+      dateBadge: 'Todos los Martes',
+      title: 'Cine Documental Hecho en Casa',
+      location: 'Teatro César Rengifo (Frente al Rectorado ULA)',
+      time: '04:00 PM',
+      category: 'Cine Foro & Documental',
+      description: 'Proyecciones semanales de cortometrajes y documentales independientes creados por cineastas merideños con debates al finalizar.'
+    },
+    {
+      id: 'ev-04',
+      dateBadge: 'Todo Octubre',
+      title: 'Exposición Evolución de la Estampa',
+      location: 'Centro Cultural Tulio Febres Cordero — Nivel 2 / Sala 2',
+      time: '10:00 AM - 05:00 PM',
+      category: 'Grabado & Artes Gráficas',
+      description: 'Recorrido histórico y técnico por las técnicas de grabado, xilografía y serigrafía artística en los Andes.'
+    }
+  ],
+  openCall: {
+    title: 'Proyecta tu arte en los espacios del Distrito Cultural',
+    subtitle: 'Convocatoria Abierta',
+    description: 'Si eres artista, creador visual, músico o gestor cultural, tus creaciones merecen latir en el corazón de la ciudad. Este es tu espacio para mostrar tu talento y conectar con la comunidad.',
+    guidePdfUrl: 'https://drive.google.com/file/d/17dDv2lcNXblTSXN3CB63NlgxqnGoyID9/view?usp=sharing'
+  },
+  hosts: [
+    {
+      id: 'host-1',
+      name: 'Carolina Carrero',
+      role: 'Guía de Patrimonio & Rutas Históricas',
+      specialty: 'Rutas Turísticas Patrimoniales en el Centro Histórico de Mérida.',
+      avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80',
+      description: 'Especialista en arquitectura tradicional andina y anfitriona de paseos comentados por los rincones menos conocidos del casco colonial.'
+    },
+    {
+      id: 'host-2',
+      name: 'Samuel Hurtado',
+      role: 'Historiador & Investigador',
+      specialty: 'Estatuas, Monumentos y Plazas de Mérida.',
+      avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80',
+      description: 'Investigador de la memoria escultórica, héroes patrios y personajes ilustres plasmados en el bronce y la piedra de la ciudad.'
+    },
+    {
+      id: 'host-3',
+      name: 'José Luis Chacón',
+      role: 'Curador & Gestor de Arte',
+      specialty: 'Patrimonio artístico, arquitectura contemporánea, arte público y distritos creativos.',
+      avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&auto=format&fit=crop&q=80',
+      description: 'Enfocado en las intervenciones de arte urbano, galerías emergentes y articulación de distritos culturales de innovación.'
+    },
+    {
+      id: 'host-4',
+      name: 'Bernardo Moncada',
+      role: 'Arquitecto & Docente ULA',
+      specialty: 'Visitas guiadas especializadas a la Catedral Basílica Menor de Mérida.',
+      avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
+      description: 'Arquitecto y humanista. Conduce recorridos de interpretación estética, estructural y sacra en la Catedral Metropolitana.'
+    }
+  ],
+  shopLocal: {
+    title: 'Hecho en el Distrito — Shop Local',
+    headline: 'Descubre lo hecho en Mérida',
+    intro: 'Desde el Distrito Cultural y Creativo de Mérida, te invitamos a redescubrir la ciudad a través del movimiento Shop Local. Cuando eliges comprar lo nuestro, no solo te llevas un producto único hecho con pasión, sino que te conviertes en el motor que impulsa a nuestros artistas, diseñadores y artesanos.',
+    reasons: [
       {
-        name: 'Mural Monumental de la Sierra y el Campanario',
-        type: 'Muralismo Urbano',
-        artist: 'Colectivo Mukumbarí Arte Urbano',
-        address: 'Bulevar de los Murales - Sector Colonial',
-        highlight: 'Gigantesca obra mural que rinde tributo a los frailejones, la cosmovisión andina y las torres coloniales.',
-        badge: 'Top Instagrammable'
+        title: 'Impulsas el talento local',
+        desc: 'Apoyas el sustento y el crecimiento de los creadores y talleres tradicionales.'
       },
       {
-        name: 'Ruta Gastro-Trucks de Autor',
-        type: 'Urban Street Food',
-        address: 'Parque Creativo Santa Juana',
-        highlight: 'Hamburguesas de trucha marinada en ají dulce, arepas de trigo rellenas de asado negro confitado y churros de cacao Porcelana.',
-        badge: 'Street Food Gourmet'
+        title: 'Dinamizas la economía',
+        desc: 'La inversión se queda y da frutos aquí, en nuestras calles y familias merideñas.'
       },
       {
-        name: 'Microcervecería Frailejón Stout & Taproom',
-        type: 'Cervecería Artesanal',
-        address: 'Calle Los Sauzales #12',
-        highlight: 'Cervezas artesanales elaboradas con agua de deshielo de la Sierra y maltas tostadas con cacao.',
-        badge: 'Craft Beer'
-      },
-      {
-        name: 'El Callejón del Vinilo & Café Acústico',
-        type: 'Música & Café',
-        address: 'Pasaje Creativo 4',
-        highlight: 'Sesiones de vinilo en vivo, jazz andino y catas a ciegas de café de especialidad de altura.',
-        badge: 'Experiencia Sonora'
+        title: 'Te llevas autenticidad',
+        desc: 'Disfrutas de productos con identidad, tradición, cacao genuino y calidad inigualable.'
       }
     ],
-    tips: [
-      'El ambiente más vibrante ocurre de jueves a domingo a partir de las 5:00 PM.',
-      'Área vigilada con iluminación LED cálida y zonas seguras para peatones y ciclistas.',
-      'Puntos de carga solar y Wi-Fi público de alta velocidad en el bulevar.'
+    videoEmbedUrl: 'https://www.youtube.com/embed/aqlO2Je73Yg',
+    stores: [
+      {
+        id: 'mercado-antonio-rojas',
+        name: 'Mercado Artesanal “Antonio Rojas Guillén”',
+        description: 'Referente cultural e histórico que impulsa la economía local, apoya a los artesanos tradicionales y promueve iniciativas ecológicas y turísticas de Mérida.',
+        address: 'Frente a la Plaza Las Heroínas y cerca del Teleférico Mukumbarí, sector Barinitas, Mérida',
+        imageUrl: 'https://patchamamatours.com/wp-content/uploads/2026/09/tienda-3.webp',
+        category: 'Mercado de Artesanías'
+      },
+      {
+        id: 'red-de-arte',
+        name: 'Fundación Red de Arte Mérida',
+        description: 'Espacio dedicado a la promoción y comercialización de artesanías locales, con talleres de técnicas tradicionales y apoyo constante a los creadores de la región.',
+        address: 'Sótano del Centro Cultural Tulio Febres Cordero (Calle 21 entre Avenidas 2 y 3)',
+        imageUrl: 'https://patchamamatours.com/wp-content/uploads/2026/09/tienda-1.webp',
+        category: 'Galería de Oficios & Arte Popular'
+      },
+      {
+        id: 'deleites-chocolateria',
+        name: 'Deleite´s Chocolatería',
+        description: 'Espacio dedicado al cacao y el chocolate fino merideño, donde podrás conocer sus beneficios, descubrir marcas locales y disfrutar una experiencia llena de sabores y tradición andina.',
+        address: 'Calle 24 entre las Avenidas 6 y 7, Plaza Las Heroínas',
+        imageUrl: 'https://patchamamatours.com/wp-content/uploads/2026/09/tienda-2.webp',
+        category: 'Chocolatería de Cacao Andino'
+      }
     ]
   },
-  {
-    id: 'nocturno-jazz',
-    title: 'Circuito Nocturno, Tapas Andinas & Jazz',
-    subtitle: 'La noche merideña: bulevares iluminados, mixología con botánicos de montaña y fogatas urbanas',
-    tag: 'Vida Nocturna & Mixología',
-    icon: 'Music',
-    gradient: 'from-slate-900 to-indigo-950',
-    distance: '1.5 km',
-    timeEst: '4 horas nocturnas',
-    vibe: 'Cálido, elegante, bulevares iluminados con postes de luz cálida, carritos tradicionales de delicias, copas al calor de chimeneas y jazz en vivo.',
-    heroImage: '/images/distrito_nocturno_bulevar.png',
-    spots: [
-      {
-        name: 'Paseo Nocturno de las Luces & Street Delis',
-        type: 'Paseo Nocturno',
-        address: 'Paseo La Concordia & Bulevar Central',
-        highlight: 'Avenida peatonal iluminada con farolas modernas, gastronomía al paso y cafés al aire libre.',
-        badge: 'Vida Nocturna Segura'
-      },
-      {
-        name: 'El Alambique Speakeasy',
-        type: 'Coctelería Oculta',
-        address: 'Acceso por callejón histórico del Centro',
-        highlight: 'Cóctel "Niebla del Pico Bolívar": destilado botánico ahumado con madera de pino y flor de frailejón.',
-        badge: 'Mixología de Autor'
-      },
-      {
-        name: 'Cava 1810 & Piano Bar',
-        type: 'Vino & Tapas',
-        address: 'Paseo La Concordia',
-        highlight: 'Tablas de embutidos curados en la Sierra, quesos madurados de Mucurubá y selección de vinos sudamericanos.',
-        badge: 'Jazz en Vivo'
-      },
-      {
-        name: 'Terraza Los Frailes & Lounge',
-        type: 'Rooftop Bar',
-        address: 'Av. Las Américas',
-        highlight: 'Vista panorámica de 360° de la ciudad iluminada y los picos nevados bajo la luna llena.',
-        badge: 'Vistas Panorámicas'
-      }
-    ],
-    tips: [
-      'Se recomienda recorrer a pie a partir de las 6:30 PM para disfrutar del juego de luces urbanas.',
-      'Servicio de transporte y taxis certificados por la Cámara Gastronómica disponibles en los accesos.'
-    ]
-  },
-  {
-    id: 'milla-parques',
-    title: 'Circuito Milla, Jardines & Fusión Botánica',
-    subtitle: 'Naturaleza, alta repostería botánica, helados de autor y cocina de altura',
-    tag: 'Botánica & Vanguardia',
-    icon: 'Compass',
-    gradient: 'from-emerald-600 to-teal-800',
-    distance: '3.1 km',
-    timeEst: '3 horas',
-    vibe: 'Verde, relajado, fuentes de agua, bistrós acogedores entre jardines de bromelias y orquídeas autóctonas.',
-    heroImage: '/images/distrito_bulevar_montana.png',
-    spots: [
-      {
-        name: 'Café del Jardín Botánico de Mérida',
-        type: 'Café Botánico',
-        address: 'La Hechicera - Sector Los Chorros',
-        highlight: 'Infusiones frías con hierbas aromáticas de páramo y vistas al bosque de niebla.',
-        badge: 'Eco-Gastronomía'
-      },
-      {
-        name: 'Laboratorio de Helados Experimentales',
-        type: 'Heladería de Vanguardia',
-        address: 'Plaza Milla',
-        highlight: 'Sabores icónicos: Trucha ahumada con miel de páramo, pétalos de rosa andina, queso ahumado y aguacate con cacao.',
-        badge: 'Récord Mundial de Sabores'
-      },
-      {
-        name: 'Atelier de Alfarería & Bistró La Tinaja',
-        type: 'Taller & Cocina',
-        address: 'Av. Chorros de Milla',
-        highlight: 'Cocina servida en vajilla moldeada y horneada en el mismo local por artesanos locales.',
-        badge: 'Diseño & Gastronomía'
-      }
-    ],
-    tips: [
-      'Visite los fines de semana en la mañana para disfrutar del aire fresco de montaña.',
-      'Ideal para familias y amantes de la fotografía de naturaleza y gastronomía botánica.'
-    ]
+  contact: {
+    email: 'distritoculturalmerida@gmail.com',
+    instagram: 'https://www.instagram.com/meridadistritocultural/',
+    instagramHandle: '@meridadistritocultural',
+    whatsapp: 'https://api.whatsapp.com/send?phone=584126666954&text=Hola%2C%20me%20gustar%C3%ADa%20conocer%20m%C3%A1s%20sobre%20el%20Distrito%20Cultural%20de%20M%C3%A9rida.',
+    phone: '+58 (412) 666-6954'
   }
-];
+};
