@@ -714,6 +714,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
       const cleanId = loginIdentifier.trim().toLowerCase();
       // Allow official Kaffia credentials or Supabase lookup
       if (
+        cleanId === 'cafe.kaffia@gmail.com' ||
         cleanId === 'kaffia@meridagastronomica.com' ||
         cleanId === 'cgm-2026-001' ||
         cleanId === 'kaffia' ||
