@@ -177,101 +177,133 @@ export function JobsSection({ t, setActiveTab }) {
         </div>
       </div>
 
-      {/* Jobs Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
-        {filteredJobs.map((job) => (
-          <div 
-            key={job.id} 
-            className="bg-white rounded-2xl border border-slate-200 hover:border-amber-400 p-6 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between group"
-          >
-            <div>
-              {/* Card Header */}
-              <div className="flex items-start justify-between gap-4 mb-3">
-                <div>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200">
-                      {job.department}
-                    </span>
-                    {job.urgency === 'Alta' && (
-                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-red-100 text-red-700 border border-red-200 animate-pulse">
-                        Urgente
+      {/* Jobs Grid / Empty State */}
+      {filteredJobs.length === 0 ? (
+        <div className="bg-white rounded-3xl border border-dashed border-amber-300 p-8 sm:p-14 text-center shadow-xs mb-16">
+          <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto mb-4 border border-amber-200">
+            <Briefcase className="w-8 h-8" />
+          </div>
+          <h3 className="font-serif font-black text-2xl text-slate-900 uppercase tracking-wide mb-2">
+            Recepción de Nuevas Vacantes en Proceso
+          </h3>
+          <p className="text-xs text-slate-600 max-w-lg mx-auto leading-relaxed font-sans mb-6">
+            La Bolsa de Empleo Agremiada de la Cámara Gastronómica se encuentra en fase de validación de perfiles y recepción de requerimientos laborales con los restaurantes miembros del estado Mérida.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={() => setApplyModalJob({
+                title: 'Postulación General / Banco de Talentos',
+                restaurant: 'Red Gremial de Restaurantes de Mérida',
+                department: 'Cocina / Sala / Barismo'
+              })}
+              className="py-3 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider shadow-sm transition-all"
+            >
+              Registrar mi Perfil en la Base de Talentos
+            </button>
+            <button
+              onClick={() => setIsPostModalOpen(true)}
+              className="py-3 px-6 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-serif font-black text-xs uppercase tracking-wider shadow-sm transition-all"
+            >
+              Publicar Vacante para mi Restaurante
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
+          {filteredJobs.map((job) => (
+            <div 
+              key={job.id} 
+              className="bg-white rounded-2xl border border-slate-200 hover:border-amber-400 p-6 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between group"
+            >
+              <div>
+                {/* Card Header */}
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200">
+                        {job.department}
+                      </span>
+                      {job.urgency === 'Alta' && (
+                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-red-100 text-red-700 border border-red-200 animate-pulse">
+                          Urgente
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="font-serif font-bold text-lg sm:text-xl text-slate-900 group-hover:text-amber-700 transition-colors">
+                      {job.title}
+                    </h3>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
+                      <Building2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span className="font-bold text-slate-800">{job.restaurant}</span>
+                    </div>
+                  </div>
+
+                  <span className="text-[11px] text-slate-400 font-medium shrink-0">
+                    {job.postedDate}
+                  </span>
+                </div>
+
+                {/* Location & Salary Chips */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 my-3.5 text-xs">
+                  <div className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-50 text-slate-700 border border-slate-100">
+                    <MapPin className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                    <span className="truncate">{job.zone}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 p-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-100 font-bold">
+                    <DollarSign className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>{job.salaryRange}</span>
+                  </div>
+                </div>
+
+                {/* Description Snippet */}
+                <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed mb-4">
+                  {job.description}
+                </p>
+
+                {/* Benefits Highlights */}
+                <div className="space-y-1.5 mb-4">
+                  <span className="text-[10px] uppercase font-bold text-amber-800 tracking-wider block">
+                    Beneficios Destacados:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {job.benefits.slice(0, 2).map((benefit, i) => (
+                      <span key={i} className="text-[11px] px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-100 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-amber-600" />
+                        <span>{benefit}</span>
+                      </span>
+                    ))}
+                    {job.benefits.length > 2 && (
+                      <span className="text-[11px] px-2 py-1 rounded-lg bg-slate-100 text-slate-600 font-semibold">
+                        +{job.benefits.length - 2} más
                       </span>
                     )}
                   </div>
-                  <h3 className="font-serif font-bold text-lg sm:text-xl text-slate-900 group-hover:text-amber-700 transition-colors">
-                    {job.title}
-                  </h3>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium mt-1">
-                    <Building2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span className="font-bold text-slate-800">{job.restaurant}</span>
-                  </div>
-                </div>
-
-                <span className="text-[11px] text-slate-400 font-medium shrink-0">
-                  {job.postedDate}
-                </span>
-              </div>
-
-              {/* Location & Salary Chips */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 my-3.5 text-xs">
-                <div className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-50 text-slate-700 border border-slate-100">
-                  <MapPin className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                  <span className="truncate">{job.zone}</span>
-                </div>
-                <div className="flex items-center gap-1.5 p-2 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-100 font-bold">
-                  <DollarSign className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span>{job.salaryRange}</span>
                 </div>
               </div>
 
-              {/* Description Snippet */}
-              <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed mb-4">
-                {job.description}
-              </p>
+              {/* Bottom Action Buttons */}
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                <button
+                  onClick={() => setSelectedJob(job)}
+                  className="text-xs font-bold text-slate-700 hover:text-amber-700 transition-colors flex items-center gap-1"
+                >
+                  <span>Ver Requisitos Completos</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
 
-              {/* Benefits Highlights */}
-              <div className="space-y-1.5 mb-4">
-                <span className="text-[10px] uppercase font-bold text-amber-800 tracking-wider block">
-                  Beneficios Destacados:
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {job.benefits.slice(0, 2).map((benefit, i) => (
-                    <span key={i} className="text-[11px] px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-100 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-amber-600" />
-                      <span>{benefit}</span>
-                    </span>
-                  ))}
-                  {job.benefits.length > 2 && (
-                    <span className="text-[11px] px-2 py-1 rounded-lg bg-slate-100 text-slate-600 font-semibold">
-                      +{job.benefits.length - 2} más
-                    </span>
-                  )}
-                </div>
+                <button
+                  onClick={() => setApplyModalJob(job)}
+                  className="py-2 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Postularme</span>
+                </button>
               </div>
+
             </div>
-
-            {/* Bottom Action Buttons */}
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
-              <button
-                onClick={() => setSelectedJob(job)}
-                className="text-xs font-bold text-slate-700 hover:text-amber-700 transition-colors flex items-center gap-1"
-              >
-                <span>Ver Requisitos Completos</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-
-              <button
-                onClick={() => setApplyModalJob(job)}
-                className="py-2 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>Postularme</span>
-              </button>
-            </div>
-
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Alliance Banner with Hotel Escuela & ULA */}
       <div className="rounded-3xl bg-slate-100 border border-slate-200 p-8 flex flex-col md:flex-row items-center justify-between gap-6">

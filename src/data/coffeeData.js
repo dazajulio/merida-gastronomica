@@ -81,40 +81,8 @@ export const COFFEE_DATA = {
       grind: "Media"
     }
   ],
-  spots: [
-    {
-      id: "spot-1",
-      name: "Laboratorio Andino de Café",
-      location: "Sector La Parroquia / Av. Principal",
-      specialty: "Microlotes de Canaguá & Tueste en Vivo",
-      barista: "Baristas Campeones Regionales",
-      tags: ["Tueste Propio", "V60", "Espresso Bar", "Catas Guiadas"]
-    },
-    {
-      id: "spot-2",
-      name: "Café de la Niebla - Speakeasy Barista",
-      location: "Distrito Cultural Casco Histórico",
-      specialty: "Cold Brew infusionado con flores del páramo",
-      barista: "Certificación SCA",
-      tags: ["Café & Arte", "Sifón Japonés", "Maridaje Andino"]
-    },
-    {
-      id: "spot-3",
-      name: "Origen Mocotíes Coffee House",
-      location: "Paseo de las Heroínas",
-      specialty: "Varietales Bourbon Rosado & Caturra Honey",
-      barista: "Tostadores Especialistas",
-      tags: ["Grano Entero", "Aeropress", "Repostería de Autor"]
-    },
-    {
-      id: "spot-4",
-      name: "Cumbres Cafeteras Boutique",
-      location: "Av. Las Américas",
-      specialty: "Catas comparativas de 4 altitudes merideñas",
-      barista: "Instructores Academy",
-      tags: ["Cursos Barismo", "Chemex", "Sello AAA"]
-    }
-  ],
+  // Actualmente en proceso de registro y auditoría oficial
+  spots: [],
   qualityMetrics: [
     { label: "Puntaje SCA Promedio", value: "84 - 88+", detail: "Calificación de Grado Especialidad" },
     { label: "Altitud Media", value: "1.650 msnm", detail: "Microclimas de Montaña" },

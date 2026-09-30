@@ -29,9 +29,17 @@ import {
   CalendarDays,
   ListFilter,
   AlertTriangle,
-  UserX
+  UserX,
+  BookOpen,
+  FolderPlus,
+  ExternalLink,
+  Layers,
+  Calculator,
+  Compass,
+  FolderOpen
 } from 'lucide-react';
 import { BOARD_MEMBERS_DATA, INITIAL_BOARD_AGENDA_DATA } from '../data/boardData';
+import { LEGAL_DATA } from '../data/legalData';
 import { sendBoardAttendanceEmail } from '../lib/emailService';
 
 export function BoardAdminPortal({ t, onNavigate }) {
@@ -67,11 +75,33 @@ export function BoardAdminPortal({ t, onNavigate }) {
     } catch (e) {}
   }, [agendaEvents]);
 
+  // Check if current user is the President
+  const isPresident = currentUser?.id === 'dir-presidente' || 
+    currentUser?.email?.toLowerCase() === 'dazajulio@gmail.com' || 
+    (currentUser?.role && currentUser?.role.toLowerCase().includes('presidente') && !currentUser?.role.toLowerCase().includes('vicepresidente'));
+
+  // Legal Resources State (Synchronized with localStorage)
+  const [legalCategories, setLegalCategories] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cgem_legal_resources_v2');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return LEGAL_DATA.categories;
+  });
+
+  // Save legal categories whenever changed
+  useEffect(() => {
+    try {
+      localStorage.setItem('cgem_legal_resources_v2', JSON.stringify(legalCategories));
+      window.dispatchEvent(new Event('storage'));
+    } catch (e) {}
+  }, [legalCategories]);
+
   // Calendar View Filters & Navigation
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedMonth, setSelectedMonth] = useState('all'); // 'all' or 1..12
   const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('timeline'); // timeline | board_list
+  const [viewMode, setViewMode] = useState('timeline'); // timeline | board_list | legal_resources
 
   // Admin Event Management Modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -95,6 +125,21 @@ export function BoardAdminPortal({ t, onNavigate }) {
     description: '',
     maxAttendees: '',
     status: 'confirmado'
+  });
+
+  // Legal Document Creation & Editing Modal State (President Only)
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
+  const [editingLegalDoc, setEditingLegalDoc] = useState(null);
+  const [legalFormData, setLegalFormData] = useState({
+    title: '',
+    categoryId: 'fiscal',
+    categoryTag: 'SENIAT Nacional',
+    format: 'PDF',
+    size: '1.5 MB',
+    dateUpdated: 'Vigente 2026',
+    summary: '',
+    fileUrl: '',
+    isOfficial: true
   });
 
   // Months list
@@ -321,7 +366,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
     }
   };
 
-  // Open Edit Modal
+  // Open Edit Modal for Agenda
   const openEditModal = (event) => {
     setEditingEvent(event);
     setFormData({
@@ -342,7 +387,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
     setIsCreateModalOpen(true);
   };
 
-  // Open New Modal
+  // Open New Modal for Agenda
   const openNewModal = () => {
     setEditingEvent(null);
     setFormData({
@@ -362,6 +407,112 @@ export function BoardAdminPortal({ t, onNavigate }) {
     });
     setIsCreateModalOpen(true);
   };
+
+  // =========================================================================
+  // LEGAL RESOURCES MANAGEMENT HANDLERS (PRESIDENT ONLY)
+  // =========================================================================
+  const openNewLegalDocModal = (defaultCatId = 'fiscal') => {
+    setEditingLegalDoc(null);
+    setLegalFormData({
+      title: '',
+      categoryId: defaultCatId,
+      categoryTag: defaultCatId === 'fiscal' ? 'SENIAT Nacional' : 
+                   defaultCatId === 'sanitario' ? 'Contraloría Sanitaria SACS' : 
+                   defaultCatId === 'turismo' ? 'INATUR / Cormetur' : 'Ministerio del Trabajo',
+      format: 'PDF',
+      size: '2.0 MB',
+      dateUpdated: 'Vigente 2026',
+      summary: '',
+      fileUrl: '',
+      isOfficial: true
+    });
+    setIsLegalModalOpen(true);
+  };
+
+  const openEditLegalDocModal = (doc, catId) => {
+    setEditingLegalDoc({ ...doc, currentCatId: catId });
+    setLegalFormData({
+      title: doc.title || '',
+      categoryId: catId || doc.categoryId || 'fiscal',
+      categoryTag: doc.category || 'SENIAT Nacional',
+      format: doc.format || 'PDF',
+      size: doc.size || '2.0 MB',
+      dateUpdated: doc.dateUpdated || 'Vigente 2026',
+      summary: doc.summary || '',
+      fileUrl: doc.fileUrl || '',
+      isOfficial: doc.isOfficial !== false
+    });
+    setIsLegalModalOpen(true);
+  };
+
+  const handleSaveLegalDoc = (e) => {
+    e.preventDefault();
+    if (!isPresident) return;
+
+    const newDocItem = {
+      id: editingLegalDoc ? editingLegalDoc.id : `doc-${Date.now()}`,
+      title: legalFormData.title.trim(),
+      category: legalFormData.categoryTag.trim(),
+      format: legalFormData.format,
+      size: legalFormData.size || '1.5 MB',
+      dateUpdated: legalFormData.dateUpdated || 'Vigente 2026',
+      summary: legalFormData.summary.trim(),
+      fileUrl: legalFormData.fileUrl.trim(),
+      isOfficial: legalFormData.isOfficial
+    };
+
+    setLegalCategories(prevCategories => {
+      return prevCategories.map(cat => {
+        // If editing and category changed, remove from old category
+        if (editingLegalDoc && editingLegalDoc.currentCatId === cat.id && legalFormData.categoryId !== cat.id) {
+          const filtered = (cat.items || []).filter(item => item.id !== editingLegalDoc.id);
+          return { ...cat, items: filtered, docsCount: filtered.length };
+        }
+
+        // If target category
+        if (cat.id === legalFormData.categoryId) {
+          let updatedItems = [];
+          if (editingLegalDoc) {
+            // Check if already in this category
+            const exists = (cat.items || []).some(item => item.id === editingLegalDoc.id);
+            if (exists) {
+              updatedItems = (cat.items || []).map(item => item.id === editingLegalDoc.id ? newDocItem : item);
+            } else {
+              updatedItems = [newDocItem, ...(cat.items || [])];
+            }
+          } else {
+            updatedItems = [newDocItem, ...(cat.items || [])];
+          }
+          return { ...cat, items: updatedItems, docsCount: updatedItems.length };
+        }
+
+        return cat;
+      });
+    });
+
+    setIsLegalModalOpen(false);
+    setEditingLegalDoc(null);
+    setActionSuccessMessage(editingLegalDoc ? 'Documento normativo actualizado con éxito en el repositorio público.' : 'Nuevo documento normativo cargado exitosamente en el repositorio público.');
+    setTimeout(() => setActionSuccessMessage(''), 5000);
+  };
+
+  const handleDeleteLegalDoc = (catId, docId, docTitle) => {
+    if (!isPresident) return;
+    if (window.confirm(`¿Está seguro de que desea eliminar el documento "${docTitle}" del Centro de Recursos & Marco Jurídico?`)) {
+      setLegalCategories(prev => prev.map(cat => {
+        if (cat.id === catId) {
+          const updatedItems = (cat.items || []).filter(i => i.id !== docId);
+          return { ...cat, items: updatedItems, docsCount: updatedItems.length };
+        }
+        return cat;
+      }));
+      setActionSuccessMessage(`Documento "${docTitle}" eliminado del repositorio.`);
+      setTimeout(() => setActionSuccessMessage(''), 4000);
+    }
+  };
+
+  // Total Legal Docs Count
+  const totalLegalDocs = legalCategories.reduce((acc, cat) => acc + (cat.items || []).length, 0);
 
   // =========================================================================
   // VIEW 1: LIGHT MODE LOGIN SCREEN (SI NO ESTÁ AUTENTICADO)
@@ -403,7 +554,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
           <div className="bg-white/95 backdrop-blur-xl border border-slate-200 rounded-3xl p-6 sm:p-9 shadow-2xl shadow-slate-900/5">
             
             {loginError && (
-              <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-3 animate-fadeIn">
+              <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-3 animate-fadeIn font-sans">
                 <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-rose-600" />
                 <div className="leading-relaxed font-sans">{loginError}</div>
               </div>
@@ -507,6 +658,11 @@ export function BoardAdminPortal({ t, onNavigate }) {
                       Gestión Total / Administrador
                     </span>
                   )}
+                  {isPresident && (
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-300 font-sans">
+                      Gestor de Marco Jurídico & Recursos
+                    </span>
+                  )}
                 </div>
 
                 <h1 className="font-serif font-black text-2xl sm:text-3xl text-slate-900 uppercase tracking-wide">
@@ -527,7 +683,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
             </div>
 
             <div className="flex items-center gap-3 w-full sm:w-auto">
-              {currentUser.isAdminLevel && (
+              {currentUser.isAdminLevel && viewMode !== 'legal_resources' && (
                 <button
                   onClick={openNewModal}
                   className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
@@ -537,13 +693,23 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 </button>
               )}
 
+              {isPresident && viewMode === 'legal_resources' && (
+                <button
+                  onClick={() => openNewLegalDocModal('fiscal')}
+                  className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
+                >
+                  <FolderPlus className="w-4 h-4" />
+                  <span>Cargar Nuevo Documento Jurídico</span>
+                </button>
+              )}
+
               <button
                 onClick={handleLogout}
                 className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all"
                 title="Cerrar Sesión Directiva"
               >
                 <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Cerrar Sesión</span>
+                <span className="hidden sm:inline font-sans">Cerrar Sesión</span>
               </button>
             </div>
 
@@ -551,52 +717,32 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
           {/* Success / Error Notification Bars */}
           {actionSuccessMessage && (
-            <div className="mt-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs flex items-center gap-3 animate-fadeIn shadow-sm">
+            <div className="mt-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs flex items-center gap-3 animate-fadeIn shadow-sm font-sans">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-              <span className="font-medium font-sans">{actionSuccessMessage}</span>
+              <span className="font-medium">{actionSuccessMessage}</span>
             </div>
           )}
 
           {actionErrorMessage && (
-            <div className="mt-4 p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-center gap-3 animate-fadeIn shadow-sm">
+            <div className="mt-4 p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-center gap-3 animate-fadeIn shadow-sm font-sans">
               <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
-              <span className="font-bold font-sans">{actionErrorMessage}</span>
+              <span className="font-bold">{actionErrorMessage}</span>
             </div>
           )}
 
-          {/* Navigation Controls: Year, Month, Category Filter */}
+          {/* Navigation Controls: Year, Month, Category Filter & View Modes */}
           <div className="mt-6 space-y-4">
             
-            {/* Year Selector + View Mode Switcher */}
+            {/* View Mode Switcher + Year Selector */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               
-              {/* Year tabs */}
-              <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider px-3 font-sans">
-                  Año de Planificación:
-                </span>
-                {[2026, 2027, 'all'].map((yr) => (
-                  <button
-                    key={yr}
-                    onClick={() => setSelectedYear(yr)}
-                    className={`py-1.5 px-4 rounded-xl text-xs font-serif font-black transition-all ${
-                      selectedYear === yr
-                        ? 'bg-amber-500 text-slate-950 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-white'
-                    }`}
-                  >
-                    {yr === 'all' ? 'Ver Todos' : yr}
-                  </button>
-                ))}
-              </div>
-
-              {/* View Mode Buttons */}
-              <div className="flex items-center gap-1 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+              {/* View Mode Buttons (Timeline, Board Members, and Legal Resources for President) */}
+              <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
                 <button
                   onClick={() => setViewMode('timeline')}
-                  className={`py-1.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
+                  className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
                     viewMode === 'timeline'
-                      ? 'bg-white text-amber-800 border border-amber-300 shadow-sm font-extrabold'
+                      ? 'bg-white text-amber-900 border border-amber-300 shadow-sm font-extrabold'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -606,67 +752,108 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
                 <button
                   onClick={() => setViewMode('board_list')}
-                  className={`py-1.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
+                  className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
                     viewMode === 'board_list'
-                      ? 'bg-white text-amber-800 border border-amber-300 shadow-sm font-extrabold'
+                      ? 'bg-white text-amber-900 border border-amber-300 shadow-sm font-extrabold'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   <Users className="w-3.5 h-3.5 text-amber-600" />
                   <span>Junta Directiva</span>
                 </button>
+
+                {/* Exclusively for President */}
+                {isPresident && (
+                  <button
+                    onClick={() => setViewMode('legal_resources')}
+                    className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
+                      viewMode === 'legal_resources'
+                        ? 'bg-indigo-600 text-white shadow-sm font-extrabold'
+                        : 'text-indigo-900 hover:text-indigo-950 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200'
+                    }`}
+                  >
+                    <BookOpen className={`w-3.5 h-3.5 ${viewMode === 'legal_resources' ? 'text-white' : 'text-indigo-700'}`} />
+                    <span>Gestor de Recursos & Marco Jurídico ({totalLegalDocs})</span>
+                  </button>
+                )}
               </div>
+
+              {/* Year tabs (only in timeline view) */}
+              {viewMode === 'timeline' && (
+                <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider px-3 font-sans">
+                    Año:
+                  </span>
+                  {[2026, 2027, 'all'].map((yr) => (
+                    <button
+                      key={yr}
+                      onClick={() => setSelectedYear(yr)}
+                      className={`py-1.5 px-4 rounded-xl text-xs font-serif font-black transition-all ${
+                        selectedYear === yr
+                          ? 'bg-amber-500 text-slate-950 shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                      }`}
+                    >
+                      {yr === 'all' ? 'Ver Todos' : yr}
+                    </button>
+                  ))}
+                </div>
+              )}
 
             </div>
 
-            {/* Month Ribbon */}
-            <div className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-thin">
-              <button
-                onClick={() => setSelectedMonth('all')}
-                className={`py-2 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all font-sans ${
-                  selectedMonth === 'all'
-                    ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
-                    : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                Todos los Meses
-              </button>
-
-              {MONTHS.map((m) => (
+            {/* Month Ribbon (only in timeline view) */}
+            {viewMode === 'timeline' && (
+              <div className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-thin">
                 <button
-                  key={m.num}
-                  onClick={() => setSelectedMonth(m.num)}
+                  onClick={() => setSelectedMonth('all')}
                   className={`py-2 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all font-sans ${
-                    selectedMonth === m.num
+                    selectedMonth === 'all'
                       ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
                       : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  {m.name}
+                  Todos los Meses
                 </button>
-              ))}
-            </div>
 
-            {/* Category Filter Chips */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 shrink-0 flex items-center gap-1 font-sans">
-                <ListFilter className="w-3 h-3 text-slate-400" />
-                Filtrar:
-              </span>
-              {EVENT_TYPES.map((type) => (
-                <button
-                  key={type.id}
-                  onClick={() => setActiveCategoryFilter(type.id)}
-                  className={`py-1.5 px-3 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border font-sans ${
-                    activeCategoryFilter === type.id
-                      ? 'bg-amber-100 text-amber-900 border-amber-400 font-bold shadow-xs'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'
-                  }`}
-                >
-                  {type.label}
-                </button>
-              ))}
-            </div>
+                {MONTHS.map((m) => (
+                  <button
+                    key={m.num}
+                    onClick={() => setSelectedMonth(m.num)}
+                    className={`py-2 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all font-sans ${
+                      selectedMonth === m.num
+                        ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
+                        : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {m.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Category Filter Chips (only in timeline view) */}
+            {viewMode === 'timeline' && (
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 shrink-0 flex items-center gap-1 font-sans">
+                  <ListFilter className="w-3 h-3 text-slate-400" />
+                  Filtrar:
+                </span>
+                {EVENT_TYPES.map((type) => (
+                  <button
+                    key={type.id}
+                    onClick={() => setActiveCategoryFilter(type.id)}
+                    className={`py-1.5 px-3 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border font-sans ${
+                      activeCategoryFilter === type.id
+                        ? 'bg-amber-100 text-amber-900 border-amber-400 font-bold shadow-xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'
+                    }`}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
           </div>
 
@@ -1006,9 +1193,168 @@ export function BoardAdminPortal({ t, onNavigate }) {
           </div>
         )}
 
+        {/* VIEW MODE 3: LEGAL RESOURCES & DOCUMENTS MANAGER (EXCLUSIVO PRESIDENTE) */}
+        {viewMode === 'legal_resources' && isPresident && (
+          <div className="space-y-8">
+            
+            {/* Header info box */}
+            <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-indigo-800/40">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/40 text-[10px] font-extrabold uppercase tracking-wider mb-3">
+                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Facultad Exclusiva de Presidencia</span>
+                  </div>
+                  <h2 className="font-serif font-black text-2xl sm:text-3xl text-white">
+                    Gestor de Recursos & Marco Jurídico Institucional
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-300 mt-2 max-w-3xl leading-relaxed font-sans">
+                    Como Presidente de la Cámara Gastronómica del Estado Mérida, usted puede cargar, editar o actualizar las leyes, providencias del SENIAT, normativas sanitarias (SACS), ordenanzas municipales de licores y guías técnicas. 
+                    <strong className="text-amber-300 block mt-1">Los documentos guardados aquí quedan inmediatamente disponibles para descarga pública en la sección "Marco Legal".</strong>
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => openNewLegalDocModal('fiscal')}
+                  className="py-3.5 px-6 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider shadow-lg shrink-0 flex items-center justify-center gap-2 transition-all active:scale-98"
+                >
+                  <Plus className="w-4 h-4 text-slate-950" />
+                  <span>Cargar Nuevo Documento</span>
+                </button>
+              </div>
+            </div>
+
+            {/* List by Categories */}
+            <div className="space-y-8">
+              {legalCategories.map((category) => {
+                const items = category.items || [];
+                return (
+                  <div 
+                    key={category.id} 
+                    className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-sm overflow-hidden"
+                  >
+                    {/* Category Title & Action */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                      <div>
+                        <div className="flex items-center gap-2.5">
+                          <span className="p-2 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            <BookOpen className="w-4 h-4" />
+                          </span>
+                          <h3 className="font-serif font-bold text-lg text-slate-900">
+                            {category.name}
+                          </h3>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1 font-sans">
+                          {category.description}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-sans">
+                          {items.length} {items.length === 1 ? 'documento' : 'documentos'}
+                        </span>
+                        <button
+                          onClick={() => openNewLegalDocModal(category.id)}
+                          className="py-2 px-3.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center gap-1.5 border border-indigo-200 transition-all font-sans"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Agregar a esta sección</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Documents List */}
+                    {items.length === 0 ? (
+                      <div className="py-8 text-center text-slate-400 space-y-2 font-sans">
+                        <FolderOpen className="w-8 h-8 text-slate-300 mx-auto" />
+                        <p className="text-xs">No hay documentos registrados en esta sección aún.</p>
+                        <button
+                          onClick={() => openNewLegalDocModal(category.id)}
+                          className="text-xs font-bold text-indigo-600 hover:text-indigo-800 underline"
+                        >
+                          + Cargar el primer documento para {category.name}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-100 mt-2">
+                        {items.map((doc) => (
+                          <div 
+                            key={doc.id}
+                            className="py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:bg-slate-50/70 p-3 rounded-2xl transition-colors"
+                          >
+                            <div className="space-y-1.5 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-[10px] uppercase font-extrabold px-2.5 py-0.5 rounded-md bg-indigo-100 text-indigo-900 border border-indigo-200 font-sans">
+                                  {doc.category || 'Organismo Oficial'}
+                                </span>
+                                <span className="text-[11px] font-bold text-slate-500 font-sans">
+                                  {doc.format || 'PDF'} {doc.size ? `• ${doc.size}` : ''}
+                                </span>
+                                <span className="text-[11px] text-slate-400 font-sans">
+                                  Vigencia: <strong>{doc.dateUpdated || 'Vigente'}</strong>
+                                </span>
+                                {doc.isOfficial && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-sans">
+                                    Oficial
+                                  </span>
+                                )}
+                              </div>
+
+                              <h4 className="font-serif font-bold text-base text-slate-900">
+                                {doc.title}
+                              </h4>
+
+                              <p className="text-xs text-slate-600 leading-relaxed font-sans line-clamp-2 max-w-3xl">
+                                {doc.summary}
+                              </p>
+
+                              {doc.fileUrl && (
+                                <div className="text-[11px] text-indigo-600 flex items-center gap-1 font-sans">
+                                  <ExternalLink className="w-3 h-3" />
+                                  <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="hover:underline truncate max-w-md">
+                                    {doc.fileUrl}
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center gap-2 shrink-0 self-end md:self-center font-sans">
+                              <button
+                                onClick={() => openEditLegalDocModal(doc, category.id)}
+                                className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-colors"
+                                title="Editar ficha del documento"
+                              >
+                                <Edit3 className="w-3.5 h-3.5 text-indigo-700" />
+                                <span>Editar</span>
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteLegalDoc(category.id, doc.id, doc.title)}
+                                className="p-2.5 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-700 font-bold text-xs flex items-center gap-1.5 transition-colors"
+                                title="Eliminar documento"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Eliminar</span>
+                              </button>
+                            </div>
+
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                  </div>
+                );
+              })}
+            </div>
+
+          </div>
+        )}
+
       </div>
 
-      {/* CREATE / EDIT EVENT MODAL (ADMIN ONLY - LIGHT THEME) */}
+      {/* CREATE / EDIT AGENDA EVENT MODAL (ADMIN ONLY - LIGHT THEME) */}
       {isCreateModalOpen && currentUser.isAdminLevel && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto">
@@ -1030,7 +1376,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
               <button
                 onClick={() => setIsCreateModalOpen(false)}
-                className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors font-sans"
               >
                 ✕
               </button>
@@ -1176,10 +1522,200 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
                 <button
                   type="submit"
-                  className="py-3 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-md"
+                  className="py-3 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-md active:scale-98"
                 >
                   <Check className="w-4 h-4" />
                   <span>{editingEvent ? 'Guardar Cambios' : 'Agendar Actividad'}</span>
+                </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* CREATE / EDIT LEGAL DOCUMENT MODAL (PRESIDENT ONLY - LIGHT THEME) */}
+      {isLegalModalOpen && isPresident && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto">
+            
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-indigo-100 text-indigo-800 border border-indigo-200">
+                  <FolderPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif font-black text-xl text-slate-900 uppercase tracking-wider">
+                    {editingLegalDoc ? 'Editar Documento en Repositorio' : 'Cargar Nuevo Documento al Repositorio'}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-sans">
+                    Centro de Recursos & Marco Jurídico &bull; CGEM
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsLegalModalOpen(false)}
+                className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors font-sans"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveLegalDoc} className="mt-6 space-y-4 text-xs font-sans">
+              
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Título Completo del Documento / Normativa *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={legalFormData.title}
+                  onChange={(e) => setLegalFormData({ ...legalFormData, title: e.target.value })}
+                  placeholder="ej: Providencia Administrativa SENIAT SNAT/2024/000032 - Uso de Máquinas Fiscales"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Sección / Módulo Jurídico *
+                  </label>
+                  <select
+                    value={legalFormData.categoryId}
+                    onChange={(e) => setLegalFormData({ ...legalFormData, categoryId: e.target.value })}
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white font-medium"
+                  >
+                    {legalCategories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Organismo Regulador / Etiqueta *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={legalFormData.categoryTag}
+                    onChange={(e) => setLegalFormData({ ...legalFormData, categoryTag: e.target.value })}
+                    placeholder="ej: SENIAT Nacional, SAMAT, SACS, INATUR..."
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Formato *
+                  </label>
+                  <select
+                    value={legalFormData.format}
+                    onChange={(e) => setLegalFormData({ ...legalFormData, format: e.target.value })}
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white"
+                  >
+                    <option value="PDF">PDF (Documento Oficial)</option>
+                    <option value="DOCX">Word (DOCX / Modelo)</option>
+                    <option value="XLSX">Excel (XLSX / Hoja Cálculo)</option>
+                    <option value="ZIP">ZIP (Paquete Normativo)</option>
+                    <option value="Enlace Web">Enlace Web Oficial</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Tamaño / Referencia
+                  </label>
+                  <input
+                    type="text"
+                    value={legalFormData.size}
+                    onChange={(e) => setLegalFormData({ ...legalFormData, size: e.target.value })}
+                    placeholder="ej: 2.4 MB"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Fecha de Vigencia *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={legalFormData.dateUpdated}
+                    onChange={(e) => setLegalFormData({ ...legalFormData, dateUpdated: e.target.value })}
+                    placeholder="ej: Octubre 2026 / Vigente"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Enlace de Descarga o Repositorio en la Nube (URL)
+                </label>
+                <input
+                  type="url"
+                  value={legalFormData.fileUrl}
+                  onChange={(e) => setLegalFormData({ ...legalFormData, fileUrl: e.target.value })}
+                  placeholder="https://drive.google.com/... o enlace directo al PDF"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Si deja el enlace vacío, el sistema generará automáticamente la ficha técnica oficial descargable para los usuarios.
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Resumen del Contenido & Ficha Técnica *
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  value={legalFormData.summary}
+                  onChange={(e) => setLegalFormData({ ...legalFormData, summary: e.target.value })}
+                  placeholder="Detalles sobre el alcance normativo, deberes formales, excepciones, multas aplicables o pasos para su cumplimiento en restaurantes y cafeterías..."
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white leading-relaxed"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="isOfficialCheck"
+                  checked={legalFormData.isOfficial}
+                  onChange={(e) => setLegalFormData({ ...legalFormData, isOfficial: e.target.checked })}
+                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                />
+                <label htmlFor="isOfficialCheck" className="text-xs font-bold text-slate-700 cursor-pointer">
+                  Marcar como Normativa Legal Oficial de Obligatorio Cumplimiento
+                </label>
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsLegalModalOpen(false)}
+                  className="py-3 px-5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  className="py-3 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-serif font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-md active:scale-98"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{editingLegalDoc ? 'Actualizar Documento' : 'Publicar Documento'}</span>
                 </button>
               </div>
 

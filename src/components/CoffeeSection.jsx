@@ -226,38 +226,62 @@ export function CoffeeSection({ setActiveTab, onQuickSearch }) {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {COFFEE_DATA.spots.map((spot) => (
-            <div
-              key={spot.id}
-              className="bg-white rounded-3xl border border-slate-200 p-6 shadow-md hover:shadow-xl transition-all flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-2">
-                  <MapPin className="w-3.5 h-3.5 text-amber-600" />
-                  <span>{spot.location}</span>
-                </div>
-                <h3 className="font-serif text-lg font-bold text-slate-900 mb-2">
-                  {spot.name}
-                </h3>
-                <p className="text-xs text-amber-900 font-medium bg-amber-50 p-2.5 rounded-xl mb-3 border border-amber-200/60">
-                  ☕ {spot.specialty}
-                </p>
-                <span className="text-[11px] text-slate-500 block mb-4">
-                  👨‍🌾 {spot.barista}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap gap-1.5 pt-3 border-t border-slate-100">
-                {spot.tags.map((tag, idx) => (
-                  <span key={idx} className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-bold">
-                    {tag}
-                  </span>
-                ))}
-              </div>
+        {COFFEE_DATA.spots.length === 0 ? (
+          <div className="bg-white rounded-3xl border border-dashed border-amber-300 p-8 sm:p-12 text-center shadow-xs">
+            <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto mb-4 border border-amber-200">
+              <Coffee className="w-7 h-7" />
             </div>
-          ))}
-        </div>
+            <h3 className="font-serif font-black text-xl text-slate-900 uppercase tracking-wide mb-2">
+              Convocatoria de Certificación en Curso
+            </h3>
+            <p className="text-xs text-slate-600 max-w-lg mx-auto leading-relaxed font-sans mb-6">
+              Las cafeterías, barras de especialidad y tostadurías del estado Mérida se encuentran en fase de auditoría técnica, calibración y registro oficial para su incorporación a la cartografía gremial.
+            </p>
+            <button
+              onClick={() => {
+                setActiveTab('affiliates');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="inline-flex items-center gap-2 py-3 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider shadow-sm transition-all"
+            >
+              <span>Postular mi Cafetería o Finca</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {COFFEE_DATA.spots.map((spot) => (
+              <div
+                key={spot.id}
+                className="bg-white rounded-3xl border border-slate-200 p-6 shadow-md hover:shadow-xl transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-2">
+                    <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                    <span>{spot.location}</span>
+                  </div>
+                  <h3 className="font-serif text-lg font-bold text-slate-900 mb-2">
+                    {spot.name}
+                  </h3>
+                  <p className="text-xs text-amber-900 font-medium bg-amber-50 p-2.5 rounded-xl mb-3 border border-amber-200/60">
+                    ☕ {spot.specialty}
+                  </p>
+                  <span className="text-[11px] text-slate-500 block mb-4">
+                    👨‍🌾 {spot.barista}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 pt-3 border-t border-slate-100">
+                  {spot.tags.map((tag, idx) => (
+                    <span key={idx} className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-bold">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* CTA: Agremiar Cafetería o Tostaduría */}
