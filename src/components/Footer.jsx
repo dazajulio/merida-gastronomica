@@ -169,7 +169,9 @@ export function Footer({ setActiveTab, t }) {
               </p>
               <p className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span>info@camaragastronomicamerida.org</span>
+                <a href="mailto:contacto@meridagastronomica.com" className="hover:text-amber-300 transition-colors">
+                  contacto@meridagastronomica.com
+                </a>
               </p>
             </div>
 

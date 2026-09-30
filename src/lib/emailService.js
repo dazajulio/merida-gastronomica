@@ -389,9 +389,9 @@ export async function sendBoardAttendanceEmail({
     text: `Confirmación de asistencia para ${memberName} (${memberRole}) al evento: ${eventTitle} el ${eventDate}.`
   });
 
-  // Also send notification to Direccion Ejecutiva
+  // Also send notification to Direccion Ejecutiva & Presidencia
   sendEmail({
-    to: 'info@camaragastronomicamerida.org',
+    to: 'meridacamaragastronomica@gmail.com',
     replyTo: memberEmail,
     subject: `[Agenda Directiva] Asistencia confirmada: ${memberName} (${memberRole}) a ${eventTitle}`,
     html: getEmailBaseTemplate(`Asistencia Directiva: ${memberName}`, content),
