@@ -771,34 +771,70 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
       
       setIsSubmittingReg(true);
       const newCode = `CGM-2026-${String(Math.floor(Math.random() * 899) + 101)}`;
+      const tierInfo = getBusinessTier(regData.businessType);
       
-      // Try to store record in Supabase
+      const newDirectoryEntry = {
+        codigo_afiliado: newCode,
+        nombre_establecimiento: regData.restaurantName,
+        categoria_negocio: tierInfo.name || regData.businessType,
+        representante_legal: regData.ownerName,
+        rif_cedula: `${regData.rifType}${regData.rifNumber}`,
+        telefono: regData.phone,
+        email: regData.email,
+        direccion_completa: `${regData.address || ''}${regData.cityTown ? `, ${regData.cityTown}` : ''}`,
+        municipio: currentMunicipioObj?.name || 'Libertador',
+        instagram: regData.instagram || '',
+        sitio_web: '',
+        numero_empleados: regData.businessType?.includes('20 o más') ? 20 : regData.businessType?.includes('5 y 19') ? 8 : 2,
+        estado_solvencia: 'En Trámite (Verificación Pago)',
+        monto_inscripcion: tierInfo.inscriptionUsd || 20,
+        monto_cuota_mensual: tierInfo.monthlyUsd || 10,
+        fecha_registro: new Date().toISOString(),
+        observaciones: `Registro Web Público. Ref: ${regData.referenceNumber} (${regData.issuingBank || 'Banco Provincial'}). Tel. Pagador: ${regData.payerPhone || regData.phone}. Especialidad: ${regData.specialty || ''}. Monto Bs: ${regData.amountPaidBs || ''}`
+      };
+
+      // Try to store record in Supabase (both in directorio_agremiados and solicitudes_afiliacion)
       try {
-        await supabase.from('solicitudes_afiliacion').insert([
-          {
-            codigo_afiliado: newCode,
-            tipo_negocio: regData.businessType,
-            nombre_comercial: regData.restaurantName,
-            rif: `${regData.rifType}${regData.rifNumber}`,
-            titular_propietario: regData.ownerName,
-            telefono: regData.phone,
-            correo: regData.email,
-            municipio: currentMunicipioObj.name,
-            ciudad_poblacion: regData.cityTown,
-            direccion: regData.address,
-            categoria: regData.category,
-            especialidad: regData.specialty,
-            instagram: regData.instagram,
-            banco_pago_movil: regData.issuingBank,
-            telefono_pagador: regData.payerPhone,
-            referencia_pago_movil: regData.referenceNumber,
-            monto_bs: regData.amountPaidBs,
-            estado: 'pago_en_verificacion',
-            created_at: new Date().toISOString()
-          }
-        ]);
+        if (supabase) {
+          // 1. Insert into Directorio de Agremiados
+          await supabase.from('directorio_agremiados').insert([newDirectoryEntry]);
+
+          // 2. Insert into Solicitudes de Afiliacion
+          await supabase.from('solicitudes_afiliacion').insert([
+            {
+              codigo_afiliado: newCode,
+              tipo_negocio: regData.businessType,
+              nombre_comercial: regData.restaurantName,
+              rif: `${regData.rifType}${regData.rifNumber}`,
+              titular_propietario: regData.ownerName,
+              telefono: regData.phone,
+              correo: regData.email,
+              municipio: currentMunicipioObj.name,
+              ciudad_poblacion: regData.cityTown,
+              direccion: regData.address,
+              categoria: regData.category,
+              especialidad: regData.specialty,
+              instagram: regData.instagram,
+              banco_pago_movil: regData.issuingBank,
+              telefono_pagador: regData.payerPhone,
+              referencia_pago_movil: regData.referenceNumber,
+              monto_bs: regData.amountPaidBs,
+              estado: 'pago_en_verificacion',
+              created_at: new Date().toISOString()
+            }
+          ]);
+        }
       } catch (err) {
-        console.warn('Supabase local sync notice:', err);
+        console.warn('Supabase registration sync notice:', err);
+      }
+
+      // Sync local storage fallback
+      try {
+        const existingLocal = JSON.parse(localStorage.getItem('cgem_directorio_agremiados') || '[]');
+        const updatedList = [newDirectoryEntry, ...existingLocal.filter(item => item.codigo_afiliado !== newCode)];
+        localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
+      } catch (e) {
+        console.warn('LocalStorage sync warning:', e);
       }
 
       // Enviar correo oficial de bienvenida y comprobante de afiliación con Resend

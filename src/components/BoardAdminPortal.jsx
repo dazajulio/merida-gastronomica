@@ -120,9 +120,14 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const [directoryMembers, setDirectoryMembers] = useState(() => {
     try {
       const saved = localStorage.getItem('cgem_directorio_agremiados');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(item => item && item.id !== 'cgm-dir-001');
+        }
+      }
     } catch (e) {}
-    return INITIAL_DIRECTORY_DATA;
+    return [];
   });
 
   const [isLoadingDirectory, setIsLoadingDirectory] = useState(false);
@@ -152,22 +157,86 @@ export function BoardAdminPortal({ t, onNavigate }) {
     observaciones: ''
   });
 
-  // Fetch Directory from Supabase on mount or refresh
+  // Fetch Directory from Supabase on mount or refresh, plus sync any public web registrations
   const fetchDirectoryFromSupabase = async () => {
     if (!supabase) return;
     try {
       setIsLoadingDirectory(true);
-      const { data, error } = await supabase
+      
+      // 1. Fetch from public.directorio_agremiados
+      const { data: dirData, error: dirError } = await supabase
         .from('directorio_agremiados')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.warn('Supabase directorio notice:', error.message);
-      } else if (data && data.length > 0) {
-        setDirectoryMembers(data);
-        localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(data));
+      if (dirError) {
+        console.warn('Supabase directorio notice:', dirError.message);
       }
+
+      let mergedData = (dirData && Array.isArray(dirData)) ? [...dirData] : [];
+
+      // 2. Fetch from solicitudes_afiliacion to auto-sync any web registrations
+      try {
+        const { data: solData, error: solError } = await supabase
+          .from('solicitudes_afiliacion')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!solError && solData && solData.length > 0) {
+          for (const sol of solData) {
+            const alreadyInDirectory = mergedData.some(m => 
+              (sol.codigo_afiliado && m.codigo_afiliado === sol.codigo_afiliado) ||
+              (sol.rif && m.rif_cedula === sol.rif) ||
+              (sol.correo && m.email && m.email.toLowerCase() === sol.correo.toLowerCase())
+            );
+
+            if (!alreadyInDirectory) {
+              const newEntry = {
+                codigo_afiliado: sol.codigo_afiliado || `CGM-2026-${Math.floor(Math.random() * 899 + 100)}`,
+                nombre_establecimiento: sol.nombre_comercial || 'Establecimiento Solicitante',
+                categoria_negocio: sol.tipo_negocio || 'Empresas (5 a 19 empleados)',
+                representante_legal: sol.titular_propietario || 'Representante Legal',
+                rif_cedula: sol.rif || 'Pendiente',
+                telefono: sol.telefono || 'Sin teléfono',
+                email: sol.correo || 'sin-correo@meridagastronomica.com',
+                direccion_completa: `${sol.direccion || ''}${sol.ciudad_poblacion ? `, ${sol.ciudad_poblacion}` : ''}`,
+                municipio: sol.municipio || 'Libertador',
+                instagram: sol.instagram || '',
+                sitio_web: '',
+                numero_empleados: sol.tipo_negocio?.includes('20 o más') ? 20 : sol.tipo_negocio?.includes('5 y 19') ? 8 : 2,
+                estado_solvencia: 'En Trámite (Verificación Pago)',
+                monto_inscripcion: sol.tipo_negocio?.includes('20 o más') ? 50 : sol.tipo_negocio?.includes('5 y 19') ? 30 : 20,
+                monto_cuota_mensual: sol.tipo_negocio?.includes('20 o más') ? 20 : 10,
+                fecha_registro: sol.created_at || new Date().toISOString(),
+                observaciones: `Registro Web: Ref. ${sol.referencia_pago_movil || 'N/A'} - Banco: ${sol.banco_pago_movil || 'Provincial'} - Tel. Pagador: ${sol.telefono_pagador || ''} - Monto: Bs. ${sol.monto_bs || '0'}`
+              };
+
+              // Persist into directorio_agremiados
+              try {
+                const { data: inserted } = await supabase
+                  .from('directorio_agremiados')
+                  .insert([newEntry])
+                  .select();
+                if (inserted && inserted[0]) {
+                  mergedData.push(inserted[0]);
+                } else {
+                  mergedData.push(newEntry);
+                }
+              } catch (insErr) {
+                mergedData.push(newEntry);
+              }
+            }
+          }
+        }
+      } catch (solEx) {
+        console.warn('Sync solicitudes note:', solEx);
+      }
+
+      // Filter out any mock/placeholder items and save
+      const cleanList = mergedData.filter(item => item && item.id !== 'cgm-dir-001');
+      setDirectoryMembers(cleanList);
+      localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(cleanList));
+
     } catch (err) {
       console.warn('Supabase connection note:', err);
     } finally {
@@ -682,12 +751,14 @@ export function BoardAdminPortal({ t, onNavigate }) {
       localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
       setActionSuccessMessage(`Agremiado "${memberFormData.nombre_establecimiento}" (${code}) actualizado con éxito.`);
     } else {
-      // 1. Create record with UUID or timestamp id
-      const newId = `cgm-dir-${Date.now()}`;
-      const newRecord = {
-        id: newId,
+      // 1. Create record
+      const recordToInsert = {
         ...memberDataToSave,
         fecha_registro: new Date().toISOString()
+      };
+      let createdRecord = {
+        id: `cgm-dir-${Date.now()}`,
+        ...recordToInsert
       };
 
       // 2. Insert into Supabase
@@ -695,10 +766,10 @@ export function BoardAdminPortal({ t, onNavigate }) {
         if (supabase) {
           const { data, error } = await supabase
             .from('directorio_agremiados')
-            .insert([newRecord])
+            .insert([recordToInsert])
             .select();
           if (data && data[0]) {
-            newRecord.id = data[0].id;
+            createdRecord = data[0];
           }
         }
       } catch (err) {
@@ -706,7 +777,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       }
 
       // 3. Update local state & localStorage
-      const updatedList = [newRecord, ...directoryMembers];
+      const updatedList = [createdRecord, ...directoryMembers];
       setDirectoryMembers(updatedList);
       localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
       setActionSuccessMessage(`Nuevo agremiado "${memberFormData.nombre_establecimiento}" incorporado al Directorio con código ${code}.`);
