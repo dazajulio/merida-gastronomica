@@ -441,7 +441,7 @@ export function JobsSection({ t, setActiveTab }) {
                       <input
                         type="email"
                         required
-                        placeholder="andres@email.com"
+                        placeholder="ejemplo@correo.com"
                         className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500"
                       />
                     </div>

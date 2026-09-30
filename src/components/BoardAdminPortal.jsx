@@ -421,7 +421,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     required
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
-                    placeholder="ej: dazajulio@gmail.com o margiovi@gmail.com"
+                    placeholder="ej: directivo@camaragastronomicamerida.org"
                     className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20 transition-all font-sans"
                   />
                 </div>
@@ -462,36 +462,6 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 </button>
               </div>
             </form>
-
-            {/* Directiva Directory Preview */}
-            <div className="mt-8 pt-6 border-t border-slate-100">
-              <div className="flex items-center justify-between text-xs text-slate-600 mb-3">
-                <span className="font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5 font-sans">
-                  <Users className="w-3.5 h-3.5 text-amber-600" />
-                  Junta Directiva Habilitada
-                </span>
-                <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-600 font-bold">
-                  6 Accesos Activos
-                </span>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-600 max-h-48 overflow-y-auto pr-1">
-                {BOARD_MEMBERS_DATA.filter(m => m.hasPasswordSet).map((member) => (
-                  <div key={member.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col justify-between">
-                    <div>
-                      <span className="font-serif font-black text-slate-900 block truncate">{member.role}</span>
-                      <span className="text-slate-600 block truncate font-sans">{member.name}</span>
-                    </div>
-                    <div className="flex items-center justify-between mt-1 text-[10px] text-amber-800 font-mono">
-                      <span>{member.ci}</span>
-                      {member.isAdminLevel && (
-                        <span className="bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded font-bold">Admin</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
 
           </div>
 

@@ -504,6 +504,44 @@ function GpsCalibrationTab({ activeUser }) {
   );
 }
 
+// 3 Categorías Oficiales de Negocio Gastronómico y Tarifas de Afiliación
+export const BUSINESS_TIERS = [
+  {
+    id: 'grandes_empresas',
+    name: 'Grandes Empresas',
+    subtitle: 'Activas con 20 o más empleados',
+    inscriptionUsd: 50,
+    monthlyUsd: 30,
+    icon: Building2,
+    hasCondition: false
+  },
+  {
+    id: 'empresas',
+    name: 'Empresas',
+    subtitle: 'Registros de comercios o marcas entre 5 y 19 empleados',
+    inscriptionUsd: 30,
+    monthlyUsd: 20,
+    icon: Store,
+    hasCondition: false
+  },
+  {
+    id: 'emprendimiento',
+    name: 'Marca Personal y Emprendimientos',
+    subtitle: 'Menores de 5 empleados',
+    inscriptionUsd: 20,
+    monthlyUsd: 15,
+    icon: ChefHat,
+    hasCondition: true,
+    conditionNotice: 'Nuestra intención institucional siempre será la formalidad. La Cámara Gastronómica brindará asesoría técnica, legal y soporte continuo para acompañar a este segmento hacia su formalización comercial de nuestra mano y con las mejores opciones. Dispondrán de un plazo de 12 meses para consolidar esa transición para poder permanecer como miembros activos de la Cámara y disfrutar de todos sus beneficios.'
+  }
+];
+
+export const getBusinessTier = (typeIdOrName) => {
+  return BUSINESS_TIERS.find(t => t.id === typeIdOrName) || 
+         BUSINESS_TIERS.find(t => t.name === typeIdOrName) || 
+         BUSINESS_TIERS[1];
+};
+
 export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo = false }) {
   // Navigation & Authentication states: 'login' | 'register' | 'welcome_preview' | 'dashboard'
   const [viewMode, setViewMode] = useState(initialViewMode);
@@ -517,8 +555,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
     }
   }, [initialViewMode, autoOpenVideo]);
   
-  // BCV Official Exchange Rate State & $30 USD Fee
-  const ANNUAL_FEE_USD = 30;
+  // BCV Official Exchange Rate State
   const [bcvRate, setBcvRate] = useState(null);
   const [bcvLoading, setBcvLoading] = useState(true);
   const [bcvDate, setBcvDate] = useState('');
@@ -533,11 +570,6 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
           if (data && data.promedio) {
             const rate = data.promedio;
             setBcvRate(rate);
-            const totalBs = (ANNUAL_FEE_USD * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            setRegData(prev => ({
-              ...prev,
-              amountPaidBs: totalBs
-            }));
             if (data.fechaActualizacion) {
               const d = new Date(data.fechaActualizacion);
               setBcvDate(d.toLocaleDateString('es-VE'));
@@ -562,7 +594,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
   // Registration Wizard Step: 1 (Datos & Ubicación) | 2 (Identidad & Carta) | 3 (Pago Móvil) | 4 (Confirmado)
   const [regStep, setRegStep] = useState(1);
   const [regData, setRegData] = useState({
-    businessType: 'Comercial / Restaurante Establecido',
+    businessType: 'empresas',
     restaurantName: '',
     rifType: 'J-',
     rifNumber: '',
@@ -583,6 +615,18 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
     amountPaidBs: 'Calculando...',
     generatedAffiliateCode: ''
   });
+
+  // Dynamic Recalculation of BCV amount when bcvRate or businessType changes
+  useEffect(() => {
+    if (bcvRate) {
+      const tier = getBusinessTier(regData.businessType);
+      const totalBs = (tier.inscriptionUsd * bcvRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      setRegData(prev => ({
+        ...prev,
+        amountPaidBs: totalBs
+      }));
+    }
+  }, [bcvRate, regData.businessType]);
 
   const [copiedBankData, setCopiedBankData] = useState(false);
   const [isSubmittingReg, setIsSubmittingReg] = useState(false);
@@ -798,7 +842,8 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
   };
 
   const copyProvincialBankDetails = () => {
-    const text = `CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA\nPago Móvil Banco Provincial (0108)\nCédula / RIF: V-12517086\nTeléfono: 04148817137\nMonto: $30 USD (Bs. ${regData.amountPaidBs} al cambio oficial BCV)\nConcepto: Afiliación Gremial Mérida`;
+    const tier = getBusinessTier(regData.businessType);
+    const text = `CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA\nPago Móvil Banco Provincial (0108)\nCédula / RIF: V-12517086\nTeléfono: 04148817137\nConcepto: Afiliación Gremial Mérida - ${tier.name}\nMonto Inscripción: $${tier.inscriptionUsd} USD (Bs. ${regData.amountPaidBs} al cambio oficial BCV)\nCuota Mensual: $${tier.monthlyUsd} USD`;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text);
       setCopiedBankData(true);
@@ -1142,7 +1187,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all shrink-0"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Ver Video Motivacional</span>
+                <span>Ver Video Agremiados</span>
               </button>
             </div>
 
@@ -1157,35 +1202,56 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               
               {/* Tipo de Negocio Gastronómico */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 font-sans">
                   Tipo de Negocio Gastronómico *
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {[
-                    { id: 'Comercial / Restaurante Establecido', icon: Store, label: 'Comercial / Restaurante' },
-                    { id: 'Marca Personal / Chef de Autor', icon: ChefHat, label: 'Marca Personal / Chef' },
-                    { id: 'Emprendimiento Gastronómico / Dark Kitchen', icon: Coffee, label: 'Emprendimiento / Bistro' },
-                  ].map((type) => {
+                  {BUSINESS_TIERS.map((type) => {
                     const Icon = type.icon;
-                    const isSel = regData.businessType === type.id;
+                    const isSel = regData.businessType === type.id || regData.businessType === type.name;
                     return (
                       <div
                         key={type.id}
                         onClick={() => setRegData({ ...regData, businessType: type.id })}
-                        className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-center gap-3 ${
+                        className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
                           isSel
                             ? 'bg-amber-50 border-amber-500 shadow-md ring-2 ring-amber-400/20'
                             : 'bg-slate-50 border-slate-200 hover:border-amber-300'
                         }`}
                       >
-                        <div className={`p-2 rounded-xl ${isSel ? 'bg-amber-500 text-white' : 'bg-white text-slate-600 border border-slate-200'}`}>
-                          <Icon className="w-4 h-4" />
+                        <div className="flex items-start gap-3">
+                          <div className={`p-2.5 rounded-xl shrink-0 ${isSel ? 'bg-amber-500 text-white' : 'bg-white text-slate-600 border border-slate-200'}`}>
+                            <Icon className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-slate-900 block leading-snug">{type.name}</span>
+                            <span className="text-[11px] text-slate-500 block mt-0.5 leading-tight">{type.subtitle}</span>
+                          </div>
                         </div>
-                        <span className="text-xs font-bold text-slate-900">{type.label}</span>
+
+                        <div className="mt-3 pt-2.5 border-t border-slate-200/80 flex items-center justify-between text-[11px] font-sans">
+                          <span className="text-slate-600">Inscripción: <strong className="text-slate-900 font-bold">${type.inscriptionUsd}</strong></span>
+                          <span className="text-amber-800 font-bold">Mes: ${type.monthlyUsd}</span>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
+
+                {/* Condición Especial para Marca Personal y Emprendimientos */}
+                {getBusinessTier(regData.businessType).hasCondition && (
+                  <div className="mt-3.5 p-4 rounded-2xl bg-amber-500/10 border border-amber-400 text-amber-950 text-xs flex items-start gap-3 animate-fadeIn">
+                    <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <strong className="block text-amber-900 font-bold uppercase text-[11px] tracking-wider">
+                        Compromiso de Acompañamiento y Formalización (Plazo 12 Meses):
+                      </strong>
+                      <p className="text-[11px] leading-relaxed text-slate-700">
+                        {getBusinessTier(regData.businessType).conditionNotice}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Nombre y RIF con selector J- / V- / E- */}
@@ -1460,12 +1526,12 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                   <span className="font-mono font-bold text-white text-sm">V-12517086</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Teléfono</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Teléfono Pago Móvil</span>
                   <span className="font-mono font-bold text-white text-sm">04148817137</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Cuota de Afiliación</span>
-                  <span className="font-bold text-amber-400 text-sm">$30 USD</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Cuota Inscripción ({getBusinessTier(regData.businessType).name})</span>
+                  <span className="font-bold text-amber-400 text-sm font-mono">${getBusinessTier(regData.businessType).inscriptionUsd} USD <span className="text-[11px] text-slate-300 font-normal">(Mes: ${getBusinessTier(regData.businessType).monthlyUsd})</span></span>
                 </div>
               </div>
 
@@ -1480,7 +1546,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
 
                 <div className="bg-amber-500/20 px-3.5 py-1.5 rounded-xl border border-amber-500/40">
                   <span className="text-amber-300 font-bold text-xs">
-                    Total a Pagar en Bs: <span className="text-white text-sm font-mono font-extrabold ml-1">Bs. {regData.amountPaidBs}</span>
+                    Monto Inscripción en Bs: <span className="text-white text-sm font-mono font-extrabold ml-1">Bs. {regData.amountPaidBs}</span>
                   </span>
                 </div>
               </div>
