@@ -16,21 +16,20 @@ import {
   LogOut, 
   Eye, 
   EyeOff, 
-  ChevronLeft, 
-  ChevronRight, 
   Award, 
   Briefcase, 
   Sparkles, 
   FileText, 
   Download, 
   Share2, 
-  Video, 
   Check, 
   Radio, 
   Send,
   Building2,
   CalendarDays,
-  ListFilter
+  ListFilter,
+  AlertTriangle,
+  UserX
 } from 'lucide-react';
 import { BOARD_MEMBERS_DATA, INITIAL_BOARD_AGENDA_DATA } from '../data/boardData';
 import { sendBoardAttendanceEmail } from '../lib/emailService';
@@ -52,10 +51,10 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Agenda State
+  // Agenda State (Stored in localStorage with fallback to INITIAL_BOARD_AGENDA_DATA)
   const [agendaEvents, setAgendaEvents] = useState(() => {
     try {
-      const saved = localStorage.getItem('cgem_board_agenda');
+      const saved = localStorage.getItem('cgem_board_agenda_v2');
       if (saved) return JSON.parse(saved);
     } catch (e) {}
     return INITIAL_BOARD_AGENDA_DATA;
@@ -64,36 +63,37 @@ export function BoardAdminPortal({ t, onNavigate }) {
   // Save agenda to localStorage whenever it changes
   useEffect(() => {
     try {
-      localStorage.setItem('cgem_board_agenda', JSON.stringify(agendaEvents));
+      localStorage.setItem('cgem_board_agenda_v2', JSON.stringify(agendaEvents));
     } catch (e) {}
   }, [agendaEvents]);
 
   // Calendar View Filters & Navigation
   const [selectedYear, setSelectedYear] = useState(2026);
-  const [selectedMonth, setSelectedMonth] = useState(10); // 1 to 12 (10 = Octubre)
+  const [selectedMonth, setSelectedMonth] = useState('all'); // 'all' or 1..12
   const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('timeline'); // timeline | calendar | board_list
-  const [selectedEventForDetail, setSelectedEventForDetail] = useState(null);
+  const [viewMode, setViewMode] = useState('timeline'); // timeline | board_list
 
   // Admin Event Management Modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [actionSuccessMessage, setActionSuccessMessage] = useState('');
+  const [actionErrorMessage, setActionErrorMessage] = useState('');
   const [rsvpLoadingEventId, setRsvpLoadingEventId] = useState(null);
 
   // Form State for Event Creation / Editing
   const [formData, setFormData] = useState({
     title: '',
-    type: 'reunion',
-    typeLabel: 'Reunión de Junta',
+    type: 'institucional',
+    typeLabel: 'Institucional & Academia',
     date: new Date().toISOString().split('T')[0],
     timeStart: '09:00',
-    timeEnd: '11:00',
-    location: 'Sede Institucional CGEM / Centro Histórico, Mérida',
+    timeEnd: '11:30',
+    location: 'Sede Institucional CGEM (Av. 4 entre Calles 19 y 20) / Sala de Juntas',
     isVirtual: false,
     virtualLink: '',
     organizer: 'Presidencia & Dirección Ejecutiva',
     description: '',
+    maxAttendees: '',
     status: 'confirmado'
   });
 
@@ -114,13 +114,12 @@ export function BoardAdminPortal({ t, onNavigate }) {
   ];
 
   const EVENT_TYPES = [
-    { id: 'all', label: 'Todas las Actividades', color: 'bg-slate-800 text-white' },
-    { id: 'reunion', label: 'Reunión de Junta', color: 'bg-amber-100 text-amber-900 border-amber-300' },
-    { id: 'medios', label: 'Medios & Entrevistas', color: 'bg-sky-100 text-sky-900 border-sky-300' },
-    { id: 'auditoria', label: 'Inspección & Sello AAA', color: 'bg-purple-100 text-purple-900 border-purple-300' },
-    { id: 'gremial', label: 'Encuentro Gremial', color: 'bg-emerald-100 text-emerald-900 border-emerald-300' },
-    { id: 'institucional', label: 'Institucional & Gobierno', color: 'bg-indigo-100 text-indigo-900 border-indigo-300' },
-    { id: 'expo', label: 'Expo Andes 2027', color: 'bg-rose-100 text-rose-900 border-rose-300' }
+    { id: 'all', label: 'Todas las Actividades' },
+    { id: 'institucional', label: 'Institucional & Gala' },
+    { id: 'medios', label: 'Medios & Radio' },
+    { id: 'gremial', label: 'Encuentro Gremial & Turismo' },
+    { id: 'capacitacion', label: 'Formación & Talleres' },
+    { id: 'reunion', label: 'Reunión de Junta Directiva' },
   ];
 
   // Handle Login
@@ -131,27 +130,27 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
     setTimeout(() => {
       const emailClean = emailInput.trim().toLowerCase();
-      
-      // Verification for Presidente Julio Daza
-      if (emailClean === 'dazajulio@gmail.com' && passwordInput === 'Dafaca10*') {
-        const presidentUser = BOARD_MEMBERS_DATA.find(m => m.id === 'dir-presidente');
-        setCurrentUser(presidentUser);
-        localStorage.setItem('cgem_board_user', JSON.stringify(presidentUser));
+      const passClean = passwordInput.trim();
+
+      // Look up member
+      const member = BOARD_MEMBERS_DATA.find(m => m.email.toLowerCase() === emailClean);
+
+      if (member && member.hasPasswordSet && member.passwordHash === passClean) {
+        setCurrentUser(member);
+        localStorage.setItem('cgem_board_user', JSON.stringify(member));
         setIsLoggingIn(false);
         return;
       }
 
-      // Check if it matches any other member without password set yet
-      const foundMember = BOARD_MEMBERS_DATA.find(m => m.email.toLowerCase() === emailClean);
-      if (foundMember && !foundMember.hasPasswordSet) {
-        setLoginError('Este cargo directivo está pre-registrado. Las credenciales de acceso individual están en proceso de activación por Presidencia.');
+      if (member && !member.hasPasswordSet) {
+        setLoginError('Este cargo directivo está pre-registrado. Las credenciales de acceso están pendientes por activación.');
         setIsLoggingIn(false);
         return;
       }
 
-      setLoginError('Credenciales incorrectas. Verifique el correo electrónico y la contraseña institucional.');
+      setLoginError('Credenciales incorrectas. Verifique el correo electrónico y la contraseña asignada.');
       setIsLoggingIn(false);
-    }, 400);
+    }, 300);
   };
 
   // Handle Logout
@@ -180,12 +179,30 @@ export function BoardAdminPortal({ t, onNavigate }) {
     return event.confirmedAttendees.some(a => a.memberId === currentUser.id || a.name === currentUser.name);
   };
 
+  // Check if event is at capacity
+  const isEventAtCapacity = (event) => {
+    if (!event.maxAttendees || event.maxAttendees <= 0) return false;
+    const count = (event.confirmedAttendees || []).length;
+    return count >= event.maxAttendees;
+  };
+
   // Toggle RSVP / "VOY A ASISTIR"
   const handleToggleAttendance = async (event) => {
     if (!currentUser) return;
+    setActionErrorMessage('');
+    setActionSuccessMessage('');
     setRsvpLoadingEventId(event.id);
 
     const alreadyConfirmed = isUserConfirmed(event);
+    const atCapacity = isEventAtCapacity(event);
+
+    // If not confirmed and at capacity, prevent attendance!
+    if (!alreadyConfirmed && atCapacity) {
+      setActionErrorMessage(`NO HAY DISPONIBILIDAD para asistir a "${event.title}" porque se ocupó el límite máximo de ${event.maxAttendees} asistentes permitidos.`);
+      setRsvpLoadingEventId(null);
+      return;
+    }
+
     let updatedAttendees = [];
 
     if (alreadyConfirmed) {
@@ -193,7 +210,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       updatedAttendees = (event.confirmedAttendees || []).filter(
         a => a.memberId !== currentUser.id && a.name !== currentUser.name
       );
-      setActionSuccessMessage('Has cancelado tu confirmación de asistencia a esta actividad.');
+      setActionSuccessMessage(`Has cancelado tu confirmación de asistencia a "${event.title}".`);
     } else {
       // Add attendance
       const newAttendee = {
@@ -203,7 +220,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
         confirmedAt: new Date().toISOString()
       };
       updatedAttendees = [...(event.confirmedAttendees || []), newAttendee];
-      setActionSuccessMessage('¡Excelente! Tu asistencia ha sido confirmada formalmente. Se ha enviado notificación a tu correo.');
+      setActionSuccessMessage(`¡Excelente ${currentUser.name}! Tu asistencia ha sido confirmada formalmente. Se ha enviado notificación a tu correo registrado y a Dirección Ejecutiva.`);
 
       // Send Email Notification via Resend
       try {
@@ -233,7 +250,10 @@ export function BoardAdminPortal({ t, onNavigate }) {
     }));
 
     setRsvpLoadingEventId(null);
-    setTimeout(() => setActionSuccessMessage(''), 5000);
+    setTimeout(() => {
+      setActionSuccessMessage('');
+      setActionErrorMessage('');
+    }, 6000);
   };
 
   // Save (Create or Update) Event (Admin Only: Presidente / Director Ejecutivo)
@@ -246,6 +266,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
     const month = parseInt(eventDate.split('-')[1], 10);
 
     const typeConfig = EVENT_TYPES.find(t => t.id === formData.type) || { label: 'Actividad Directiva' };
+    const maxParsed = formData.maxAttendees ? parseInt(formData.maxAttendees, 10) : null;
 
     if (editingEvent) {
       // Update
@@ -254,6 +275,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
           return {
             ...ev,
             ...formData,
+            maxAttendees: maxParsed,
             year,
             month,
             typeLabel: typeConfig.label
@@ -261,12 +283,13 @@ export function BoardAdminPortal({ t, onNavigate }) {
         }
         return ev;
       }));
-      setActionSuccessMessage('Actividad actualizada exitosamente en la agenda de la Junta Directiva.');
+      setActionSuccessMessage('Actividad actualizada exitosamente en la agenda oficial.');
     } else {
       // Create
       const newEvent = {
         id: `agenda-${Date.now()}`,
         ...formData,
+        maxAttendees: maxParsed,
         year,
         month,
         typeLabel: typeConfig.label,
@@ -280,7 +303,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
         ]
       };
       setAgendaEvents(prev => [newEvent, ...prev]);
-      setActionSuccessMessage('Nueva actividad creada y agendada en el calendario de la Junta Directiva.');
+      setActionSuccessMessage('Nueva actividad creada y agendada en el cronograma institucional.');
     }
 
     setIsCreateModalOpen(false);
@@ -313,6 +336,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       virtualLink: event.virtualLink || '',
       organizer: event.organizer,
       description: event.description,
+      maxAttendees: event.maxAttendees || '',
       status: event.status || 'confirmado'
     });
     setIsCreateModalOpen(true);
@@ -323,36 +347,38 @@ export function BoardAdminPortal({ t, onNavigate }) {
     setEditingEvent(null);
     setFormData({
       title: '',
-      type: 'reunion',
-      typeLabel: 'Reunión de Junta',
-      date: `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-15`,
-      timeStart: '09:30',
-      timeEnd: '11:30',
-      location: 'Sede Institucional CGEM (Av. 4 entre Calles 19 y 20) / Sala de Juntas',
+      type: 'institucional',
+      typeLabel: 'Institucional & Gala',
+      date: new Date().toISOString().split('T')[0],
+      timeStart: '09:00',
+      timeEnd: '12:00',
+      location: 'Sede Institucional CGEM / Centro Histórico, Mérida',
       isVirtual: false,
       virtualLink: '',
       organizer: 'Presidencia & Dirección Ejecutiva',
       description: '',
+      maxAttendees: '',
       status: 'confirmado'
     });
     setIsCreateModalOpen(true);
   };
 
   // =========================================================================
-  // VIEW 1: LOGIN PORTAL (SI NO ESTÁ AUTENTICADO)
+  // VIEW 1: LIGHT MODE LOGIN SCREEN (SI NO ESTÁ AUTENTICADO)
   // =========================================================================
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-[#0f172a] text-slate-100 flex flex-col justify-center items-center px-4 py-16 selection:bg-amber-500 selection:text-white relative overflow-hidden">
-        {/* Background glow effects */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-10 right-10 w-[400px] h-[400px] bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="min-h-screen bg-[#fcfbf9] text-slate-800 flex flex-col justify-center items-center px-4 py-16 selection:bg-amber-500 selection:text-white relative">
+        
+        {/* Subtle decorative warm background blobs */}
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 w-96 h-96 bg-amber-200/40 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-10 right-10 w-80 h-80 bg-orange-100/60 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-xl w-full relative z-10">
           
-          {/* Header Card */}
+          {/* Header */}
           <div className="text-center mb-8 space-y-3">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-slate-800/90 border border-amber-500/40 p-2 shadow-2xl shadow-amber-500/10 mb-2">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white border-2 border-amber-300 p-2 shadow-xl shadow-amber-900/5 mb-1">
               <img 
                 src="/logo-merida-gastronomica.png" 
                 alt="Cámara Gastronómica del Estado Mérida" 
@@ -361,64 +387,64 @@ export function BoardAdminPortal({ t, onNavigate }) {
             </div>
             
             <div>
-              <span className="text-[10px] font-extrabold uppercase tracking-[0.25em] px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
+              <span className="text-[11px] font-extrabold uppercase tracking-[0.25em] px-3.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-sans">
                 Acceso Privado &bull; Nivel Directivo
               </span>
-              <h1 className="font-serif font-black text-2xl sm:text-3xl uppercase tracking-wider text-white mt-3">
+              <h1 className="font-serif font-black text-3xl sm:text-4xl uppercase tracking-wider text-slate-900 mt-3">
                 Portal Junta Directiva
               </h1>
-              <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-                Cámara Gastronómica del Estado Mérida &bull; Plataforma de Planificación Estratégica, Agenda y Coordinación Gremial
+              <p className="text-xs text-slate-600 mt-1 max-w-md mx-auto font-sans leading-relaxed">
+                Cámara Gastronómica del Estado Mérida &bull; Plataforma Oficial de Agenda, Planificación Estratégica y Coordinación
               </p>
             </div>
           </div>
 
-          {/* Login Form Box */}
-          <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
+          {/* Login Form Box - Clean Warm White */}
+          <div className="bg-white/95 backdrop-blur-xl border border-slate-200 rounded-3xl p-6 sm:p-9 shadow-2xl shadow-slate-900/5">
             
             {loginError && (
-              <div className="mb-6 p-4 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-rose-400" />
-                <div className="leading-relaxed">{loginError}</div>
+              <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-3 animate-fadeIn">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-rose-600" />
+                <div className="leading-relaxed font-sans">{loginError}</div>
               </div>
             )}
 
             <form onSubmit={handleLogin} className="space-y-5">
               <div>
-                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 font-sans">
                   Correo Electrónico Institucional
                 </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-amber-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-4 h-4 text-amber-600 absolute left-4 top-1/2 -translate-y-1/2" />
                   <input
                     type="email"
                     required
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
-                    placeholder="ej: dazajulio@gmail.com"
-                    className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-slate-800/80 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all font-sans"
+                    placeholder="ej: dazajulio@gmail.com o margiovi@gmail.com"
+                    className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20 transition-all font-sans"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 font-sans">
                   Contraseña de Acceso
                 </label>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-amber-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                  <Lock className="w-4 h-4 text-amber-600 absolute left-4 top-1/2 -translate-y-1/2" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
                     placeholder="••••••••••"
-                    className="w-full pl-11 pr-11 py-3.5 rounded-xl bg-slate-800/80 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all font-sans"
+                    className="w-full pl-11 pr-11 py-3.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20 transition-all font-sans"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -429,32 +455,39 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 <button
                   type="submit"
                   disabled={isLoggingIn}
-                  className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-serif font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all disabled:opacity-50"
+                  className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-serif font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all disabled:opacity-50 active:scale-98"
                 >
                   <ShieldCheck className="w-4 h-4 text-slate-950" />
-                  <span>{isLoggingIn ? 'Verificando Credenciales...' : 'Ingresar a la Agenda Directiva'}</span>
+                  <span>{isLoggingIn ? 'Verificando...' : 'Ingresar al Portal Directivo'}</span>
                 </button>
               </div>
             </form>
 
-            {/* Directiva Roles Preview / Information */}
-            <div className="mt-8 pt-6 border-t border-slate-800">
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-3">
-                <span className="font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5" />
-                  Estructura Oficial de la Junta
+            {/* Directiva Directory Preview */}
+            <div className="mt-8 pt-6 border-t border-slate-100">
+              <div className="flex items-center justify-between text-xs text-slate-600 mb-3">
+                <span className="font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5 font-sans">
+                  <Users className="w-3.5 h-3.5 text-amber-600" />
+                  Junta Directiva Habilitada
                 </span>
-                <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300">10 Directivos</span>
+                <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-600 font-bold">
+                  6 Accesos Activos
+                </span>
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-400 max-h-48 overflow-y-auto pr-1">
-                {BOARD_MEMBERS_DATA.map((member) => (
-                  <div key={member.id} className="p-2 rounded-lg bg-slate-800/40 border border-slate-800/80 flex flex-col justify-between">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-600 max-h-48 overflow-y-auto pr-1">
+                {BOARD_MEMBERS_DATA.filter(m => m.hasPasswordSet).map((member) => (
+                  <div key={member.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col justify-between">
                     <div>
-                      <span className="font-bold text-slate-200 block truncate">{member.role}</span>
-                      <span className="text-slate-400 block truncate">{member.name}</span>
+                      <span className="font-serif font-black text-slate-900 block truncate">{member.role}</span>
+                      <span className="text-slate-600 block truncate font-sans">{member.name}</span>
                     </div>
-                    <span className="text-[10px] text-amber-500/80 font-mono mt-0.5">{member.ci}</span>
+                    <div className="flex items-center justify-between mt-1 text-[10px] text-amber-800 font-mono">
+                      <span>{member.ci}</span>
+                      {member.isAdminLevel && (
+                        <span className="bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded font-bold">Admin</span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -465,7 +498,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
           <div className="text-center mt-6">
             <button
               onClick={() => onNavigate ? onNavigate('home') : (window.location.href = '/')}
-              className="text-xs text-slate-400 hover:text-amber-400 transition-colors underline"
+              className="text-xs text-slate-600 hover:text-amber-700 font-semibold transition-colors underline font-sans"
             >
               &larr; Volver al Portal Principal de Mérida Gastronómica
             </button>
@@ -477,46 +510,46 @@ export function BoardAdminPortal({ t, onNavigate }) {
   }
 
   // =========================================================================
-  // VIEW 2: AUTHENTICATED BOARD DASHBOARD & AGENDA
+  // VIEW 2: AUTHENTICATED BOARD DASHBOARD (LIGHT THEME)
   // =========================================================================
   return (
-    <div className="min-h-screen bg-[#0b1120] text-slate-100 pb-24 selection:bg-amber-500 selection:text-white">
+    <div className="min-h-screen bg-[#fcfbf9] text-slate-800 pb-24 selection:bg-amber-500 selection:text-white">
       
-      {/* Top Directiva Banner */}
-      <div className="bg-slate-900 border-b border-slate-800 pt-28 pb-8 px-4 sm:px-6 lg:px-8">
+      {/* Top Banner (Clean Warm Luxury Light Theme) */}
+      <div className="bg-white border-b border-slate-200 pt-28 pb-8 px-4 sm:px-6 lg:px-8 shadow-sm">
         <div className="max-w-7xl mx-auto">
           
           {/* Top Row: User Card & Actions */}
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 pb-6 border-b border-slate-800/80">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 pb-6 border-b border-slate-100">
             
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 p-1 flex items-center justify-center shadow-xl shadow-amber-500/10 shrink-0 border border-amber-400/50">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 p-1 flex items-center justify-center shadow-lg shadow-amber-500/15 shrink-0 border border-amber-300">
                 <ShieldCheck className="w-9 h-9 text-slate-950" />
               </div>
 
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-sans">
                     {currentUser.roleCategory} &bull; {currentUser.role}
                   </span>
                   {currentUser.isAdminLevel && (
-                    <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/40">
-                      Potestad Total / Administrador
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-900 border border-sky-300 font-sans">
+                      Gestión Total / Administrador
                     </span>
                   )}
                 </div>
 
-                <h1 className="font-serif font-black text-2xl sm:text-3xl text-white uppercase tracking-wide">
+                <h1 className="font-serif font-black text-2xl sm:text-3xl text-slate-900 uppercase tracking-wide">
                   {currentUser.name}
                 </h1>
                 
-                <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 mt-1">
-                  <span className="font-mono text-amber-400/90 font-bold">{currentUser.ci}</span>
+                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 mt-1 font-sans">
+                  <span className="font-mono text-amber-900 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">{currentUser.ci}</span>
                   <span>&bull;</span>
-                  <span>{currentUser.email}</span>
+                  <span className="font-medium">{currentUser.email}</span>
                   <span>&bull;</span>
-                  <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-emerald-700 font-bold flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     Sesión Directiva Activa
                   </span>
                 </div>
@@ -527,7 +560,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
               {currentUser.isAdminLevel && (
                 <button
                   onClick={openNewModal}
-                  className="flex-1 sm:flex-initial py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all"
+                  className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Nuevo Evento en Agenda</span>
@@ -536,7 +569,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
               <button
                 onClick={handleLogout}
-                className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-all"
+                className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all"
                 title="Cerrar Sesión Directiva"
               >
                 <LogOut className="w-4 h-4" />
@@ -546,11 +579,18 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
           </div>
 
-          {/* Success Notification Bar */}
+          {/* Success / Error Notification Bars */}
           {actionSuccessMessage && (
-            <div className="mt-4 p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-200 text-xs flex items-center gap-3 animate-fadeIn">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-              <span className="font-medium">{actionSuccessMessage}</span>
+            <div className="mt-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs flex items-center gap-3 animate-fadeIn shadow-sm">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+              <span className="font-medium font-sans">{actionSuccessMessage}</span>
+            </div>
+          )}
+
+          {actionErrorMessage && (
+            <div className="mt-4 p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-center gap-3 animate-fadeIn shadow-sm">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+              <span className="font-bold font-sans">{actionErrorMessage}</span>
             </div>
           )}
 
@@ -561,8 +601,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               
               {/* Year tabs */}
-              <div className="flex items-center gap-2 bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3">
+              <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider px-3 font-sans">
                   Año de Planificación:
                 </span>
                 {[2026, 2027, 'all'].map((yr) => (
@@ -571,38 +611,38 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     onClick={() => setSelectedYear(yr)}
                     className={`py-1.5 px-4 rounded-xl text-xs font-serif font-black transition-all ${
                       selectedYear === yr
-                        ? 'bg-amber-500 text-slate-950 shadow-md'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        ? 'bg-amber-500 text-slate-950 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white'
                     }`}
                   >
-                    {yr === 'all' ? 'Ver Todos los Años' : yr}
+                    {yr === 'all' ? 'Ver Todos' : yr}
                   </button>
                 ))}
               </div>
 
               {/* View Mode Buttons */}
-              <div className="flex items-center gap-1 bg-slate-950/80 p-1.5 rounded-2xl border border-slate-800">
+              <div className="flex items-center gap-1 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
                 <button
                   onClick={() => setViewMode('timeline')}
-                  className={`py-1.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  className={`py-1.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
                     viewMode === 'timeline'
-                      ? 'bg-slate-800 text-amber-400 border border-amber-500/30 shadow'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-white text-amber-800 border border-amber-300 shadow-sm font-extrabold'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Cronograma Día a Día</span>
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Agenda Cronológica</span>
                 </button>
 
                 <button
                   onClick={() => setViewMode('board_list')}
-                  className={`py-1.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  className={`py-1.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
                     viewMode === 'board_list'
-                      ? 'bg-slate-800 text-amber-400 border border-amber-500/30 shadow'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-white text-amber-800 border border-amber-300 shadow-sm font-extrabold'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <Users className="w-3.5 h-3.5" />
+                  <Users className="w-3.5 h-3.5 text-amber-600" />
                   <span>Junta Directiva</span>
                 </button>
               </div>
@@ -613,10 +653,10 @@ export function BoardAdminPortal({ t, onNavigate }) {
             <div className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-thin">
               <button
                 onClick={() => setSelectedMonth('all')}
-                className={`py-2 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
+                className={`py-2 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all font-sans ${
                   selectedMonth === 'all'
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                    : 'bg-slate-800/60 text-slate-400 hover:text-slate-200 border border-slate-800'
+                    ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
+                    : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
                 }`}
               >
                 Todos los Meses
@@ -626,10 +666,10 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 <button
                   key={m.num}
                   onClick={() => setSelectedMonth(m.num)}
-                  className={`py-2 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
+                  className={`py-2 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all font-sans ${
                     selectedMonth === m.num
-                      ? 'bg-amber-500 text-slate-950 font-black shadow-md'
-                      : 'bg-slate-800/60 text-slate-400 hover:text-slate-200 border border-slate-800'
+                      ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
+                      : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   {m.name}
@@ -639,18 +679,18 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
             {/* Category Filter Chips */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 shrink-0 flex items-center gap-1">
-                <ListFilter className="w-3 h-3" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 shrink-0 flex items-center gap-1 font-sans">
+                <ListFilter className="w-3 h-3 text-slate-400" />
                 Filtrar:
               </span>
               {EVENT_TYPES.map((type) => (
                 <button
                   key={type.id}
                   onClick={() => setActiveCategoryFilter(type.id)}
-                  className={`py-1 px-3 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border ${
+                  className={`py-1.5 px-3 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border font-sans ${
                     activeCategoryFilter === type.id
-                      ? 'bg-amber-400/20 text-amber-300 border-amber-400/60 ring-1 ring-amber-400/30'
-                      : 'bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-200'
+                      ? 'bg-amber-100 text-amber-900 border-amber-400 font-bold shadow-xs'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'
                   }`}
                 >
                   {type.label}
@@ -666,18 +706,18 @@ export function BoardAdminPortal({ t, onNavigate }) {
       {/* Main Content Area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         
-        {/* VIEW MODE 1: TIMELINE / CHRONOLOGICAL DAY BY DAY */}
+        {/* VIEW MODE 1: TIMELINE / CHRONOLOGICAL */}
         {viewMode === 'timeline' && (
           <div className="space-y-6">
             
             {/* Header / Counter */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <CalendarDays className="w-5 h-5 text-amber-400" />
-                <h2 className="font-serif font-black text-xl text-white uppercase tracking-wider">
-                  Agenda y Compromisos Institucionales
+                <CalendarDays className="w-5 h-5 text-amber-600" />
+                <h2 className="font-serif font-black text-xl sm:text-2xl text-slate-900 uppercase tracking-wider">
+                  Agenda Ejecutiva & Compromisos Confirmados
                 </h2>
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-400 border border-slate-700">
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-sans">
                   {filteredEvents.length} {filteredEvents.length === 1 ? 'actividad' : 'actividades'}
                 </span>
               </div>
@@ -685,28 +725,28 @@ export function BoardAdminPortal({ t, onNavigate }) {
               {currentUser.isAdminLevel && (
                 <button
                   onClick={openNewModal}
-                  className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1"
+                  className="text-xs text-amber-800 hover:text-amber-900 font-bold flex items-center gap-1 font-sans underline"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Agregar otra actividad</span>
+                  <Plus className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Crear otra actividad</span>
                 </button>
               )}
             </div>
 
             {/* Events List */}
             {filteredEvents.length === 0 ? (
-              <div className="p-12 text-center rounded-3xl bg-slate-900/60 border border-slate-800 space-y-3">
-                <CalendarIcon className="w-12 h-12 text-slate-600 mx-auto" />
-                <h3 className="font-serif font-bold text-lg text-slate-300">
-                  No hay actividades programadas con los filtros seleccionados
+              <div className="p-12 text-center rounded-3xl bg-white border border-slate-200 space-y-3 shadow-sm">
+                <CalendarIcon className="w-12 h-12 text-slate-300 mx-auto" />
+                <h3 className="font-serif font-black text-lg text-slate-700 uppercase">
+                  No hay actividades con los filtros seleccionados
                 </h3>
-                <p className="text-xs text-slate-500 max-w-md mx-auto">
-                  Seleccione otro mes o año, o utilice el botón superior para registrar una nueva sesión, entrevista o evento en la agenda oficial.
+                <p className="text-xs text-slate-500 max-w-md mx-auto font-sans">
+                  Seleccione otro mes o año, o utilice el botón superior para registrar un nuevo compromiso en el cronograma.
                 </p>
                 {currentUser.isAdminLevel && (
                   <button
                     onClick={openNewModal}
-                    className="mt-2 py-2 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs"
+                    className="mt-2 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-sm font-sans"
                   >
                     Crear Actividad para este Período
                   </button>
@@ -717,6 +757,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 {filteredEvents.map((event) => {
                   const confirmed = isUserConfirmed(event);
                   const attendeeCount = (event.confirmedAttendees || []).length;
+                  const isFull = isEventAtCapacity(event);
                   const isLoadingRsvp = rsvpLoadingEventId === event.id;
 
                   // Parse date for visual badge
@@ -726,30 +767,29 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   return (
                     <div 
                       key={event.id}
-                      className={`p-6 sm:p-7 rounded-3xl border transition-all relative overflow-hidden ${
+                      className={`p-6 sm:p-7 rounded-3xl border transition-all relative overflow-hidden bg-white shadow-sm hover:shadow-md ${
                         confirmed
-                          ? 'bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border-amber-500/40 shadow-xl'
-                          : 'bg-slate-900/80 border-slate-800 hover:border-slate-700 shadow-md'
+                          ? 'border-amber-400 ring-2 ring-amber-400/20 bg-gradient-to-br from-white via-amber-50/20 to-orange-50/30'
+                          : 'border-slate-200 hover:border-slate-300'
                       }`}
                     >
                       {/* Left vertical accent */}
                       <div className={`absolute top-0 left-0 bottom-0 w-2 ${
                         event.type === 'reunion' ? 'bg-amber-500' :
                         event.type === 'medios' ? 'bg-sky-500' :
-                        event.type === 'auditoria' ? 'bg-purple-500' :
-                        event.type === 'gremial' ? 'bg-emerald-500' :
-                        event.type === 'expo' ? 'bg-rose-500' : 'bg-indigo-500'
+                        event.type === 'capacitacion' ? 'bg-purple-500' :
+                        event.type === 'gremial' ? 'bg-emerald-500' : 'bg-indigo-600'
                       }`} />
 
                       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start pl-2">
                         
                         {/* Date Column */}
                         <div className="lg:col-span-2 flex lg:flex-col items-center lg:items-start gap-3 sm:gap-2">
-                          <div className="text-center p-3 rounded-2xl bg-slate-950 border border-slate-800 min-w-[70px]">
-                            <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400 block">
+                          <div className="text-center p-3 rounded-2xl bg-slate-50 border border-slate-200 min-w-[75px] shadow-xs">
+                            <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-800 block font-sans">
                               {monthName.slice(0, 3)}
                             </span>
-                            <span className="font-serif font-black text-2xl sm:text-3xl text-white block leading-tight">
+                            <span className="font-serif font-black text-2xl sm:text-3xl text-slate-900 block leading-tight">
                               {d}
                             </span>
                             <span className="text-[10px] text-slate-500 font-mono block">
@@ -757,13 +797,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                             </span>
                           </div>
 
-                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${
-                            event.type === 'reunion' ? 'bg-amber-500/10 text-amber-300 border-amber-500/30' :
-                            event.type === 'medios' ? 'bg-sky-500/10 text-sky-300 border-sky-500/30' :
-                            event.type === 'auditoria' ? 'bg-purple-500/10 text-purple-300 border-purple-500/30' :
-                            event.type === 'gremial' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' :
-                            event.type === 'expo' ? 'bg-rose-500/10 text-rose-300 border-rose-500/30' : 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30'
-                          }`}>
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border bg-slate-100 text-slate-800 border-slate-200 font-sans">
                             {event.typeLabel || event.type}
                           </span>
                         </div>
@@ -772,55 +806,78 @@ export function BoardAdminPortal({ t, onNavigate }) {
                         <div className="lg:col-span-7 space-y-3">
                           
                           <div>
-                            <h3 className="font-serif font-black text-lg sm:text-xl text-white leading-snug">
-                              {event.title}
-                            </h3>
-                            <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <h3 className="font-serif font-black text-lg sm:text-xl text-slate-900 leading-snug">
+                                {event.title}
+                              </h3>
+                              
+                              {/* Capacity Badge */}
+                              {event.maxAttendees ? (
+                                <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border font-sans ${
+                                  isFull 
+                                    ? 'bg-rose-100 text-rose-800 border-rose-300' 
+                                    : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                }`}>
+                                  {isFull ? 'Cupo Completo' : `${attendeeCount} / ${event.maxAttendees} cupos`}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 font-sans">
+                                  Sin límite de cupo
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-xs text-slate-600 mt-1 leading-relaxed font-sans">
                               {event.description}
                             </p>
                           </div>
 
                           {/* Time & Location Metadata */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-400 pt-1">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600 pt-1 font-sans">
                             <div className="flex items-center gap-2">
-                              <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-                              <span className="text-slate-300">{event.timeStart} - {event.timeEnd}</span>
+                              <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                              <span className="font-medium">{event.timeStart || 'Por confirmar'} - {event.timeEnd || ''}</span>
                             </div>
 
                             <div className="flex items-center gap-2">
-                              <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
-                              <span className="text-slate-300 truncate" title={event.location}>
-                                {event.isVirtual ? 'Sesión Virtual / Videoconferencia' : event.location}
+                              <MapPin className="w-4 h-4 text-amber-600 shrink-0" />
+                              <span className="font-medium truncate" title={event.location}>
+                                {event.isVirtual ? 'Sesión Virtual' : event.location}
                               </span>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                              <Users className="w-4 h-4 text-sky-400 shrink-0" />
-                              <span>Responsable: <strong className="text-slate-200">{event.organizer}</strong></span>
+                            <div className="flex items-center gap-2 sm:col-span-2">
+                              <Users className="w-4 h-4 text-sky-600 shrink-0" />
+                              <span>Organiza / Convoca: <strong className="text-slate-800">{event.organizer}</strong></span>
                             </div>
                           </div>
 
                           {/* Confirmed Attendees list */}
-                          <div className="pt-2">
-                            <div className="flex items-center gap-2 text-xs text-slate-400 mb-1.5">
-                              <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-                              <span className="font-bold uppercase tracking-wider text-[11px] text-slate-300">
+                          <div className="pt-2 border-t border-slate-100">
+                            <div className="flex items-center justify-between text-xs text-slate-600 mb-1.5 font-sans">
+                              <span className="font-bold uppercase tracking-wider text-[11px] text-slate-700 flex items-center gap-1.5">
+                                <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
                                 Asistencias Confirmadas ({attendeeCount}):
                               </span>
+                              {event.maxAttendees && (
+                                <span className="text-[10px] text-slate-500">
+                                  Máximo permitido: <strong>{event.maxAttendees} directivos</strong>
+                                </span>
+                              )}
                             </div>
 
                             {attendeeCount === 0 ? (
-                              <span className="text-[11px] text-slate-500 italic">
-                                Aún no hay confirmaciones registradas para esta convocatoria.
+                              <span className="text-[11px] text-slate-400 italic font-sans">
+                                Aún no hay confirmaciones registradas.
                               </span>
                             ) : (
-                              <div className="flex flex-wrap items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-1.5">
                                 {event.confirmedAttendees.map((att, idx) => (
                                   <span 
                                     key={idx}
-                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-200 font-medium"
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-slate-800 font-medium font-sans"
                                   >
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                     <span>{att.name}</span>
                                     <span className="text-slate-500 text-[10px]">({att.role})</span>
                                   </span>
@@ -832,25 +889,32 @@ export function BoardAdminPortal({ t, onNavigate }) {
                         </div>
 
                         {/* Actions Column */}
-                        <div className="lg:col-span-3 flex flex-col justify-between h-full gap-4 pt-2 lg:pt-0 lg:border-l lg:border-slate-800/80 lg:pl-6">
+                        <div className="lg:col-span-3 flex flex-col justify-between h-full gap-4 pt-2 lg:pt-0 lg:border-l lg:border-slate-100 lg:pl-6">
                           
                           {/* "VOY A ASISTIR" RSVP BUTTON */}
                           <div className="space-y-2">
                             <button
                               onClick={() => handleToggleAttendance(event)}
-                              disabled={isLoadingRsvp}
-                              className={`w-full py-3 px-4 rounded-xl font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all ${
+                              disabled={isLoadingRsvp || (!confirmed && isFull)}
+                              className={`w-full py-3 px-4 rounded-xl font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition-all active:scale-98 ${
                                 confirmed
-                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/30 ring-2 ring-emerald-400/40'
-                                  : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 shadow-amber-500/20'
+                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-700/20'
+                                  : isFull
+                                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                                    : 'bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-amber-500/20'
                               }`}
                             >
                               {isLoadingRsvp ? (
-                                <span>Notificando Resend...</span>
+                                <span>Procesando...</span>
                               ) : confirmed ? (
                                 <>
                                   <CheckCircle2 className="w-4 h-4 text-white" />
                                   <span>✓ Asistencia Confirmada</span>
+                                </>
+                              ) : isFull ? (
+                                <>
+                                  <UserX className="w-4 h-4 text-slate-400" />
+                                  <span>Cupo Agotado</span>
                                 </>
                               ) : (
                                 <>
@@ -860,29 +924,31 @@ export function BoardAdminPortal({ t, onNavigate }) {
                               )}
                             </button>
 
-                            <p className="text-[10px] text-center text-slate-400">
+                            <p className="text-[10px] text-center text-slate-500 font-sans leading-tight">
                               {confirmed 
-                                ? 'Notificación enviada a tu correo y a Dirección Ejecutiva.' 
-                                : 'Al pulsar se registrará tu presencia y se notificará por correo.'}
+                                ? 'Notificación enviada a tu correo y Dirección Ejecutiva.' 
+                                : isFull 
+                                  ? 'No hay disponibilidad: límite alcanzado.'
+                                  : 'Haz clic para reservar tu participación formal.'}
                             </p>
                           </div>
 
-                          {/* Admin Edit / Delete Controls */}
+                          {/* Admin Edit / Delete Controls (Presidente & Director Ejecutivo) */}
                           {currentUser.isAdminLevel && (
-                            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                               <button
                                 onClick={() => openEditModal(event)}
-                                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors text-xs flex items-center gap-1 font-bold"
-                                title="Editar detalles de la actividad"
+                                className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 transition-colors text-xs flex items-center gap-1 font-bold font-sans"
+                                title="Editar actividad"
                               >
-                                <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                                <Edit3 className="w-3.5 h-3.5 text-amber-700" />
                                 <span>Editar</span>
                               </button>
 
                               <button
                                 onClick={() => handleDeleteEvent(event.id)}
-                                className="p-2 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 transition-colors text-xs flex items-center gap-1 font-bold"
-                                title="Eliminar actividad de la agenda"
+                                className="p-2 rounded-lg bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-700 transition-colors text-xs flex items-center gap-1 font-bold font-sans"
+                                title="Eliminar actividad"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                                 <span>Eliminar</span>
@@ -903,16 +969,16 @@ export function BoardAdminPortal({ t, onNavigate }) {
           </div>
         )}
 
-        {/* VIEW MODE 2: BOARD MEMBERS DIRECTORY */}
+        {/* VIEW MODE 2: BOARD DIRECTORY */}
         {viewMode === 'board_list' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-serif font-black text-xl text-white uppercase tracking-wider">
-                  Directorio Oficial de la Junta Directiva
+                <h2 className="font-serif font-black text-xl sm:text-2xl text-slate-900 uppercase tracking-wider">
+                  Directorio Institucional de la Junta Directiva
                 </h2>
-                <p className="text-xs text-slate-400">
-                  Cámara Gastronómica del Estado Mérida &bull; Período de Gestión Institucional
+                <p className="text-xs text-slate-600 font-sans">
+                  Cámara Gastronómica del Estado Mérida &bull; Estructura Oficial
                 </p>
               </div>
             </div>
@@ -923,43 +989,43 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 return (
                   <div 
                     key={member.id}
-                    className={`p-5 rounded-3xl border transition-all ${
+                    className={`p-6 rounded-3xl border transition-all bg-white shadow-sm ${
                       isMe 
-                        ? 'bg-gradient-to-br from-slate-900 to-amber-950/40 border-amber-500 shadow-lg' 
-                        : 'bg-slate-900/80 border-slate-800'
+                        ? 'border-amber-500 ring-2 ring-amber-400/20 bg-gradient-to-br from-white to-amber-50/40' 
+                        : 'border-slate-200'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3 mb-3">
-                      <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-400 border border-amber-500/30">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-sans">
                         {member.roleCategory}
                       </span>
                       {member.isAdminLevel && (
-                        <span className="text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded bg-sky-900/50 text-sky-300 border border-sky-500/30">
+                        <span className="text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded bg-sky-100 text-sky-900 border border-sky-300 font-sans">
                           Admin
                         </span>
                       )}
                     </div>
 
-                    <h4 className="font-serif font-black text-base text-white">
+                    <h4 className="font-serif font-black text-lg text-slate-900">
                       {member.name}
                     </h4>
-                    <p className="text-xs font-bold text-amber-400 mt-0.5">
+                    <p className="text-xs font-bold text-amber-800 mt-0.5 font-sans">
                       {member.role}
                     </p>
 
-                    <div className="mt-4 pt-3 border-t border-slate-800 space-y-1.5 text-xs text-slate-400 font-mono">
+                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-600 font-mono">
                       <div className="flex justify-between">
-                        <span>Cédula:</span>
-                        <span className="text-slate-200 font-bold">{member.ci}</span>
+                        <span className="font-sans">Cédula:</span>
+                        <span className="text-slate-900 font-bold">{member.ci}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Correo:</span>
-                        <span className="text-slate-300 truncate max-w-[170px]" title={member.email}>{member.email}</span>
+                        <span className="font-sans">Correo:</span>
+                        <span className="text-slate-900 truncate max-w-[170px]" title={member.email}>{member.email}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Estado:</span>
-                        <span className={member.hasPasswordSet ? 'text-emerald-400 font-bold' : 'text-amber-500/80'}>
-                          {member.hasPasswordSet ? 'Acceso Habilitado' : 'Pre-registrado'}
+                        <span className="font-sans">Acceso:</span>
+                        <span className={member.hasPasswordSet ? 'text-emerald-700 font-bold font-sans' : 'text-slate-400 font-sans'}>
+                          {member.hasPasswordSet ? 'Habilitado' : 'Pre-registrado'}
                         </span>
                       </div>
                     </div>
@@ -972,21 +1038,21 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
       </div>
 
-      {/* CREATE / EDIT EVENT MODAL (ADMIN ONLY) */}
+      {/* CREATE / EDIT EVENT MODAL (ADMIN ONLY - LIGHT THEME) */}
       {isCreateModalOpen && currentUser.isAdminLevel && (
-        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto">
             
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                <div className="p-2.5 rounded-2xl bg-amber-100 text-amber-800 border border-amber-300">
                   <CalendarDays className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-serif font-black text-xl text-white uppercase tracking-wider">
+                  <h3 className="font-serif font-black text-xl text-slate-900 uppercase tracking-wider">
                     {editingEvent ? 'Editar Actividad en Agenda' : 'Crear Nueva Actividad Institucional'}
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-500 font-sans">
                     Junta Directiva &bull; Cámara Gastronómica del Estado Mérida
                   </p>
                 </div>
@@ -994,16 +1060,16 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
               <button
                 onClick={() => setIsCreateModalOpen(false)}
-                className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveEvent} className="mt-6 space-y-4 text-xs">
+            <form onSubmit={handleSaveEvent} className="mt-6 space-y-4 text-xs font-sans">
               
               <div>
-                <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   Título de la Actividad / Evento *
                 </label>
                 <input
@@ -1011,32 +1077,31 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   required
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="ej: Sesión Ordinaria de Junta Directiva - Balance Trimestral"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-amber-400"
+                  placeholder="ej: Conversaciones Institucionales con el IUPTM"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Tipo de Convocatoria *
                   </label>
                   <select
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-400"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
                   >
+                    <option value="institucional">Institucional & Gala</option>
+                    <option value="medios">Medios & Entrevista</option>
+                    <option value="gremial">Encuentro Gremial</option>
+                    <option value="capacitacion">Formación & Taller</option>
                     <option value="reunion">Reunión de Junta Directiva</option>
-                    <option value="medios">Medios de Comunicación & Entrevistas</option>
-                    <option value="auditoria">Inspección & Auditoría Sello AAA</option>
-                    <option value="gremial">Encuentro Gremial / Desayuno Corporativo</option>
-                    <option value="institucional">Institucional & Gobierno</option>
-                    <option value="expo">Comité Expo Gastronómica Andes 2027</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Fecha Convocada *
                   </label>
                   <input
@@ -1044,39 +1109,54 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     required
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-400 font-sans"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Límite de Cupos (Opcional)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={formData.maxAttendees}
+                    onChange={(e) => setFormData({ ...formData, maxAttendees: e.target.value })}
+                    placeholder="Vacío = Ilimitado"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Hora de Inicio
                   </label>
                   <input
                     type="time"
                     value={formData.timeStart}
                     onChange={(e) => setFormData({ ...formData, timeStart: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-400"
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Hora de Culminación
                   </label>
                   <input
                     type="time"
                     value={formData.timeEnd}
                     onChange={(e) => setFormData({ ...formData, timeEnd: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-400"
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   Sede / Ubicación Física *
                 </label>
                 <input
@@ -1084,49 +1164,49 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   required
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  placeholder="ej: Sede Institucional CGEM (Av. 4 entre Calles 19 y 20) / Sala de Juntas"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-400"
+                  placeholder="ej: Hotel Venetur, Salón Bellavista, Mérida"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Responsable / Convocante
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Organizador / Convocante
                 </label>
                 <input
                   type="text"
                   value={formData.organizer}
                   onChange={(e) => setFormData({ ...formData, organizer: e.target.value })}
-                  placeholder="ej: Presidencia & Dirección Ejecutiva"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-400"
+                  placeholder="ej: Cámara de Turismo del Estado Mérida (CATUREM)"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   Descripción / Puntos de Agenda
                 </label>
                 <textarea
                   rows={3}
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Detalles sobre los temas a tratar, objetivos y preparación previa..."
-                  className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-400"
+                  placeholder="Detalles sobre el evento, vestimenta, asistentes convocados..."
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
                 />
               </div>
 
-              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="py-3 px-5 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold text-xs"
+                  className="py-3 px-5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs"
                 >
                   Cancelar
                 </button>
 
                 <button
                   type="submit"
-                  className="py-3 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-amber-500/20"
+                  className="py-3 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-md"
                 >
                   <Check className="w-4 h-4" />
                   <span>{editingEvent ? 'Guardar Cambios' : 'Agendar Actividad'}</span>

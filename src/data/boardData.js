@@ -11,55 +11,12 @@ export const BOARD_MEMBERS_DATA = [
     role: "Presidente",
     roleCategory: "Presidencia",
     email: "dazajulio@gmail.com",
+    passwordHash: "Dafaca10*",
     hasPasswordSet: true,
-    isAdminLevel: true, // Potestad total de crear, editar, eliminar y conformar agenda
+    isAdminLevel: true, // Potestad total de gestión, creación, edición, eliminación y quórum
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400",
     phone: "+58 414 7480000",
     order: 1
-  },
-  {
-    id: "dir-vice-1",
-    name: "Maryuri Carolina Carmona Campos",
-    ci: "V-12.055.310",
-    role: "Primera Vicepresidente",
-    roleCategory: "Vicepresidencia",
-    email: "maryuricarmona@camaragastronomicamerida.org",
-    hasPasswordSet: false,
-    isAdminLevel: false,
-    order: 2
-  },
-  {
-    id: "dir-vice-2",
-    name: "María Laura Molina Barillas",
-    ci: "V-21.331.263",
-    role: "Segunda Vicepresidente",
-    roleCategory: "Vicepresidencia",
-    email: "marialauramolina@camaragastronomicamerida.org",
-    hasPasswordSet: false,
-    isAdminLevel: false,
-    order: 3
-  },
-  {
-    id: "dir-operativo",
-    name: "Marisabel Prieto Pérez",
-    ci: "V-14.255.833",
-    role: "Director Operativo",
-    roleCategory: "Dirección",
-    email: "marisabelprieto@camaragastronomicamerida.org",
-    hasPasswordSet: false,
-    isAdminLevel: false,
-    order: 4
-  },
-  {
-    id: "dir-tesorero",
-    name: "Edixon Xavier Reyes Dávila",
-    ci: "V-18.796.632",
-    role: "Tesorero",
-    roleCategory: "Dirección",
-    email: "edixonreyes@camaragastronomicamerida.org",
-    hasPasswordSet: false,
-    isAdminLevel: false,
-    order: 5
   },
   {
     id: "dir-ejecutivo",
@@ -67,9 +24,59 @@ export const BOARD_MEMBERS_DATA = [
     ci: "V-9.474.798",
     role: "Director Ejecutivo",
     roleCategory: "Dirección",
-    email: "marygiovannavera@camaragastronomicamerida.org",
-    hasPasswordSet: false,
-    isAdminLevel: true, // Potestad de gestión de calendario
+    email: "margiovi@gmail.com",
+    passwordHash: "margiovi1611",
+    hasPasswordSet: true,
+    isAdminLevel: true, // Potestad total de gestión de agenda
+    phone: "+58 414 0000000",
+    order: 2
+  },
+  {
+    id: "dir-vice-1",
+    name: "Maryuri Carolina Carmona Campos",
+    ci: "V-12.055.310",
+    role: "Primera Vicepresidente",
+    roleCategory: "Vicepresidencia",
+    email: "comercializadoraocmerida@gmail.com",
+    passwordHash: "comercializadoraocmerida1201",
+    hasPasswordSet: true,
+    isAdminLevel: false,
+    order: 3
+  },
+  {
+    id: "dir-vice-2",
+    name: "María Laura Molina Barillas",
+    ci: "V-21.331.263",
+    role: "Segunda Vicepresidente",
+    roleCategory: "Vicepresidencia",
+    email: "marialauramolinab@gmail.com",
+    passwordHash: "marialauramolinab0601",
+    hasPasswordSet: true,
+    isAdminLevel: false,
+    order: 4
+  },
+  {
+    id: "dir-operativo",
+    name: "Marisabel Prieto Pérez",
+    ci: "V-14.255.833",
+    role: "Director Operativo",
+    roleCategory: "Dirección",
+    email: "cataconmari@gmail.com",
+    passwordHash: "cataconmari1979",
+    hasPasswordSet: true,
+    isAdminLevel: false,
+    order: 5
+  },
+  {
+    id: "dir-tesorero",
+    name: "Edixon Xavier Reyes Dávila",
+    ci: "V-18.796.632",
+    role: "Tesorero",
+    roleCategory: "Dirección",
+    email: "edreyesda@gmail.com",
+    passwordHash: "edreyesda1608",
+    hasPasswordSet: true,
+    isAdminLevel: false,
     order: 6
   },
   {
@@ -118,160 +125,232 @@ export const BOARD_MEMBERS_DATA = [
   }
 ];
 
-// Agenda y Calendario Inicial de la Junta Directiva (2026 - 2027)
+// Agenda Oficial y Cronograma Ejecutivo de la Junta Directiva (2026 - 2027)
 export const INITIAL_BOARD_AGENDA_DATA = [
   {
     id: "agenda-001",
-    title: "Sesión Ordinaria de Junta Directiva - Balance Trimestral Q3",
-    type: "reunion", // reunion | medios | auditoria | gremial | institucional | expo
-    typeLabel: "Reunión de Junta",
-    date: "2026-10-05",
-    timeStart: "09:30",
+    title: "Conversaciones Institucionales con el IUPTM",
+    type: "institucional",
+    typeLabel: "Institucional & Academia",
+    date: "2026-09-30",
+    timeStart: "09:00",
     timeEnd: "12:00",
     year: 2026,
-    month: 10,
-    location: "Sede Institucional CGEM (Av. 4 entre Calles 19 y 20) / Sala de Juntas",
+    month: 9,
+    location: "Sede del IUPTM, Mérida",
     isVirtual: false,
     virtualLink: "",
-    organizer: "Presidencia & Dirección Ejecutiva",
-    description: "Revisión de informes de gestión, incorporación de nuevos agremiados al Sello AAA, acuerdos con la Escuela de Gastronomía ULA y revisión presupuestaria.",
-    status: "confirmado", // borrador | confirmado | realizado | cancelado
+    organizer: "IUPTM & Cámara Gastronómica",
+    description: "Reunión de vinculación estratégica y convenios formativos entre el Instituto Universitario Politécnico Territorial del Estado Mérida y la Cámara Gastronómica.",
+    maxAttendees: 5,
+    status: "confirmado",
     confirmedAttendees: [
       {
         memberId: "dir-presidente",
         name: "Julio Alberto Daza Celis",
         role: "Presidente",
-        confirmedAt: "2026-09-29T10:00:00Z"
+        confirmedAt: "2026-09-29T12:00:00Z"
+      },
+      {
+        memberId: "dir-vice-1",
+        name: "Maryuri Carolina Carmona Campos",
+        role: "Primera Vicepresidente",
+        confirmedAt: "2026-09-29T12:05:00Z"
+      },
+      {
+        memberId: "dir-operativo",
+        name: "Marisabel Prieto Pérez",
+        role: "Director Operativo",
+        confirmedAt: "2026-09-29T12:10:00Z"
       }
     ]
   },
   {
     id: "agenda-002",
-    title: "Rueda de Prensa & Entrevista Especial: Lanzamiento Ruta del Café de Especialidad",
+    title: "Entrevista Radial en CDR 98.7 FM",
     type: "medios",
-    typeLabel: "Medios & Entrevistas",
-    date: "2026-10-12",
-    timeStart: "10:00",
-    timeEnd: "11:30",
+    typeLabel: "Medios & Radio",
+    date: "2026-10-01",
+    timeStart: "07:00",
+    timeEnd: "08:30",
     year: 2026,
     month: 10,
-    location: "Estudio Principal ULA FM 107.7 / Transmisión Streaming Regional",
+    location: "Estudios CDR 98.7 FM, Mérida",
     isVirtual: false,
     virtualLink: "",
-    organizer: "Coordinación de Cacao y Café & Relaciones Institucionales",
-    description: "Presentación ante medios de comunicación regionales y corresponsales nacionales sobre la certificación de origen del café merideño y el primer circuito de cafeterías agremiadas.",
+    organizer: "Dirección de Medios CDR / Cámara Gastronómica",
+    description: "Entrevista matutina en vivo sobre los avances gremiales, la Ruta del Café de Especialidad, el Sello de Calidad AAA y la agenda gastronómica del estado Mérida.",
+    maxAttendees: 2,
     status: "confirmado",
     confirmedAttendees: [
       {
         memberId: "dir-presidente",
         name: "Julio Alberto Daza Celis",
         role: "Presidente",
-        confirmedAt: "2026-09-29T10:15:00Z"
+        confirmedAt: "2026-09-29T12:15:00Z"
+      },
+      {
+        memberId: "dir-vice-1",
+        name: "Maryuri Carolina Carmona Campos",
+        role: "Primera Vicepresidente",
+        confirmedAt: "2026-09-29T12:20:00Z"
       }
     ]
   },
   {
     id: "agenda-003",
-    title: "Auditoría en Terreno: Evaluación Técnica Sello Mérida Gastronómica (226 Ítems)",
-    type: "auditoria",
-    typeLabel: "Inspección & Calidad",
-    date: "2026-10-20",
+    title: "Evento \"Influyentes del Turismo\"",
+    type: "gremial",
+    typeLabel: "Turismo & Gremial",
+    date: "2026-10-01",
     timeStart: "14:00",
-    timeEnd: "17:30",
+    timeEnd: "18:00",
     year: 2026,
     month: 10,
-    location: "Circuito Eje Metropolitano / Restaurantes Postulantes",
+    location: "Hotel Venetur, Salón Bellavista, Mérida",
     isVirtual: false,
     virtualLink: "",
-    organizer: "Dirección Operativa & Capacitación",
-    description: "Inspección técnica de los pilares de Calidad, Servicio e Inocuidad con el equipo auditor técnico de la Cámara.",
-    status: "confirmado",
-    confirmedAttendees: []
-  },
-  {
-    id: "agenda-004",
-    title: "Desayuno Corporativo Mensual de Agremiados & Networking",
-    type: "gremial",
-    typeLabel: "Encuentro Gremial",
-    date: "2026-11-06",
-    timeStart: "08:30",
-    timeEnd: "11:00",
-    year: 2026,
-    month: 11,
-    location: "Salón de Convenciones Kaffia Caffe / Sector Las Heroínas",
-    isVirtual: false,
-    virtualLink: "",
-    organizer: "Dirección Ejecutiva & Proveeduría",
-    description: "Espacio mensual de articulación comercial, compras consolidadas y presentación de proveedores aliados para restaurantes agremiados.",
+    organizer: "Cámara de Turismo del Estado Mérida (CATUREM)",
+    description: "Magno evento de articulación turística regional. Invitación formal de la Cámara de Turismo a todo el equipo directivo de la Cámara Gastronómica.",
+    maxAttendees: 10,
     status: "confirmado",
     confirmedAttendees: [
       {
         memberId: "dir-presidente",
         name: "Julio Alberto Daza Celis",
         role: "Presidente",
-        confirmedAt: "2026-09-29T10:30:00Z"
+        confirmedAt: "2026-09-29T12:25:00Z"
+      },
+      {
+        memberId: "dir-ejecutivo",
+        name: "Mary Giovanna Vera",
+        role: "Director Ejecutivo",
+        confirmedAt: "2026-09-29T12:26:00Z"
+      },
+      {
+        memberId: "dir-vice-1",
+        name: "Maryuri Carolina Carmona Campos",
+        role: "Primera Vicepresidente",
+        confirmedAt: "2026-09-29T12:27:00Z"
+      },
+      {
+        memberId: "dir-vice-2",
+        name: "María Laura Molina Barillas",
+        role: "Segunda Vicepresidente",
+        confirmedAt: "2026-09-29T12:28:00Z"
+      },
+      {
+        memberId: "dir-operativo",
+        name: "Marisabel Prieto Pérez",
+        role: "Director Operativo",
+        confirmedAt: "2026-09-29T12:29:00Z"
+      },
+      {
+        memberId: "dir-tesorero",
+        name: "Edixon Xavier Reyes Dávila",
+        role: "Tesorero",
+        confirmedAt: "2026-09-29T12:30:00Z"
+      }
+    ]
+  },
+  {
+    id: "agenda-004",
+    title: "Premios MUCUTATUY — Honor al Mérito Turístico y Gastronómico",
+    type: "institucional",
+    typeLabel: "Gala & Premiaciones",
+    date: "2026-10-05",
+    timeStart: "13:00",
+    timeEnd: "17:30",
+    year: 2026,
+    month: 10,
+    location: "Hotel Venetur, Mérida",
+    isVirtual: false,
+    virtualLink: "",
+    organizer: "Comité Organizador Premios MUCUTATUY",
+    description: "Ceremonia solemne de entrega del Premio al Mérito Turístico y Gastronómico de trayectoria en el estado Mérida. Asiste el equipo directivo.",
+    maxAttendees: 10,
+    status: "confirmado",
+    confirmedAttendees: [
+      {
+        memberId: "dir-presidente",
+        name: "Julio Alberto Daza Celis",
+        role: "Presidente",
+        confirmedAt: "2026-09-29T12:35:00Z"
+      },
+      {
+        memberId: "dir-ejecutivo",
+        name: "Mary Giovanna Vera",
+        role: "Director Ejecutivo",
+        confirmedAt: "2026-09-29T12:36:00Z"
+      },
+      {
+        memberId: "dir-vice-1",
+        name: "Maryuri Carolina Carmona Campos",
+        role: "Primera Vicepresidente",
+        confirmedAt: "2026-09-29T12:37:00Z"
+      },
+      {
+        memberId: "dir-operativo",
+        name: "Marisabel Prieto Pérez",
+        role: "Director Operativo",
+        confirmedAt: "2026-09-29T12:38:00Z"
       }
     ]
   },
   {
     id: "agenda-005",
-    title: "Mesa Interinstitucional con Gobernación y Alcaldía: Plan Turístico 2027",
-    type: "institucional",
-    typeLabel: "Institucional & Gobierno",
-    date: "2026-11-18",
-    timeStart: "10:00",
-    timeEnd: "12:30",
+    title: "Taller: Comida Navideña No Tradicional",
+    type: "capacitacion",
+    typeLabel: "Formación & Taller",
+    date: "2026-11-13",
+    timeStart: "09:00",
+    timeEnd: "15:00",
     year: 2026,
     month: 11,
-    location: "Palacio de Gobierno del Estado Mérida / Sala de Reuniones",
+    location: "Tovar Umami, Tovar, Mérida",
     isVirtual: false,
     virtualLink: "",
-    organizer: "Presidencia & Relaciones Institucionales",
-    description: "Presentación del plan de incentivos tributarios, exoneración de tasas de permisología y apoyo a la señalética de rutas gastronómicas.",
+    organizer: "Chef Valentina Inglessis & Cámara Gastronómica",
+    description: "Taller culinario de alta cocina navideña de autor, técnicas de preservación y reinterpretación de sabores andinos. Asiste la Directiva en pleno.",
+    maxAttendees: 12,
     status: "confirmado",
     confirmedAttendees: [
       {
         memberId: "dir-presidente",
         name: "Julio Alberto Daza Celis",
         role: "Presidente",
-        confirmedAt: "2026-09-29T11:00:00Z"
+        confirmedAt: "2026-09-29T12:40:00Z"
+      },
+      {
+        memberId: "dir-ejecutivo",
+        name: "Mary Giovanna Vera",
+        role: "Director Ejecutivo",
+        confirmedAt: "2026-09-29T12:41:00Z"
+      },
+      {
+        memberId: "dir-vice-1",
+        name: "Maryuri Carolina Carmona Campos",
+        role: "Primera Vicepresidente",
+        confirmedAt: "2026-09-29T12:42:00Z"
+      },
+      {
+        memberId: "dir-vice-2",
+        name: "María Laura Molina Barillas",
+        role: "Segunda Vicepresidente",
+        confirmedAt: "2026-09-29T12:43:00Z"
+      },
+      {
+        memberId: "dir-operativo",
+        name: "Marisabel Prieto Pérez",
+        role: "Director Operativo",
+        confirmedAt: "2026-09-29T12:44:00Z"
+      },
+      {
+        memberId: "dir-tesorero",
+        name: "Edixon Xavier Reyes Dávila",
+        role: "Tesorero",
+        confirmedAt: "2026-09-29T12:45:00Z"
       }
     ]
-  },
-  {
-    id: "agenda-006",
-    title: "Comité Técnico Promotor: Cumbre Expo Gastronómica Los Andes 2027",
-    type: "expo",
-    typeLabel: "Expo Andes 2027",
-    date: "2027-01-22",
-    timeStart: "09:00",
-    timeEnd: "13:00",
-    year: 2027,
-    month: 1,
-    location: "Centro de Convenciones Mucumbarí / Sala VIP",
-    isVirtual: false,
-    virtualLink: "",
-    organizer: "Junta Directiva en Pleno",
-    description: "Revisión del cronograma de patrocinantes internacionales, pabellones temáticos de cacao y café, y confirmación de chefs invitados de honor.",
-    status: "confirmado",
-    confirmedAttendees: []
-  },
-  {
-    id: "agenda-007",
-    title: "Conferencia Internacional: Genética del Cacao Porcelana del Sur del Lago",
-    type: "institucional",
-    typeLabel: "Conferencia Magistral",
-    date: "2027-03-15",
-    timeStart: "15:00",
-    timeEnd: "18:00",
-    year: 2027,
-    month: 3,
-    location: "Aula Magna de la Universidad de Los Andes (ULA)",
-    isVirtual: false,
-    virtualLink: "",
-    organizer: "Coordinación de Cacao y Café & Academia ULA",
-    description: "Jornada académica y cata sensorial con expertos internacionales en chocolatería fina de aroma.",
-    status: "confirmado",
-    confirmedAttendees: []
   }
 ];
