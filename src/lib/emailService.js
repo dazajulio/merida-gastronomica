@@ -335,7 +335,7 @@ export async function sendAffiliateWelcomeEmail({
 
   return sendEmail({
     to: email,
-    replyTo: 'contacto@meridagastronomica.com',
+    replyTo: 'meridacamaragastronomica@gmail.com',
     subject,
     html: getEmailBaseTemplate(subject, content),
     text: `Bienvenido a la Cámara Gastronómica del Estado Mérida. Su código de afiliado asignado es: ${affiliateCode} para el establecimiento ${restaurantName}.`

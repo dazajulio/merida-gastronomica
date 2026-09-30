@@ -99,7 +99,7 @@ export function LegalResourceCenter({ t, setActiveTab }) {
         `RESUMEN DEL CONTENIDO:\n${doc.summary}\n\n` +
         `Para más información o asesoría legal personalizada contacte a la Consultoría Jurídica CGEM:\n` +
         `Sede Institucional: Av. 4 entre Calles 19 y 20, Centro Histórico, Mérida, Venezuela\n` +
-        `contacto@meridagastronomica.com | +58 (274) 252-8810`
+        `meridacamaragastronomica@gmail.com | +58 (274) 252-8810`
       ], { type: 'text/plain;charset=utf-8' });
       element.href = URL.createObjectURL(file);
       element.download = `${(doc.title || 'documento-juridico').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;

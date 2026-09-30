@@ -169,8 +169,8 @@ export function Footer({ setActiveTab, t }) {
               </p>
               <p className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <a href="mailto:contacto@meridagastronomica.com" className="hover:text-amber-300 transition-colors">
-                  contacto@meridagastronomica.com
+                <a href="mailto:meridacamaragastronomica@gmail.com" className="hover:text-amber-300 transition-colors">
+                  meridacamaragastronomica@gmail.com
                 </a>
               </p>
             </div>
