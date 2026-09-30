@@ -36,11 +36,21 @@ import {
   Layers,
   Calculator,
   Compass,
-  FolderOpen
+  FolderOpen,
+  Phone,
+  Search,
+  MessageCircle,
+  FileSpreadsheet,
+  Copy,
+  RefreshCw,
+  DollarSign,
+  Tag
 } from 'lucide-react';
 import { BOARD_MEMBERS_DATA, INITIAL_BOARD_AGENDA_DATA } from '../data/boardData';
 import { LEGAL_DATA } from '../data/legalData';
+import { INITIAL_DIRECTORY_DATA } from '../data/initialDirectoryData';
 import { sendBoardAttendanceEmail } from '../lib/emailService';
+import { supabase } from '../lib/supabaseClient';
 
 export function BoardAdminPortal({ t, onNavigate }) {
   // Authentication State
@@ -75,10 +85,17 @@ export function BoardAdminPortal({ t, onNavigate }) {
     } catch (e) {}
   }, [agendaEvents]);
 
-  // Check if current user is the President
+  // Roles & Permissions
   const isPresident = currentUser?.id === 'dir-presidente' || 
     currentUser?.email?.toLowerCase() === 'dazajulio@gmail.com' || 
     (currentUser?.role && currentUser?.role.toLowerCase().includes('presidente') && !currentUser?.role.toLowerCase().includes('vicepresidente'));
+
+  const isExecutiveDirector = currentUser?.id === 'dir-ejecutiva' || 
+    currentUser?.email?.toLowerCase() === 'margiovi@gmail.com' || 
+    (currentUser?.role && currentUser?.role.toLowerCase().includes('ejecutivo'));
+
+  // Both President and Executive Director (and admin level) have full access to the Directorio de Agremiados
+  const canAccessDirectory = currentUser?.isAdminLevel || isPresident || isExecutiveDirector;
 
   // Legal Resources State (Synchronized with localStorage)
   const [legalCategories, setLegalCategories] = useState(() => {
@@ -97,11 +114,78 @@ export function BoardAdminPortal({ t, onNavigate }) {
     } catch (e) {}
   }, [legalCategories]);
 
+  // =========================================================================
+  // DIRECTORIO DE AGREMIADOS STATE (SUPABASE + LOCALSTORAGE RESILIENCE)
+  // =========================================================================
+  const [directoryMembers, setDirectoryMembers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cgem_directorio_agremiados');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return INITIAL_DIRECTORY_DATA;
+  });
+
+  const [isLoadingDirectory, setIsLoadingDirectory] = useState(false);
+  const [directorySearch, setDirectorySearch] = useState('');
+  const [directoryCategoryFilter, setDirectoryCategoryFilter] = useState('all');
+  const [directoryStatusFilter, setDirectoryStatusFilter] = useState('all');
+  const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState(null);
+  const [selectedMemberDetail, setSelectedMemberDetail] = useState(null);
+
+  const [memberFormData, setMemberFormData] = useState({
+    codigo_afiliado: '',
+    nombre_establecimiento: '',
+    categoria_negocio: 'Empresas (5 a 19 empleados)',
+    representante_legal: '',
+    rif_cedula: '',
+    telefono: '',
+    email: '',
+    direccion_completa: '',
+    municipio: 'Libertador',
+    instagram: '',
+    sitio_web: '',
+    numero_empleados: 5,
+    estado_solvencia: 'Solvente (Activo)',
+    monto_inscripcion: 30,
+    monto_cuota_mensual: 10,
+    observaciones: ''
+  });
+
+  // Fetch Directory from Supabase on mount or refresh
+  const fetchDirectoryFromSupabase = async () => {
+    if (!supabase) return;
+    try {
+      setIsLoadingDirectory(true);
+      const { data, error } = await supabase
+        .from('directorio_agremiados')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('Supabase directorio notice:', error.message);
+      } else if (data && data.length > 0) {
+        setDirectoryMembers(data);
+        localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(data));
+      }
+    } catch (err) {
+      console.warn('Supabase connection note:', err);
+    } finally {
+      setIsLoadingDirectory(false);
+    }
+  };
+
+  useEffect(() => {
+    if (canAccessDirectory) {
+      fetchDirectoryFromSupabase();
+    }
+  }, [canAccessDirectory]);
+
   // Calendar View Filters & Navigation
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedMonth, setSelectedMonth] = useState('all'); // 'all' or 1..12
   const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('timeline'); // timeline | board_list | legal_resources
+  const [viewMode, setViewMode] = useState('timeline'); // timeline | board_list | legal_resources | directorio
 
   // Admin Event Management Modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -473,7 +557,6 @@ export function BoardAdminPortal({ t, onNavigate }) {
         if (cat.id === legalFormData.categoryId) {
           let updatedItems = [];
           if (editingLegalDoc) {
-            // Check if already in this category
             const exists = (cat.items || []).some(item => item.id === editingLegalDoc.id);
             if (exists) {
               updatedItems = (cat.items || []).map(item => item.id === editingLegalDoc.id ? newDocItem : item);
@@ -513,6 +596,199 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
   // Total Legal Docs Count
   const totalLegalDocs = legalCategories.reduce((acc, cat) => acc + (cat.items || []).length, 0);
+
+  // =========================================================================
+  // DIRECTORIO DE AGREMIADOS HANDLERS (PRESIDENT & EXECUTIVE DIRECTOR)
+  // =========================================================================
+  const openNewMemberModal = () => {
+    setEditingMember(null);
+    const nextNumber = directoryMembers.length + 1;
+    const generatedCode = `CGM-2026-${String(nextNumber).padStart(3, '0')}`;
+    setMemberFormData({
+      codigo_afiliado: generatedCode,
+      nombre_establecimiento: '',
+      categoria_negocio: 'Empresas (5 a 19 empleados)',
+      representante_legal: '',
+      rif_cedula: '',
+      telefono: '+58 ',
+      email: '',
+      direccion_completa: '',
+      municipio: 'Libertador',
+      instagram: '@',
+      sitio_web: '',
+      numero_empleados: 5,
+      estado_solvencia: 'Solvente (Activo)',
+      monto_inscripcion: 30,
+      monto_cuota_mensual: 10,
+      observaciones: ''
+    });
+    setIsMemberModalOpen(true);
+  };
+
+  const openEditMemberModal = (member) => {
+    setEditingMember(member);
+    setMemberFormData({
+      codigo_afiliado: member.codigo_afiliado || '',
+      nombre_establecimiento: member.nombre_establecimiento || '',
+      categoria_negocio: member.categoria_negocio || 'Empresas (5 a 19 empleados)',
+      representante_legal: member.representante_legal || '',
+      rif_cedula: member.rif_cedula || '',
+      telefono: member.telefono || '',
+      email: member.email || '',
+      direccion_completa: member.direccion_completa || '',
+      municipio: member.municipio || 'Libertador',
+      instagram: member.instagram || '',
+      sitio_web: member.sitio_web || '',
+      numero_empleados: member.numero_empleados || 1,
+      estado_solvencia: member.estado_solvencia || 'Solvente (Activo)',
+      monto_inscripcion: member.monto_inscripcion || 30,
+      monto_cuota_mensual: member.monto_cuota_mensual || 10,
+      observaciones: member.observaciones || ''
+    });
+    setIsMemberModalOpen(true);
+  };
+
+  const handleSaveMember = async (e) => {
+    e.preventDefault();
+    if (!canAccessDirectory) return;
+
+    const code = memberFormData.codigo_afiliado.trim() || `CGM-2026-${String(directoryMembers.length + 1).padStart(3, '0')}`;
+
+    const memberDataToSave = {
+      ...memberFormData,
+      codigo_afiliado: code,
+      numero_empleados: parseInt(memberFormData.numero_empleados, 10) || 1,
+      monto_inscripcion: parseFloat(memberFormData.monto_inscripcion) || 0,
+      monto_cuota_mensual: parseFloat(memberFormData.monto_cuota_mensual) || 0,
+      updated_at: new Date().toISOString()
+    };
+
+    if (editingMember) {
+      // 1. Update in Supabase
+      try {
+        if (supabase) {
+          await supabase
+            .from('directorio_agremiados')
+            .update(memberDataToSave)
+            .eq('id', editingMember.id);
+        }
+      } catch (err) {
+        console.warn('Supabase update notice:', err);
+      }
+
+      // 2. Update local state & localStorage
+      const updatedList = directoryMembers.map(m => m.id === editingMember.id ? { ...m, ...memberDataToSave } : m);
+      setDirectoryMembers(updatedList);
+      localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
+      setActionSuccessMessage(`Agremiado "${memberFormData.nombre_establecimiento}" (${code}) actualizado con éxito.`);
+    } else {
+      // 1. Create record with UUID or timestamp id
+      const newId = `cgm-dir-${Date.now()}`;
+      const newRecord = {
+        id: newId,
+        ...memberDataToSave,
+        fecha_registro: new Date().toISOString()
+      };
+
+      // 2. Insert into Supabase
+      try {
+        if (supabase) {
+          const { data, error } = await supabase
+            .from('directorio_agremiados')
+            .insert([newRecord])
+            .select();
+          if (data && data[0]) {
+            newRecord.id = data[0].id;
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase insert notice:', err);
+      }
+
+      // 3. Update local state & localStorage
+      const updatedList = [newRecord, ...directoryMembers];
+      setDirectoryMembers(updatedList);
+      localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
+      setActionSuccessMessage(`Nuevo agremiado "${memberFormData.nombre_establecimiento}" incorporado al Directorio con código ${code}.`);
+    }
+
+    setIsMemberModalOpen(false);
+    setEditingMember(null);
+    setTimeout(() => setActionSuccessMessage(''), 5000);
+  };
+
+  const handleDeleteMember = async (memberId, name, code) => {
+    if (!canAccessDirectory) return;
+    if (window.confirm(`¿Está seguro de que desea eliminar a "${name}" (${code}) del Directorio de Agremiados?`)) {
+      try {
+        if (supabase) {
+          await supabase.from('directorio_agremiados').delete().eq('id', memberId);
+        }
+      } catch (err) {
+        console.warn('Supabase delete notice:', err);
+      }
+
+      const updated = directoryMembers.filter(m => m.id !== memberId);
+      setDirectoryMembers(updated);
+      localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updated));
+      setActionSuccessMessage(`Agremiado "${name}" eliminado del Directorio.`);
+      setTimeout(() => setActionSuccessMessage(''), 4000);
+    }
+  };
+
+  // Export Directory to CSV
+  const handleExportCSV = () => {
+    const headers = "Codigo,Establecimiento,Categoria,Representante,RIF_Cedula,Telefono,Email,Municipio,Direccion,Empleados,Solvencia,Cuota_USD\n";
+    const rows = directoryMembers.map(m => 
+      `"${m.codigo_afiliado || ''}","${m.nombre_establecimiento || ''}","${m.categoria_negocio || ''}","${m.representante_legal || ''}","${m.rif_cedula || ''}","${m.telefono || ''}","${m.email || ''}","${m.municipio || ''}","${(m.direccion_completa || '').replace(/"/g, '""')}","${m.numero_empleados || ''}","${m.estado_solvencia || ''}","${m.monto_cuota_mensual || ''}"`
+    ).join("\n");
+
+    const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `directorio_agremiados_cgem_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setActionSuccessMessage('Directorio descargado exitosamente en formato CSV / Excel.');
+    setTimeout(() => setActionSuccessMessage(''), 4000);
+  };
+
+  // Copy Emails list for newsletters
+  const handleCopyEmails = () => {
+    const emails = directoryMembers.map(m => m.email).filter(Boolean).join(', ');
+    navigator.clipboard.writeText(emails);
+    setActionSuccessMessage(`Se han copiado ${directoryMembers.length} correos electrónicos al portapapeles.`);
+    setTimeout(() => setActionSuccessMessage(''), 4000);
+  };
+
+  // Filter Directory Members
+  const filteredDirectoryMembers = directoryMembers.filter(member => {
+    const s = directorySearch.toLowerCase();
+    const matchSearch = 
+      (member.nombre_establecimiento || '').toLowerCase().includes(s) ||
+      (member.representante_legal || '').toLowerCase().includes(s) ||
+      (member.codigo_afiliado || '').toLowerCase().includes(s) ||
+      (member.email || '').toLowerCase().includes(s) ||
+      (member.telefono || '').toLowerCase().includes(s) ||
+      (member.rif_cedula || '').toLowerCase().includes(s) ||
+      (member.municipio || '').toLowerCase().includes(s);
+
+    const matchCategory = directoryCategoryFilter === 'all' || 
+      (member.categoria_negocio && member.categoria_negocio.toLowerCase().includes(directoryCategoryFilter.toLowerCase()));
+
+    const matchStatus = directoryStatusFilter === 'all' || 
+      (member.estado_solvencia && member.estado_solvencia.toLowerCase().includes(directoryStatusFilter.toLowerCase()));
+
+    return matchSearch && matchCategory && matchStatus;
+  });
+
+  // Calculate Quick Directory Stats
+  const countTotalAgremiados = directoryMembers.length;
+  const countSolventes = directoryMembers.filter(m => (m.estado_solvencia || '').toLowerCase().includes('solvente') || (m.estado_solvencia || '').toLowerCase().includes('activo')).length;
+  const countEnRevision = directoryMembers.filter(m => (m.estado_solvencia || '').toLowerCase().includes('revisión') || (m.estado_solvencia || '').toLowerCase().includes('pendiente')).length;
+  const totalMonthlyIncomeUSD = directoryMembers.reduce((acc, m) => acc + (parseFloat(m.monto_cuota_mensual) || 0), 0);
 
   // =========================================================================
   // VIEW 1: LIGHT MODE LOGIN SCREEN (SI NO ESTÁ AUTENTICADO)
@@ -658,9 +934,9 @@ export function BoardAdminPortal({ t, onNavigate }) {
                       Gestión Total / Administrador
                     </span>
                   )}
-                  {isPresident && (
-                    <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-300 font-sans">
-                      Gestor de Marco Jurídico & Recursos
+                  {canAccessDirectory && (
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 font-sans">
+                      Acceso Directorio Agremiados
                     </span>
                   )}
                 </div>
@@ -682,8 +958,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              {currentUser.isAdminLevel && viewMode !== 'legal_resources' && (
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+              {currentUser.isAdminLevel && viewMode === 'timeline' && (
                 <button
                   onClick={openNewModal}
                   className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
@@ -693,13 +969,23 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 </button>
               )}
 
+              {canAccessDirectory && viewMode === 'directorio' && (
+                <button
+                  onClick={openNewMemberModal}
+                  className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
+                >
+                  <Plus className="w-4 h-4 text-white" />
+                  <span>Nuevo Agremiado</span>
+                </button>
+              )}
+
               {isPresident && viewMode === 'legal_resources' && (
                 <button
                   onClick={() => openNewLegalDocModal('fiscal')}
                   className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
                 >
                   <FolderPlus className="w-4 h-4" />
-                  <span>Cargar Nuevo Documento Jurídico</span>
+                  <span>Cargar Documento Jurídico</span>
                 </button>
               )}
 
@@ -730,14 +1016,16 @@ export function BoardAdminPortal({ t, onNavigate }) {
             </div>
           )}
 
-          {/* Navigation Controls: Year, Month, Category Filter & View Modes */}
+          {/* Navigation Controls: View Modes */}
           <div className="mt-6 space-y-4">
             
-            {/* View Mode Switcher + Year Selector */}
+            {/* View Mode Switcher */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               
-              {/* View Mode Buttons (Timeline, Board Members, and Legal Resources for President) */}
+              {/* View Mode Buttons */}
               <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                
+                {/* 1. Agenda Cronológica */}
                 <button
                   onClick={() => setViewMode('timeline')}
                   className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
@@ -750,6 +1038,22 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   <span>Agenda Cronológica</span>
                 </button>
 
+                {/* 2. DIRECTORIO DE AGREMIADOS (Presidente & Dirección Ejecutiva) */}
+                {canAccessDirectory && (
+                  <button
+                    onClick={() => setViewMode('directorio')}
+                    className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
+                      viewMode === 'directorio'
+                        ? 'bg-emerald-600 text-white shadow-sm font-extrabold'
+                        : 'text-emerald-900 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
+                    }`}
+                  >
+                    <Building2 className={`w-3.5 h-3.5 ${viewMode === 'directorio' ? 'text-white' : 'text-emerald-700'}`} />
+                    <span>DIRECTORIO AGREMIADOS ({countTotalAgremiados})</span>
+                  </button>
+                )}
+
+                {/* 3. Directorio de Junta Directiva */}
                 <button
                   onClick={() => setViewMode('board_list')}
                   className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
@@ -762,7 +1066,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   <span>Junta Directiva</span>
                 </button>
 
-                {/* Exclusively for President */}
+                {/* 4. Gestor de Recursos Jurídicos (Exclusivo Presidente) */}
                 {isPresident && (
                   <button
                     onClick={() => setViewMode('legal_resources')}
@@ -773,7 +1077,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     }`}
                   >
                     <BookOpen className={`w-3.5 h-3.5 ${viewMode === 'legal_resources' ? 'text-white' : 'text-indigo-700'}`} />
-                    <span>Gestor de Recursos & Marco Jurídico ({totalLegalDocs})</span>
+                    <span>Marco Jurídico ({totalLegalDocs})</span>
                   </button>
                 )}
               </div>
@@ -863,7 +1167,307 @@ export function BoardAdminPortal({ t, onNavigate }) {
       {/* Main Content Area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         
-        {/* VIEW MODE 1: TIMELINE / CHRONOLOGICAL */}
+        {/* =========================================================================
+            VIEW MODE 1: DIRECTORIO DE AGREMIADOS (PRESIDENTE & DIRECCIÓN EJECUTIVA)
+            ========================================================================= */}
+        {viewMode === 'directorio' && canAccessDirectory && (
+          <div className="space-y-6 animate-fadeIn">
+            
+            {/* Header Box with Quick Stats */}
+            <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-teal-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-emerald-800/40">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 pb-6 border-b border-emerald-800/50">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 text-[10px] font-extrabold uppercase tracking-wider mb-2 font-sans">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Control Directivo & Respaldo en Supabase Cloud</span>
+                  </div>
+                  <h2 className="font-serif font-black text-2xl sm:text-3xl text-white uppercase tracking-wide">
+                    Directorio Oficial de Miembros Agremiados
+                  </h2>
+                  <p className="text-xs sm:text-sm text-emerald-200/80 mt-1 max-w-2xl font-sans">
+                    Base de datos oficial de establecimientos gastronómicos, empresas, PYMEs y marcas personales agremiadas a la Cámara Gastronómica del Estado Mérida.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 font-sans">
+                  <button
+                    onClick={fetchDirectoryFromSupabase}
+                    disabled={isLoadingDirectory}
+                    className="py-3 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-emerald-200 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 transition-all"
+                    title="Sincronizar datos con Supabase"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDirectory ? 'animate-spin' : ''}`} />
+                    <span>{isLoadingDirectory ? 'Sincronizando...' : 'Actualizar'}</span>
+                  </button>
+
+                  <button
+                    onClick={handleExportCSV}
+                    className="py-3 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold flex items-center gap-1.5 transition-all"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Exportar Excel/CSV</span>
+                  </button>
+
+                  <button
+                    onClick={handleCopyEmails}
+                    className="py-3 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold flex items-center gap-1.5 transition-all"
+                  >
+                    <Copy className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Copiar Correos</span>
+                  </button>
+
+                  <button
+                    onClick={openNewMemberModal}
+                    className="py-3 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider shadow-lg flex items-center gap-2 transition-all active:scale-98"
+                  >
+                    <Plus className="w-4 h-4 text-slate-950" />
+                    <span>Registrar Nuevo Agremiado</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 font-sans">
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-emerald-300 block">Total Agremiados</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-white">{countTotalAgremiados}</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Empresas & Marcas</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-emerald-400 block">Solventes (Activos)</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-emerald-400">{countSolventes}</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Con membresía al día</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-amber-300 block">En Trámite / Revisión</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-amber-300">{countEnRevision}</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Pendientes por validar</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-teal-300 block">Recaudación Cuotas</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-white">${totalMonthlyIncomeUSD}</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Estimado mensual USD</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Search & Filter Controls */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 font-sans items-center">
+                
+                {/* Search Bar */}
+                <div className="md:col-span-6 relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={directorySearch}
+                    onChange={(e) => setDirectorySearch(e.target.value)}
+                    placeholder="Buscar por nombre, código CGM, representante, correo, RIF o municipio..."
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm font-medium focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+
+                {/* Category Filter */}
+                <div className="md:col-span-3">
+                  <select
+                    value={directoryCategoryFilter}
+                    onChange={(e) => setDirectoryCategoryFilter(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm font-medium text-slate-700 focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="all">Todas las Categorías</option>
+                    <option value="Grandes Empresas">Grandes Empresas (20+ empleados)</option>
+                    <option value="Empresas">Empresas / PYMEs (5-19 empleados)</option>
+                    <option value="Marca Personal">Marca Personal & Emprendimientos</option>
+                  </select>
+                </div>
+
+                {/* Status Filter */}
+                <div className="md:col-span-3">
+                  <select
+                    value={directoryStatusFilter}
+                    onChange={(e) => setDirectoryStatusFilter(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm font-medium text-slate-700 focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="all">Todos los Estados</option>
+                    <option value="Solvente">Solvente (Activo)</option>
+                    <option value="Revisión">En Revisión</option>
+                    <option value="Pendiente">Pendiente de Pago</option>
+                    <option value="Inactivo">Inactivo</option>
+                  </select>
+                </div>
+
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-slate-500 font-sans pt-1 border-t border-slate-100">
+                <span>Mostrando <strong>{filteredDirectoryMembers.length}</strong> de {directoryMembers.length} miembros registrados</span>
+                {directorySearch && (
+                  <button onClick={() => setDirectorySearch('')} className="text-emerald-700 font-bold underline">
+                    Limpiar búsqueda
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Directory Cards / Table */}
+            {filteredDirectoryMembers.length === 0 ? (
+              <div className="p-12 text-center rounded-3xl bg-white border border-slate-200 space-y-3 shadow-sm font-sans">
+                <Building2 className="w-12 h-12 text-slate-300 mx-auto" />
+                <h3 className="font-serif font-black text-lg text-slate-700 uppercase">
+                  No se encontraron agremiados con los filtros actuales
+                </h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Pruebe ajustando los términos de búsqueda o registre un nuevo establecimiento miembro.
+                </p>
+                <button
+                  onClick={openNewMemberModal}
+                  className="mt-2 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm"
+                >
+                  Registrar Primer Agremiado
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {filteredDirectoryMembers.map((member) => {
+                  const isSolvente = (member.estado_solvencia || '').toLowerCase().includes('solvente') || (member.estado_solvencia || '').toLowerCase().includes('activo');
+                  const isRevision = (member.estado_solvencia || '').toLowerCase().includes('revisión') || (member.estado_solvencia || '').toLowerCase().includes('pendiente');
+
+                  return (
+                    <div 
+                      key={member.id || member.codigo_afiliado}
+                      className="bg-white rounded-3xl border border-slate-200 hover:border-emerald-400 p-5 sm:p-6 shadow-sm hover:shadow-md transition-all flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6"
+                    >
+                      {/* Member Info */}
+                      <div className="space-y-2 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs font-black px-2.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-950 border border-emerald-300">
+                            {member.codigo_afiliado}
+                          </span>
+                          
+                          <span className="text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-sans">
+                            {member.categoria_negocio}
+                          </span>
+
+                          <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border font-sans ${
+                            isSolvente 
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300' 
+                              : isRevision 
+                                ? 'bg-amber-50 text-amber-800 border-amber-300' 
+                                : 'bg-rose-50 text-rose-800 border-rose-300'
+                          }`}>
+                            {member.estado_solvencia}
+                          </span>
+                        </div>
+
+                        <div>
+                          <h3 className="font-serif font-black text-xl text-slate-900">
+                            {member.nombre_establecimiento}
+                          </h3>
+                          <p className="text-xs text-slate-600 font-sans flex flex-wrap items-center gap-2 mt-0.5">
+                            <span>Representante: <strong className="text-slate-800">{member.representante_legal}</strong></span>
+                            {member.rif_cedula && (
+                              <>
+                                <span>&bull;</span>
+                                <span className="font-mono text-slate-500 font-semibold">{member.rif_cedula}</span>
+                              </>
+                            )}
+                            {member.numero_empleados && (
+                              <>
+                                <span>&bull;</span>
+                                <span>{member.numero_empleados} empleados</span>
+                              </>
+                            )}
+                          </p>
+                        </div>
+
+                        {/* Contact & Location Strip */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-xs text-slate-600 font-sans">
+                          <div className="flex items-center gap-1.5">
+                            <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <a href={`tel:${member.telefono}`} className="hover:text-emerald-700 font-medium truncate">
+                              {member.telefono}
+                            </a>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <Mail className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <a href={`mailto:${member.email}`} className="hover:text-emerald-700 font-medium truncate" title={member.email}>
+                              {member.email}
+                            </a>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span className="truncate" title={member.direccion_completa}>
+                              {member.municipio ? `${member.municipio} - ` : ''}{member.direccion_completa || 'Mérida'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {member.observaciones && (
+                          <p className="text-[11px] text-slate-500 italic font-sans pt-1 border-t border-slate-100">
+                            Nota: {member.observaciones}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Financial & Actions Column */}
+                      <div className="flex flex-row lg:flex-col items-center lg:items-end justify-between w-full lg:w-auto gap-3 pt-3 lg:pt-0 lg:border-l lg:border-slate-100 lg:pl-6 shrink-0 font-sans">
+                        
+                        <div className="text-left lg:text-right">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Cuota Mensual</span>
+                          <span className="font-serif font-black text-lg text-slate-900">${member.monto_cuota_mensual || 10} USD</span>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-1.5">
+                          {/* WhatsApp 1-clic */}
+                          {member.telefono && (
+                            <a
+                              href={`https://api.whatsapp.com/send?phone=${member.telefono.replace(/[^0-9]/g, '')}&text=Estimado(a)%20${encodeURIComponent(member.representante_legal)}%20de%20${encodeURIComponent(member.nombre_establecimiento)}%2C%20le%20escribimos%20desde%20la%20C%C3%A1mara%20Gastron%C3%B3mica%20del%20Estado%20M%C3%A9rida.`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors"
+                              title="Enviar WhatsApp directo"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </a>
+                          )}
+
+                          <button
+                            onClick={() => openEditMemberModal(member)}
+                            className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors text-xs font-bold flex items-center gap-1"
+                            title="Editar ficha del agremiado"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-amber-700" />
+                            <span className="hidden sm:inline">Editar</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteMember(member.id, member.nombre_establecimiento, member.codigo_afiliado)}
+                            className="p-2.5 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-700 transition-colors"
+                            title="Eliminar agremiado"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                      </div>
+
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+          </div>
+        )}
+
+        {/* =========================================================================
+            VIEW MODE 2: TIMELINE / CHRONOLOGICAL AGENDA
+            ========================================================================= */}
         {viewMode === 'timeline' && (
           <div className="space-y-6">
             
@@ -1126,7 +1730,9 @@ export function BoardAdminPortal({ t, onNavigate }) {
           </div>
         )}
 
-        {/* VIEW MODE 2: BOARD DIRECTORY */}
+        {/* =========================================================================
+            VIEW MODE 3: BOARD DIRECTORY
+            ========================================================================= */}
         {viewMode === 'board_list' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -1193,7 +1799,9 @@ export function BoardAdminPortal({ t, onNavigate }) {
           </div>
         )}
 
-        {/* VIEW MODE 3: LEGAL RESOURCES & DOCUMENTS MANAGER (EXCLUSIVO PRESIDENTE) */}
+        {/* =========================================================================
+            VIEW MODE 4: LEGAL RESOURCES & DOCUMENTS MANAGER (EXCLUSIVO PRESIDENTE)
+            ========================================================================= */}
         {viewMode === 'legal_resources' && isPresident && (
           <div className="space-y-8">
             
@@ -1354,7 +1962,273 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
       </div>
 
-      {/* CREATE / EDIT AGENDA EVENT MODAL (ADMIN ONLY - LIGHT THEME) */}
+      {/* =========================================================================
+          MODAL: CREATE / EDIT DIRECTORIO AGREMIADO (SUPABASE BACKED)
+          ========================================================================= */}
+      {isMemberModalOpen && canAccessDirectory && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto">
+            
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif font-black text-xl text-slate-900 uppercase tracking-wider">
+                    {editingMember ? 'Editar Datos del Agremiado' : 'Registrar Nuevo Agremiado'}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-sans">
+                    Directorio Oficial CGEM &bull; Respaldo en la nube
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsMemberModalOpen(false)}
+                className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors font-sans"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveMember} className="mt-6 space-y-4 text-xs font-sans">
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Nombre del Establecimiento / Marca *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={memberFormData.nombre_establecimiento}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, nombre_establecimiento: e.target.value })}
+                    placeholder="ej: Kaffia Caffe / Cervecería Frailejón"
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Código de Afiliado *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={memberFormData.codigo_afiliado}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, codigo_afiliado: e.target.value })}
+                    placeholder="CGM-2026-001"
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 font-mono font-bold text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Segmento / Categoría *
+                  </label>
+                  <select
+                    value={memberFormData.categoria_negocio}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, categoria_negocio: e.target.value })}
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white font-medium"
+                  >
+                    <option value="Grandes Empresas (20+ empleados)">Grandes Empresas (20+ empleados)</option>
+                    <option value="Empresas (5 a 19 empleados)">Empresas / PYMEs (5 a 19 empleados)</option>
+                    <option value="Marca Personal y Emprendimientos">Marca Personal y Emprendimientos (&lt;5 emp)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Representante Legal / Propietario *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={memberFormData.representante_legal}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, representante_legal: e.target.value })}
+                    placeholder="ej: Carlos Mendoza"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    RIF o Cédula de Identidad
+                  </label>
+                  <input
+                    type="text"
+                    value={memberFormData.rif_cedula}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, rif_cedula: e.target.value })}
+                    placeholder="ej: J-50123849-2 / V-14.281.902"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Teléfono & WhatsApp de Contacto *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={memberFormData.telefono}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, telefono: e.target.value })}
+                    placeholder="+58 414-8817137"
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Correo Electrónico *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={memberFormData.email}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, email: e.target.value })}
+                    placeholder="contacto@establecimiento.com"
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Dirección Física del Establecimiento
+                  </label>
+                  <input
+                    type="text"
+                    value={memberFormData.direccion_completa}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, direccion_completa: e.target.value })}
+                    placeholder="ej: Av. 4 entre Calles 19 y 20, Centro Histórico"
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Municipio
+                  </label>
+                  <select
+                    value={memberFormData.municipio}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, municipio: e.target.value })}
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  >
+                    <option value="Libertador">Libertador (Mérida)</option>
+                    <option value="Campo Elías">Campo Elías (Ejido)</option>
+                    <option value="Santos Marquina">Santos Marquina (Tabay)</option>
+                    <option value="Rangel">Rangel (Mucuchíes)</option>
+                    <option value="Cardenal Quintero">Cardenal Quintero</option>
+                    <option value="Pueblo Llano">Pueblo Llano</option>
+                    <option value="Tovar">Tovar</option>
+                    <option value="Alberto Adriani">Alberto Adriani (El Vigía)</option>
+                    <option value="Sucre">Sucre (Lagunillas)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Instagram
+                  </label>
+                  <input
+                    type="text"
+                    value={memberFormData.instagram}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, instagram: e.target.value })}
+                    placeholder="@establecimiento"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    N° Empleados
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={memberFormData.numero_empleados}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, numero_empleados: e.target.value })}
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Cuota Mes (USD)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={memberFormData.monto_cuota_mensual}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, monto_cuota_mensual: e.target.value })}
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Estado Solvencia *
+                  </label>
+                  <select
+                    value={memberFormData.estado_solvencia}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, estado_solvencia: e.target.value })}
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white font-bold"
+                  >
+                    <option value="Solvente (Activo)">Solvente (Activo)</option>
+                    <option value="En Revisión">En Revisión</option>
+                    <option value="Pendiente de Pago">Pendiente de Pago</option>
+                    <option value="Inactivo">Inactivo</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Observaciones Internas / Compromiso de Transición
+                </label>
+                <textarea
+                  rows={2}
+                  value={memberFormData.observaciones}
+                  onChange={(e) => setMemberFormData({ ...memberFormData, observaciones: e.target.value })}
+                  placeholder="Detalles sobre acuerdos de pago, asesorías de formalización o notas de la Junta Directiva..."
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white leading-relaxed"
+                />
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsMemberModalOpen(false)}
+                  className="py-3 px-5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  className="py-3 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-serif font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-md active:scale-98"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{editingMember ? 'Actualizar Agremiado' : 'Guardar en Directorio'}</span>
+                </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* CREATE / EDIT AGENDA EVENT MODAL (ADMIN ONLY) */}
       {isCreateModalOpen && currentUser.isAdminLevel && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto">
@@ -1535,7 +2409,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
         </div>
       )}
 
-      {/* CREATE / EDIT LEGAL DOCUMENT MODAL (PRESIDENT ONLY - LIGHT THEME) */}
+      {/* CREATE / EDIT LEGAL DOCUMENT MODAL (PRESIDENT ONLY) */}
       {isLegalModalOpen && isPresident && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
           <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto">
