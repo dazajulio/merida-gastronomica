@@ -511,7 +511,7 @@ export const BUSINESS_TIERS = [
     name: 'Grandes Empresas',
     subtitle: 'Activas con 20 o más empleados',
     inscriptionUsd: 50,
-    monthlyUsd: 30,
+    monthlyUsd: 20,
     icon: Building2,
     hasCondition: false
   },
@@ -520,7 +520,7 @@ export const BUSINESS_TIERS = [
     name: 'Empresas',
     subtitle: 'Registros de comercios o marcas entre 5 y 19 empleados',
     inscriptionUsd: 30,
-    monthlyUsd: 20,
+    monthlyUsd: 10,
     icon: Store,
     hasCondition: false
   },
@@ -529,7 +529,7 @@ export const BUSINESS_TIERS = [
     name: 'Marca Personal y Emprendimientos',
     subtitle: 'Menores de 5 empleados',
     inscriptionUsd: 20,
-    monthlyUsd: 15,
+    monthlyUsd: 10,
     icon: ChefHat,
     hasCondition: true,
     conditionNotice: 'Nuestra intención institucional siempre será la formalidad. La Cámara Gastronómica brindará asesoría técnica, legal y soporte continuo para acompañar a este segmento hacia su formalización comercial de nuestra mano y con las mejores opciones. Dispondrán de un plazo de 12 meses para consolidar esa transición para poder permanecer como miembros activos de la Cámara y disfrutar de todos sus beneficios.'
