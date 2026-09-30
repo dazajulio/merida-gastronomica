@@ -19,7 +19,8 @@ import {
   ChevronDown,
   Layers,
   LayoutGrid,
-  Coffee
+  Coffee,
+  Lock
 } from 'lucide-react';
 
 export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
