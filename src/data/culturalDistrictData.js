@@ -5,7 +5,8 @@ export const CULTURAL_DISTRICT_DATA = {
     subtitle: 'Entre callejones y casonas coloniales, el corazón de Mérida late con fuerza propia. Sumérgete en un circuito donde el arte, la historia y nuestra gente se encuentran.',
     videoLooperUrl: 'https://patchamamatours.com/wp-content/uploads/2026/09/fondo-looper.mp4',
     logoUrl: 'https://patchamamatours.com/wp-content/uploads/2026/09/logo-distrito.webp',
-    logoPositiveUrl: 'https://patchamamatours.com/wp-content/uploads/2026/09/logo_versi_n_positivo_1.webp'
+    logoPositiveUrl: 'https://patchamamatours.com/wp-content/uploads/2026/09/logo_versi_n_positivo_1.webp',
+    officialWebsiteUrl: 'https://patchamamatours.com/distrito-cultura-merida/'
   },
   spectrum: {
     title: 'El Espectro Cultural',
@@ -273,6 +274,7 @@ export const CULTURAL_DISTRICT_DATA = {
     instagram: 'https://www.instagram.com/meridadistritocultural/',
     instagramHandle: '@meridadistritocultural',
     whatsapp: 'https://api.whatsapp.com/send?phone=584126666954&text=Hola%2C%20me%20gustar%C3%ADa%20conocer%20m%C3%A1s%20sobre%20el%20Distrito%20Cultural%20de%20M%C3%A9rida.',
-    phone: '+58 (412) 666-6954'
+    phone: '+58 (412) 666-6954',
+    officialWebsiteUrl: 'https://patchamamatours.com/distrito-cultura-merida/'
   }
 };

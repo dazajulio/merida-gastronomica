@@ -95,6 +95,16 @@ export function CulturalDistrict({ t, setActiveTab, onQuickSearch }) {
           {/* Key Indicators */}
           <div className="mt-8 flex flex-wrap items-center gap-3 font-sans">
             <a 
+              href={hero.officialWebsiteUrl || "https://patchamamatours.com/distrito-cultura-merida/"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="py-3 px-5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg transition-all flex items-center gap-2 active:scale-98"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <span>Portal Oficial del Distrito ↗</span>
+            </a>
+
+            <a 
               href="#circuitos"
               className="py-3 px-5 rounded-2xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold uppercase tracking-wider shadow-lg transition-all flex items-center gap-2 active:scale-98"
             >
@@ -610,6 +620,15 @@ export function CulturalDistrict({ t, setActiveTab, onQuickSearch }) {
           </p>
           
           <div className="flex flex-wrap items-center gap-4 pt-2 text-xs font-sans text-slate-300">
+            <a 
+              href={contact.officialWebsiteUrl || "https://patchamamatours.com/distrito-cultura-merida/"} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="flex items-center gap-1.5 text-amber-300 font-bold hover:text-amber-200 underline"
+            >
+              <ExternalLink className="w-4 h-4 text-amber-400" />
+              <span>patchamamatours.com/distrito-cultura-merida ↗</span>
+            </a>
             <a href={`mailto:${contact.email}`} className="flex items-center gap-1.5 hover:text-white underline">
               <Mail className="w-4 h-4 text-orange-400" />
               <span>{contact.email}</span>
@@ -622,6 +641,16 @@ export function CulturalDistrict({ t, setActiveTab, onQuickSearch }) {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 shrink-0 w-full md:w-auto font-sans">
+          <a
+            href={contact.officialWebsiteUrl || "https://patchamamatours.com/distrito-cultura-merida/"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="py-3.5 px-6 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/25 text-white font-bold text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-98 text-center"
+          >
+            <ExternalLink className="w-4 h-4 text-amber-400" />
+            <span>Visitar Web Oficial ↗</span>
+          </a>
+
           <a
             href={contact.whatsapp}
             target="_blank"
