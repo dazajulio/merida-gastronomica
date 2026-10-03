@@ -11,7 +11,8 @@ import {
   Briefcase,
   GraduationCap,
   Palette,
-  Scale
+  Scale,
+  Users
 } from 'lucide-react';
 
 export function Footer({ setActiveTab, t }) {
@@ -116,7 +117,13 @@ export function Footer({ setActiveTab, t }) {
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <button onClick={() => { setActiveTab('beneficios'); scrollToTop(); }} className="hover:text-amber-400 transition-colors flex items-center gap-1 text-amber-400 font-bold">
+                <button onClick={() => { setActiveTab('junta_directiva'); scrollToTop(); }} className="hover:text-amber-400 transition-colors flex items-center gap-1 text-amber-400 font-bold">
+                  <Users className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Junta Directiva Oficial</span>
+                </button>
+              </li>
+              <li>
+                <button onClick={() => { setActiveTab('beneficios'); scrollToTop(); }} className="hover:text-amber-400 transition-colors flex items-center gap-1 text-slate-300">
                   <Award className="w-3.5 h-3.5 text-amber-400" />
                   <span>Beneficios de Ser Agremiado</span>
                 </button>

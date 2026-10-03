@@ -46,6 +46,7 @@ const ROUTE_CONFIG = [
   { tab: 'cultural', paths: ['/distrito-cultural', '/cultural'], url: '/distrito-cultural', title: 'Distrito Cultural Urbano | Mérida Gastronómica' },
   { tab: 'sello', paths: ['/sello-calidad', '/sello', '/sello-aaa'], url: '/sello-calidad', title: 'Sello de Calidad AAA (226 Ítems) | Mérida Gastronómica' },
   { tab: 'beneficios', paths: ['/beneficios-agremiados', '/beneficios'], url: '/beneficios-agremiados', title: 'Beneficios de Ser Agremiado | Mérida Gastronómica' },
+  { tab: 'junta_directiva', paths: ['/junta-directiva', '/directiva', '/junta-directiva-oficial', '/junta'], url: '/junta-directiva', title: 'Junta Directiva Oficial & Coordinaciones | Mérida Gastronómica' },
   { tab: 'jobs', paths: ['/bolsa-empleo', '/empleo', '/jobs'], url: '/bolsa-empleo', title: 'Bolsa de Empleo Agremiada | Mérida Gastronómica' },
   { tab: 'academy', paths: ['/academia', '/expo-2027', '/academia-ula'], url: '/academia', title: 'Academia Gastronómica & Expo 2027 | Mérida Gastronómica' },
   { tab: 'legal', paths: ['/marco-legal', '/legal', '/seniat'], url: '/marco-legal', title: 'Marco Jurídico & SENIAT/SAMAT | Mérida Gastronómica' },
@@ -53,7 +54,7 @@ const ROUTE_CONFIG = [
   { tab: 'services', paths: ['/servicios-turisticos', '/servicios'], url: '/servicios-turisticos', title: 'Servicios Turísticos & Concierge | Mérida Gastronómica' },
   { tab: 'affiliates', paths: ['/afiliacion', '/afiliados', '/portal-afiliados'], url: '/afiliacion', title: 'Portal Oficial de Afiliados | Mérida Gastronómica' },
   { tab: 'affiliates_register', paths: ['/afiliacion/registro', '/solicitar-afiliacion', '/registro'], url: '/afiliacion/registro', title: 'Solicitar Afiliación / Registrar Nuevo Miembro | Mérida Gastronómica' },
-  { tab: 'admin', paths: ['/admin', '/junta-directiva', '/directiva'], url: '/admin', title: 'Portal Junta Directiva & Agenda | Cámara Gastronómica de Mérida' },
+  { tab: 'admin', paths: ['/admin', '/portal-admin', '/portal-directiva'], url: '/admin', title: 'Portal Privado Junta Directiva & Agenda | Cámara Gastronómica de Mérida' },
 ];
 
 export function App() {
@@ -658,12 +659,13 @@ export function App() {
           </div>
         )}
 
-        {/* Dedicated Page: Beneficios de Ser Agremiado (/beneficios-agremiados) */}
-        {activeTab === 'beneficios' && (
+        {/* Dedicated Page: Beneficios de Ser Agremiado & Junta Directiva (/beneficios-agremiados, /junta-directiva) */}
+        {(activeTab === 'beneficios' || activeTab === 'junta_directiva') && (
           <div className="pt-24 pb-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <GuildBenefitsSection 
                 setActiveTab={(tab) => navigateTo(tab)} 
+                initialView={activeTab === 'junta_directiva' ? 'board' : 'all'}
               />
             </div>
           </div>

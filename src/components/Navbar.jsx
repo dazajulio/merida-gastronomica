@@ -20,7 +20,8 @@ import {
   Layers,
   LayoutGrid,
   Coffee,
-  Lock
+  Lock,
+  Users
 } from 'lucide-react';
 
 export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
@@ -65,13 +66,14 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
     {
       category: "Gremio & Desarrollo Empresarial",
       items: [
-        { id: 'affiliates', label: 'Portal de Afiliados', desc: 'Acceso con clave, solvencias y certificados', icon: ShieldCheck },
+        { id: 'junta_directiva', label: 'Junta Directiva Oficial', desc: 'Equipo directivo y coordinaciones especializadas', icon: Users },
         { id: 'beneficios', label: 'Beneficios de Ser Agremiado', desc: 'Los 10 pilares estratégicos y valor institucional', icon: Award },
+        { id: 'affiliates', label: 'Portal de Afiliados', desc: 'Acceso con clave, solvencias y certificados', icon: ShieldCheck },
         { id: 'sello', label: 'Sello de Calidad AAA', desc: 'Norma técnica de 226 ítems de excelencia', icon: Award },
         { id: 'jobs', label: 'Bolsa de Empleo Agremiada', desc: 'Ofertas laborales en sala, cocina y barismo', icon: Briefcase },
         { id: 'academy', label: 'Academia & Expo 2027', desc: 'Alianza ULA, Hotel Escuela y formación', icon: GraduationCap },
         { id: 'legal', label: 'Marco Jurídico & SENIAT', desc: 'Normativas SAMAT, SACS y ordenanzas', icon: Scale },
-        { id: 'admin', label: 'Portal Junta Directiva', desc: 'Acceso privado de planificación, agenda y actas', icon: Lock },
+        { id: 'admin', label: 'Portal Junta Directiva (Privado)', desc: 'Acceso privado de planificación, agenda y actas', icon: Lock },
       ]
     }
   ];
