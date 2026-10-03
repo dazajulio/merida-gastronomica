@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GUILD_BENEFITS_DATA } from '../data/guildBenefitsData';
+import { BOARD_MEMBERS_DATA } from '../data/boardData';
 import { 
   ShieldCheck, 
   Globe, 
@@ -16,7 +17,10 @@ import {
   ChevronDown,
   Building2,
   Lock,
-  Play
+  Play,
+  Instagram,
+  UserCheck,
+  ExternalLink
 } from 'lucide-react';
 
 const ICONS_MAP = {
@@ -257,6 +261,127 @@ export function GuildBenefitsSection({ setActiveTab }) {
           </div>
         </div>
       </section>
+
+      {/* Institutional Board Members Section: Junta Directiva */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center max-w-3xl mx-auto mb-10">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold mb-3 shadow-sm">
+            <Users className="w-3.5 h-3.5 text-amber-600" />
+            <span>Liderazgo & Compromiso Institucional</span>
+          </div>
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
+            Junta Directiva Oficial
+          </h2>
+          <p className="mt-2 text-slate-600 text-xs sm:text-sm">
+            Equipo directivo y coordinadores especializados dedicados al fortalecimiento, defensa gremial y proyección internacional de Mérida Gastronómica.
+          </p>
+        </div>
+
+        {/* High Executive Board: 6 members */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-4 pb-2 border-b border-slate-200">
+            <ShieldCheck className="w-4 h-4 text-amber-600" />
+            <h3 className="font-serif text-base font-bold text-slate-800 uppercase tracking-wider">
+              Alta Dirección & Comité Ejecutivo
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {BOARD_MEMBERS_DATA.slice(0, 6).map((member) => (
+              <div
+                key={member.id}
+                className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-amber-400 transition-all flex items-center gap-4"
+              >
+                <div className="relative shrink-0">
+                  <img
+                    src={member.avatar}
+                    alt={member.name}
+                    className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-300 shadow-sm"
+                  />
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-amber-500 rounded-full border-2 border-white flex items-center justify-center text-white text-[10px] font-bold">
+                    ✓
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <span className="text-[10px] uppercase font-extrabold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 block truncate w-fit">
+                    {member.role}
+                  </span>
+                  <h4 className="font-serif font-bold text-slate-900 text-sm mt-1 truncate">
+                    {member.name}
+                  </h4>
+                  {member.instagram && (
+                    <a
+                      href={member.instagramUrl || `https://www.instagram.com/${member.instagram.replace('@', '')}/`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 font-semibold mt-1 transition-colors group"
+                    >
+                      <Instagram className="w-3.5 h-3.5 text-amber-600 group-hover:scale-110 transition-transform" />
+                      <span>{member.instagram}</span>
+                      <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Specialized Coordinations: 4 members */}
+        <div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-2 border-b border-slate-200">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-600" />
+              <h3 className="font-serif text-base font-bold text-slate-800 uppercase tracking-wider">
+                Coordinaciones Especializadas
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 italic max-w-xl">
+              Asimismo, y para el desarrollo sectorial, técnico y territorial del gremio, se certifica la instalación de las coordinaciones especializadas bajo la responsabilidad de:
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {BOARD_MEMBERS_DATA.slice(6).map((member) => (
+              <div
+                key={member.id}
+                className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-amber-400 transition-all flex items-center gap-3.5"
+              >
+                <div className="relative shrink-0">
+                  <img
+                    src={member.avatar}
+                    alt={member.name}
+                    className="w-13 h-13 rounded-xl object-cover border-2 border-slate-200 shadow-xs"
+                    style={{ width: '52px', height: '52px' }}
+                  />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <span className="text-[9px] uppercase font-extrabold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded block truncate">
+                    {member.role}
+                  </span>
+                  <h4 className="font-serif font-bold text-slate-900 text-xs mt-1 truncate">
+                    {member.name}
+                  </h4>
+                  {member.instagram && (
+                    <a
+                      href={member.instagramUrl || `https://www.instagram.com/${member.instagram.replace('@', '')}/`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] text-amber-700 hover:text-amber-900 font-semibold mt-0.5 transition-colors group"
+                    >
+                      <Instagram className="w-3 h-3 text-amber-600 group-hover:scale-110 transition-transform" />
+                      <span className="truncate">{member.instagram}</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
 
       {/* Massive Call to Action with Video Trigger */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -10,26 +10,15 @@ export const BOARD_MEMBERS_DATA = [
     ci: "V-12.517.086",
     role: "Presidente",
     roleCategory: "Presidencia",
+    instagram: "@juliodazacelis",
+    instagramUrl: "https://www.instagram.com/juliodazacelis/",
     email: "dazajulio@gmail.com",
     passwordHash: "Dafaca10*",
     hasPasswordSet: true,
-    isAdminLevel: true, // Potestad total de gestión, creación, edición, eliminación y quórum
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400",
-    phone: "+58 414 7480000",
+    isAdminLevel: true,
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400",
+    phone: "+58 414 8817137",
     order: 1
-  },
-  {
-    id: "dir-ejecutivo",
-    name: "Mary Giovanna Vera",
-    ci: "V-9.474.798",
-    role: "Director Ejecutivo",
-    roleCategory: "Dirección",
-    email: "margiovi@gmail.com",
-    passwordHash: "margiovi1611",
-    hasPasswordSet: true,
-    isAdminLevel: true, // Potestad total de gestión de agenda
-    phone: "+58 414 0000000",
-    order: 2
   },
   {
     id: "dir-vice-1",
@@ -37,11 +26,14 @@ export const BOARD_MEMBERS_DATA = [
     ci: "V-12.055.310",
     role: "Primera Vicepresidente",
     roleCategory: "Vicepresidencia",
+    instagram: "@productos_taotao",
+    instagramUrl: "https://www.instagram.com/productos_taotao/",
     email: "comercializadoraocmerida@gmail.com",
     passwordHash: "comercializadoraocmerida1201",
     hasPasswordSet: true,
     isAdminLevel: false,
-    order: 3
+    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400",
+    order: 2
   },
   {
     id: "dir-vice-2",
@@ -49,11 +41,14 @@ export const BOARD_MEMBERS_DATA = [
     ci: "V-21.331.263",
     role: "Segunda Vicepresidente",
     roleCategory: "Vicepresidencia",
+    instagram: "@marialauraumami",
+    instagramUrl: "https://www.instagram.com/marialauraumami/",
     email: "marialauramolinab@gmail.com",
     passwordHash: "marialauramolinab0601",
     hasPasswordSet: true,
     isAdminLevel: false,
-    order: 4
+    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=400",
+    order: 3
   },
   {
     id: "dir-operativo",
@@ -61,11 +56,14 @@ export const BOARD_MEMBERS_DATA = [
     ci: "V-14.255.833",
     role: "Director Operativo",
     roleCategory: "Dirección",
+    instagram: "@cataconmari",
+    instagramUrl: "https://www.instagram.com/cataconmari/",
     email: "cataconmari@gmail.com",
     passwordHash: "cataconmari1979",
     hasPasswordSet: true,
     isAdminLevel: false,
-    order: 5
+    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=400",
+    order: 4
   },
   {
     id: "dir-tesorero",
@@ -73,10 +71,29 @@ export const BOARD_MEMBERS_DATA = [
     ci: "V-18.796.632",
     role: "Tesorero",
     roleCategory: "Dirección",
+    instagram: "@habemuspastas",
+    instagramUrl: "https://www.instagram.com/habemuspastas/",
     email: "edreyesda@gmail.com",
     passwordHash: "edreyesda1608",
     hasPasswordSet: true,
     isAdminLevel: false,
+    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=400",
+    order: 5
+  },
+  {
+    id: "dir-ejecutivo",
+    name: "Mary Giovanna Vera",
+    ci: "V-9.474.798",
+    role: "Director Ejecutivo",
+    roleCategory: "Dirección",
+    instagram: "@margiovi",
+    instagramUrl: "https://www.instagram.com/margiovi/",
+    email: "margiovi@gmail.com",
+    passwordHash: "margiovi1611",
+    hasPasswordSet: true,
+    isAdminLevel: true,
+    avatar: "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?auto=format&fit=crop&q=80&w=400",
+    phone: "+58 414 0000000",
     order: 6
   },
   {
@@ -85,9 +102,12 @@ export const BOARD_MEMBERS_DATA = [
     ci: "V-23.305.327",
     role: "Coordinación de Proveeduría",
     roleCategory: "Coordinación Especializada",
+    instagram: "@amthorcito",
+    instagramUrl: "https://www.instagram.com/amthorcito/",
     email: "amthorromero@camaragastronomicamerida.org",
     hasPasswordSet: false,
     isAdminLevel: false,
+    avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=400",
     order: 7
   },
   {
@@ -96,9 +116,12 @@ export const BOARD_MEMBERS_DATA = [
     ci: "V-8.039.160",
     role: "Coordinación de Relaciones Institucionales",
     roleCategory: "Coordinación Especializada",
+    instagram: "@josegregorioangulor",
+    instagramUrl: "https://www.instagram.com/josegregorioangulor/",
     email: "joseangulo@camaragastronomicamerida.org",
     hasPasswordSet: false,
     isAdminLevel: false,
+    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=400",
     order: 8
   },
   {
@@ -107,9 +130,12 @@ export const BOARD_MEMBERS_DATA = [
     ci: "V-11.953.787",
     role: "Coordinación de Cacao y Café",
     roleCategory: "Coordinación Especializada",
+    instagram: "@chocolateslamucuy",
+    instagramUrl: "https://www.instagram.com/chocolateslamucuy/",
     email: "andreinaramirez@camaragastronomicamerida.org",
     hasPasswordSet: false,
     isAdminLevel: false,
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400",
     order: 9
   },
   {
@@ -118,9 +144,12 @@ export const BOARD_MEMBERS_DATA = [
     ci: "V-16.019.104",
     role: "Coordinación de Capacitación y Formación",
     roleCategory: "Coordinación Especializada",
+    instagram: "@chef_internacional_junior",
+    instagramUrl: "https://www.instagram.com/chef_internacional_junior/",
     email: "yohanmolina@camaragastronomicamerida.org",
     hasPasswordSet: false,
     isAdminLevel: false,
+    avatar: "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?auto=format&fit=crop&q=80&w=400",
     order: 10
   }
 ];

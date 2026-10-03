@@ -41,11 +41,15 @@ import {
   Search,
   Play,
   Film,
-  Video
+  Video,
+  Save,
+  Trash2,
+  Plus,
+  Edit3
 } from 'lucide-react';
 import { AFFILIATES_DATA } from '../data/affiliatesData';
 import { supabase } from '../lib/supabaseClient';
-import { sendAffiliateWelcomeEmail } from '../lib/emailService';
+import { sendAffiliateWelcomeEmail, sendCourseRegistrationEmail } from '../lib/emailService';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -63,7 +67,7 @@ const getMapboxToken = () => {
 };
 
 // 23 Municipios del Estado Mérida con sus principales poblaciones
-const MUNICIPIOS_MERIDA = [
+export const MUNICIPIOS_MERIDA = [
   { id: 'libertador', name: 'Libertador (Mérida Ciudad)', towns: ['Mérida Casco Central', 'Sector Las Heroínas / Paredes', 'La Parroquia', 'Los Próceres / Humberto Tejera', 'El Morro', 'Los Nevados', 'Valle Grande / El Valle'] },
   { id: 'alberto-adriani', name: 'Alberto Adriani (El Vigía)', towns: ['El Vigía', 'La Palmita', 'Héctor Amable Mora'] },
   { id: 'campo-elias', name: 'Campo Elías (Ejido)', towns: ['Ejido Centro', 'Jají Colonial', 'La Mesa de Los Indios', 'San José del Sur', 'Montalbán / Matriz'] },
@@ -89,11 +93,90 @@ const MUNICIPIOS_MERIDA = [
   { id: 'tulio-febres', name: 'Tulio Febres Cordero', towns: ['Nueva Bolivia', 'Palmarito (Playa Lacustre)', 'Independencia'] }
 ];
 
+// Categorías Gastronómicas Oficiales en Orden Alfabético Estricto
+export const GASTRONOMIC_CATEGORIES = [
+  "Academia Especializada de Formacion en Cocina",
+  "Bares",
+  "Cadenas de comida rápida",
+  "Cafeterías",
+  "Cavas de vino",
+  "Cervecerías artesanales",
+  "Chef Profesional",
+  "Cocinas ocultas",
+  "Creador de Contenido Gastronómico",
+  "Emprendimientos sin registro comercial",
+  "Empresa de Teconologia/Software Gastronomica",
+  "Establecimientos de comida rápida",
+  "Estudiante de Chef/Cocina",
+  "Food trucks",
+  "Fuentes de soda",
+  "Heladerías",
+  "Instituto Universitario con Formacion en Cocina",
+  "Marcas personales",
+  "Panaderías",
+  "Pastelerías",
+  "Profesional de Servicio en Mesa/Barra",
+  "Profesional del Cafe. Barista/Roaster",
+  "Profesional Universitario en Gastronomia",
+  "Reposterías",
+  "Restaurantes de alta cocina",
+  "Restaurantes de autor",
+  "Restaurantes de cocina internacional",
+  "Restaurantes de comida típica regional",
+  "Restaurantes familiares",
+  "Restaurantes temáticos",
+  "Sommelier",
+  "Tascas"
+];
+
+// 3 Categorías Oficiales de Negocio Gastronómico y Tarifas de Afiliación (Incluye 1er mes)
+export const BUSINESS_TIERS = [
+  {
+    id: 'grandes_empresas',
+    name: 'Grandes Empresas',
+    subtitle: 'Activas con 20 o más empleados',
+    inscriptionUsd: 50,
+    monthlyUsd: 20,
+    icon: Building2,
+    hasCondition: false,
+    labelTotal: 'Cuota Inscripción + Primer Mes (Grandes Empresas): $50 USD',
+    note: 'Incluye el primer mes completo. Mensualidad ordinaria posterior: $20 USD/mes.'
+  },
+  {
+    id: 'empresas',
+    name: 'Empresas',
+    subtitle: 'Registros de comercios o marcas entre 5 y 19 empleados',
+    inscriptionUsd: 30,
+    monthlyUsd: 10,
+    icon: Store,
+    hasCondition: false,
+    labelTotal: 'Cuota Inscripción + Primer Mes (Empresas): $30 USD',
+    note: 'Incluye el primer mes completo. Mensualidad ordinaria posterior: $10 USD/mes.'
+  },
+  {
+    id: 'emprendimiento',
+    name: 'Marca Personal y Emprendimientos',
+    subtitle: 'Menores de 5 empleados',
+    inscriptionUsd: 20,
+    monthlyUsd: 10,
+    icon: ChefHat,
+    hasCondition: true,
+    labelTotal: 'Cuota Inscripción + Primer Mes (Marca Personal y Emprendimientos): $20 USD',
+    note: 'Incluye el primer mes completo. Mensualidad ordinaria posterior: $10 USD/mes.',
+    conditionNotice: 'Nuestra intención institucional siempre será la formalidad. La Cámara Gastronómica brindará asesoría técnica, legal y soporte continuo para acompañar a este segmento hacia su formalización comercial de nuestra mano y con las mejores opciones. Dispondrán de un plazo de 12 meses para consolidar esa transición para poder permanecer como miembros activos de la Cámara y disfrutar de todos sus beneficios.'
+  }
+];
+
+export const getBusinessTier = (typeIdOrName) => {
+  return BUSINESS_TIERS.find(t => t.id === typeIdOrName) || 
+         BUSINESS_TIERS.find(t => t.name === typeIdOrName) || 
+         BUSINESS_TIERS[1];
+};
+
 // =========================================================================
-// SATELLITE GPS CALIBRATION COMPONENT (PRECISIÓN MILIMÉTRICA PARA AGREMIADOS)
+// SATELLITE GPS CALIBRATION COMPONENT
 // =========================================================================
 function GpsCalibrationTab({ activeUser }) {
-  // Initial coordinates from restaurant or default Kaffia coordinates
   const [coords, setCoords] = useState(() => {
     try {
       const saved = localStorage.getItem(`coords_${activeUser.id}`);
@@ -120,7 +203,6 @@ function GpsCalibrationTab({ activeUser }) {
     { id: 'streets', name: 'Calles & Comercios', icon: '🗺️', url: 'mapbox://styles/mapbox/streets-v12' }
   ];
 
-  // Initialize Mapbox calibration map
   useEffect(() => {
     if (!mapContainerRef.current) return;
     mapboxgl.accessToken = getMapboxToken();
@@ -140,42 +222,19 @@ function GpsCalibrationTab({ activeUser }) {
     map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'top-right');
     map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
 
-    // Create custom luxury draggable marker
     const el = document.createElement('div');
     el.className = 'calibration-draggable-pin cursor-grab active:cursor-grabbing';
     el.innerHTML = `
       <div style="position: relative; display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0 8px 18px rgba(0,0,0,0.6));">
-        
-        <!-- Tooltip Label -->
         <div style="background: #0f172a; color: #fbbf24; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 9999px; border: 1.5px solid #f59e0b; margin-bottom: 4px; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.4);">
           📍 ARRASTRA ESTE PIN SOBRE TU TECHO
         </div>
-
-        <!-- Radar Rings -->
         <div style="position: relative; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;">
           <div style="position: absolute; inset: -8px; border-radius: 50%; background: rgba(245, 158, 11, 0.45); animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-          
-          <div style="
-            position: relative;
-            z-index: 2;
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #f59e0b, #d97706);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            font-weight: 900;
-            border: 3px solid #ffffff;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-          ">
+          <div style="position: relative; z-index: 2; width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 900; border: 3px solid #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
             ☕
           </div>
         </div>
-
-        <!-- Pointer Pin -->
         <div style="width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 10px solid #d97706; margin-top: -1px;"></div>
       </div>
     `;
@@ -188,7 +247,6 @@ function GpsCalibrationTab({ activeUser }) {
       .setLngLat([coords.lng, coords.lat])
       .addTo(map);
 
-    // On Marker Drag Event
     marker.on('dragend', () => {
       const lngLat = marker.getLngLat();
       const newLat = Number(lngLat.lat.toFixed(6));
@@ -197,7 +255,6 @@ function GpsCalibrationTab({ activeUser }) {
       setIsSaved(false);
     });
 
-    // On Map Click Event: allow clicking to place pin immediately
     map.on('click', (e) => {
       marker.setLngLat(e.lngLat);
       const newLat = Number(e.lngLat.lat.toFixed(6));
@@ -214,7 +271,6 @@ function GpsCalibrationTab({ activeUser }) {
     };
   }, [mapStyle]);
 
-  // Handle Current GPS Location
   const handleUseCurrentGps = () => {
     if (!navigator.geolocation) {
       setGpsError('Su navegador no soporta geolocalización GPS.');
@@ -234,27 +290,19 @@ function GpsCalibrationTab({ activeUser }) {
         setIsSaved(false);
         setIsLocating(false);
 
-        if (markerRef.current) {
-          markerRef.current.setLngLat([newLng, newLat]);
-        }
+        if (markerRef.current) markerRef.current.setLngLat([newLng, newLat]);
         if (mapRef.current) {
-          mapRef.current.flyTo({
-            center: [newLng, newLat],
-            zoom: 18,
-            pitch: 50,
-            essential: true
-          });
+          mapRef.current.flyTo({ center: [newLng, newLat], zoom: 18, pitch: 50, essential: true });
         }
       },
-      (err) => {
+      () => {
         setIsLocating(false);
-        setGpsError('No se pudo obtener la señal GPS. Por favor active los permisos de ubicación en su navegador o arrastre el pin manualmente.');
+        setGpsError('No se pudo obtener la señal GPS. Active permisos o arrastre el pin manualmente.');
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
   };
 
-  // Handle Google Maps link / coordinate string parsing
   const handleParseGoogleMapsUrl = (e) => {
     e.preventDefault();
     setUrlParseError(null);
@@ -262,12 +310,8 @@ function GpsCalibrationTab({ activeUser }) {
 
     let lat = null;
     let lng = null;
-
-    // Pattern 1: @lat,lng
     const atMatch = googleUrlInput.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-    // Pattern 2: ?q=lat,lng or &ll=lat,lng
     const qMatch = googleUrlInput.match(/[?&](?:q|ll)=(-?\d+\.\d+),(-?\d+\.\d+)/);
-    // Pattern 3: direct "lat, lng" e.g. "8.5956, -71.1437"
     const directMatch = googleUrlInput.match(/(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)/);
 
     if (atMatch) {
@@ -286,25 +330,16 @@ function GpsCalibrationTab({ activeUser }) {
       const roundedLng = Number(lng.toFixed(6));
       setCoords(prev => ({ ...prev, lat: roundedLat, lng: roundedLng }));
       setIsSaved(false);
-
-      if (markerRef.current) {
-        markerRef.current.setLngLat([roundedLng, roundedLat]);
-      }
+      if (markerRef.current) markerRef.current.setLngLat([roundedLng, roundedLat]);
       if (mapRef.current) {
-        mapRef.current.flyTo({
-          center: [roundedLng, roundedLat],
-          zoom: 18,
-          pitch: 50,
-          essential: true
-        });
+        mapRef.current.flyTo({ center: [roundedLng, roundedLat], zoom: 18, pitch: 50, essential: true });
       }
       setGoogleUrlInput('');
     } else {
-      setUrlParseError('No se reconocieron coordenadas válidas en el texto o enlace ingresado. Asegúrese de incluir latitud y longitud (ej. 8.5956, -71.1437).');
+      setUrlParseError('No se reconocieron coordenadas válidas. Asegúrese de incluir latitud y longitud (ej. 8.5956, -71.1437).');
     }
   };
 
-  // Save Calibrated Coordinates & Sync Live with 3D Map
   const handleSaveCoordinates = async () => {
     setIsSaving(true);
     try {
@@ -312,18 +347,13 @@ function GpsCalibrationTab({ activeUser }) {
       localStorage.setItem('coords_rest-kaffia', JSON.stringify(coords));
       localStorage.setItem('coords_kaffia-caffe-merida', JSON.stringify(coords));
       localStorage.setItem('coords_CGM-2026-001', JSON.stringify(coords));
-      
-      // Dispatch live real-time event for LidarMap to update instantly
+
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('cgm_coords_updated', {
-          detail: {
-            restaurantId: activeUser.id || 'rest-kaffia',
-            coords: coords
-          }
+          detail: { restaurantId: activeUser.id || 'rest-kaffia', coords }
         }));
       }
 
-      // Try saving to Supabase if connected
       if (supabase) {
         await supabase
           .from('affiliate_profiles')
@@ -346,12 +376,10 @@ function GpsCalibrationTab({ activeUser }) {
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      
-      {/* Header Banner */}
       <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-1.5 max-w-2xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold">
-            <Compass className="w-3.5 h-3.5 text-amber-400 animate-spin-slow" />
+            <Compass className="w-3.5 h-3.5 text-amber-400" />
             <span>Calibrador Satelital de Precisión Milimétrica</span>
           </div>
           <h3 className="font-serif text-2xl sm:text-3xl font-bold text-white">
@@ -374,13 +402,8 @@ function GpsCalibrationTab({ activeUser }) {
         </div>
       </div>
 
-      {/* Main Interactive Map Card */}
       <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl space-y-6">
-        
-        {/* Controls Toolbar: GPS Button + Google Maps input */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
-          
-          {/* Quick GPS Action */}
           <div className="lg:col-span-4">
             <button
               onClick={handleUseCurrentGps}
@@ -392,7 +415,6 @@ function GpsCalibrationTab({ activeUser }) {
             </button>
           </div>
 
-          {/* Google Maps Link / Coordinates Form */}
           <form onSubmit={handleParseGoogleMapsUrl} className="lg:col-span-8 flex gap-2">
             <input
               type="text"
@@ -437,22 +459,15 @@ function GpsCalibrationTab({ activeUser }) {
           </div>
         )}
 
-        {/* Map Container View */}
         <div className="relative rounded-2xl overflow-hidden border-2 border-slate-200 shadow-inner h-[460px] bg-slate-950">
-          
-          {/* Map canvas */}
           <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
-
-          {/* Top Style Selector Overlay */}
           <div className="absolute top-3 left-3 z-10 bg-slate-900/90 backdrop-blur-md p-1 rounded-xl border border-slate-700 shadow-lg flex items-center gap-1">
             {STYLES.map(s => (
               <button
                 key={s.id}
                 onClick={() => setMapStyle(s.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                  mapStyle === s.id
-                    ? 'bg-amber-500 text-white shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                  mapStyle === s.id ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800'
                 }`}
               >
                 <span>{s.icon}</span>
@@ -461,15 +476,12 @@ function GpsCalibrationTab({ activeUser }) {
             ))}
           </div>
 
-          {/* Drag instruction badge */}
           <div className="absolute bottom-3 left-3 z-10 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-700 text-xs text-amber-300 font-bold flex items-center gap-2 shadow-lg">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span>Haz clic o arrastra el pin sobre el tejado exacto</span>
           </div>
-
         </div>
 
-        {/* Coordinates Readout & Save Bar */}
         <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs w-full sm:w-auto">
             <div>
@@ -497,53 +509,15 @@ function GpsCalibrationTab({ activeUser }) {
             </button>
           </div>
         </div>
-
       </div>
-
     </div>
   );
 }
 
-// 3 Categorías Oficiales de Negocio Gastronómico y Tarifas de Afiliación
-export const BUSINESS_TIERS = [
-  {
-    id: 'grandes_empresas',
-    name: 'Grandes Empresas',
-    subtitle: 'Activas con 20 o más empleados',
-    inscriptionUsd: 50,
-    monthlyUsd: 20,
-    icon: Building2,
-    hasCondition: false
-  },
-  {
-    id: 'empresas',
-    name: 'Empresas',
-    subtitle: 'Registros de comercios o marcas entre 5 y 19 empleados',
-    inscriptionUsd: 30,
-    monthlyUsd: 10,
-    icon: Store,
-    hasCondition: false
-  },
-  {
-    id: 'emprendimiento',
-    name: 'Marca Personal y Emprendimientos',
-    subtitle: 'Menores de 5 empleados',
-    inscriptionUsd: 20,
-    monthlyUsd: 10,
-    icon: ChefHat,
-    hasCondition: true,
-    conditionNotice: 'Nuestra intención institucional siempre será la formalidad. La Cámara Gastronómica brindará asesoría técnica, legal y soporte continuo para acompañar a este segmento hacia su formalización comercial de nuestra mano y con las mejores opciones. Dispondrán de un plazo de 12 meses para consolidar esa transición para poder permanecer como miembros activos de la Cámara y disfrutar de todos sus beneficios.'
-  }
-];
-
-export const getBusinessTier = (typeIdOrName) => {
-  return BUSINESS_TIERS.find(t => t.id === typeIdOrName) || 
-         BUSINESS_TIERS.find(t => t.name === typeIdOrName) || 
-         BUSINESS_TIERS[1];
-};
-
+// =========================================================================
+// MAIN AFFILIATE DASHBOARD COMPONENT
+// =========================================================================
 export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo = false }) {
-  // Navigation & Authentication states: 'login' | 'register' | 'welcome_preview' | 'dashboard'
   const [viewMode, setViewMode] = useState(initialViewMode);
 
   useEffect(() => {
@@ -554,13 +528,12 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
       }
     }
   }, [initialViewMode, autoOpenVideo]);
-  
+
   // BCV Official Exchange Rate State
   const [bcvRate, setBcvRate] = useState(null);
   const [bcvLoading, setBcvLoading] = useState(true);
   const [bcvDate, setBcvDate] = useState('');
 
-  // Fetch BCV Rate automatically from API
   useEffect(() => {
     const fetchBcvRate = async () => {
       try {
@@ -568,8 +541,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
         if (res.ok) {
           const data = await res.json();
           if (data && data.promedio) {
-            const rate = data.promedio;
-            setBcvRate(rate);
+            setBcvRate(data.promedio);
             if (data.fechaActualizacion) {
               const d = new Date(data.fechaActualizacion);
               setBcvDate(d.toLocaleDateString('es-VE'));
@@ -591,7 +563,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Registration Wizard Step: 1 (Datos & Ubicación) | 2 (Identidad & Carta) | 3 (Pago Móvil) | 4 (Confirmado)
+  // Registration Wizard Step
   const [regStep, setRegStep] = useState(1);
   const [regData, setRegData] = useState({
     businessType: 'empresas',
@@ -604,11 +576,10 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
     municipio: 'libertador',
     cityTown: 'Sector Las Heroínas / Paredes',
     address: '',
-    category: 'Alta Cocina Andina',
+    category: 'Cafeterías',
     specialty: '',
     instagram: '@',
     password: '',
-    // Pago Móvil Data
     issuingBank: 'Banco Provincial',
     payerPhone: '',
     referenceNumber: '',
@@ -616,79 +587,209 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
     generatedAffiliateCode: ''
   });
 
-  // Dynamic Recalculation of BCV amount when bcvRate or businessType changes
+  // Dynamic Recalculation of BCV amount
   useEffect(() => {
     if (bcvRate) {
       const tier = getBusinessTier(regData.businessType);
       const totalBs = (tier.inscriptionUsd * bcvRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      setRegData(prev => ({
-        ...prev,
-        amountPaidBs: totalBs
-      }));
+      setRegData(prev => ({ ...prev, amountPaidBs: totalBs }));
     }
   }, [bcvRate, regData.businessType]);
 
   const [copiedBankData, setCopiedBankData] = useState(false);
   const [isSubmittingReg, setIsSubmittingReg] = useState(false);
-
-  // Motivational Affiliate Video Modal State
   const [showVideoModal, setShowVideoModal] = useState(autoOpenVideo || false);
   const videoRef = useRef(null);
 
   const handleCloseVideoModal = () => {
-    if (videoRef.current) {
-      videoRef.current.pause();
-    }
+    if (videoRef.current) videoRef.current.pause();
     setShowVideoModal(false);
   };
 
   // Authenticated User State
   const [activeUser, setActiveUser] = useState(AFFILIATES_DATA.currentUser);
 
-  // Dashboard inner tabs: overview | certificate | jobs | payments | courses | board
+  // Main Dashboard Tab: overview | my_business | gps_calibration | certificate | jobs | payments | courses | board
   const [activeTab, setActiveTab] = useState('overview');
   const [paymentStep, setPaymentStep] = useState('select');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('pago-movil');
 
-  // Direct Communication with Board state
+  // Direct Communication with Board
   const [selectedBoardMember, setSelectedBoardMember] = useState('Julio Alberto Daza Celis - Presidente');
   const [contactSubject, setContactSubject] = useState('Consulta Institucional / Gremial');
   const [contactMessage, setContactMessage] = useState('');
   const [isSendingBoardMsg, setIsSendingBoardMsg] = useState(false);
   const [boardMsgSuccess, setBoardMsgSuccess] = useState(false);
 
-  // Job creation state
-  const [createdJobs, setCreatedJobs] = useState([
-    {
-      id: 'aff-job-1',
-      title: 'Sous Chef Ejecutivo & Jefe de Partida',
-      department: 'Cocina',
-      salary: '$450 - $650 + Propinas en Divisas',
-      type: 'Tiempo Completo',
-      applicantsCount: 6,
-      status: 'Activa',
-      date: 'Publicado hace 2 días',
-      applicants: [
-        { name: 'Andrés Paredes', school: 'Hotel Escuela de Los Andes', exp: '4 años', status: 'En Evaluación' },
-        { name: 'Mariana Rojas', school: 'ULA Gestión Gastronómica', exp: '3 años', status: 'Entrevista Agendada' },
-        { name: 'Carlos Briceño', school: 'Centro Técnico Tovar', exp: '5 años', status: 'Revisado' }
+  // =========================================================================
+  // SECCIÓN "MI NEGOCIO": GESTIÓN Y PERSONALIZACIÓN DE FICHA WEB COMPLETA
+  // =========================================================================
+  const [businessProfile, setBusinessProfile] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cgem_my_business_profile');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      id: "rest-kaffia",
+      name: "Kaffia Caffe",
+      slug: "kaffia-caffe-merida",
+      tagline: "Más que café: Alta cocina, banquetes, hamburguesas de autor, pizzas y cafés de especialidad",
+      category: "Cafeterías",
+      rating: 5.0,
+      priceTier: "$$ (Gourmet)",
+      altitude: 1620,
+      ejeName: "Eje Metropolitano (Sector Las Heroínas)",
+      location: "Av. 8 entre Calles 24 y 25, Sector Las Heroínas, Casco Central, Mérida",
+      openingHours: "Lunes a Sábado: 8:00 AM - 10:00 PM | Domingo: 8:00 AM - 4:00 PM",
+      description: "Ubicado a pasos del Teleférico Mukumbarí y la emblemática Plaza Las Heroínas, Kaffia Caffe conjuga un ambiente colonial contemporáneo con muros de ladrillo expuesto, arreglos florales y cálida iluminación. Ofrece desde alta cocina y banquetes privados con maridaje de vino, hasta brunch, cafés de especialidad, pizzas y hamburguesas artesanales.",
+      chef: "Equipo Barista & Cocina Kaffia",
+      chefBio: "Fusionando la cultura del café de especialidad de altura con una propuesta gastronómica cálida de pizzas artesanales, hamburguesas de autor, banquetes y cenas con maridaje en Las Heroínas.",
+      phone: "+58 274 2521448",
+      whatsapp: "+58 412 6666954",
+      instagram: "@kaffiacaffe",
+      instagramUrl: "https://www.instagram.com/kaffiacaffe/",
+      facebookUrl: "https://www.facebook.com/kaffiacaffe/",
+      isCertifiedByCamara: true,
+      certificateNumber: "CGM-2026-001",
+      signatureDishes: [
+        {
+          name: "Medallones de Res en Salsa de Champiñones con Timbal de Aguacate",
+          price: "$12.00",
+          description: "Tiernos cortes de res glaseados en salsa cremosa de setas, acompañados de papas salteadas al romero y torre de vegetales andinos."
+        },
+        {
+          name: "Cazuela Marinera Cremosa al Pimentón con Arroz Pilaf",
+          price: "$11.50",
+          description: "Salteado de mariscos en salsa emulsionada de pimentón dulce, servido con timbal de arroz blanco y ensalada fresca."
+        },
+        {
+          name: "Canapé de Res Braseada en Nido de Papa y Microgreens",
+          price: "$6.50",
+          description: "Entrante de autor servido en corteza crujiente de papa andina con reducción de tomates dulces y brotes frescos."
+        },
+        {
+          name: "Hamburguesas Gourmet Kaffia & Cenas con Maridaje",
+          price: "$8.50",
+          description: "Carne premium en pan artesanal sellado con el logo Kaffia, quesos fundidos y papas rústicas, ideales para veladas y eventos."
+        }
+      ],
+      menuHighlights: [
+        "Pizzas artesanales y burgers gourmet",
+        "Variedad de tortas, pastelería y repostería fina",
+        "Cenas y veladas especiales para grupos y banquetes privados",
+        "Cócteles, sangría de autor, copas de vino y mocktails"
+      ],
+      features: [
+        "Wi-Fi de Alta Velocidad",
+        "Zona Pet Friendly",
+        "Ambiente Musical & Arte",
+        "Cerca del Teleférico Mukumbarí",
+        "Opciones Vegetarianas",
+        "Take-away & Delivery",
+        "Salón para Eventos & Banquetes"
       ]
-    },
-    {
-      id: 'aff-job-2',
-      title: 'Barista de Especialidad & Latte Art',
-      department: 'Bar & Cafetería',
-      salary: '$320 - $480 + Propinas',
-      type: 'Tiempo Completo',
-      applicantsCount: 4,
-      status: 'Activa',
-      date: 'Publicado hace 4 días',
-      applicants: [
-        { name: 'Gabriel Mendoza', school: 'Certificado SCA / Barismo Mérida', exp: '2 años', status: 'En Evaluación' },
-        { name: 'Lucía Valero', school: 'Hotel Escuela', exp: '1 año', status: 'Revisado' }
-      ]
+    };
+  });
+
+  const [businessSaveSuccess, setBusinessSaveSuccess] = useState(false);
+  const [isSavingBusiness, setIsSavingBusiness] = useState(false);
+
+  const handleSaveBusinessProfile = async (e) => {
+    e.preventDefault();
+    setIsSavingBusiness(true);
+    try {
+      localStorage.setItem('cgem_my_business_profile', JSON.stringify(businessProfile));
+      const existingCustom = JSON.parse(localStorage.getItem('cgem_custom_restaurants') || '[]');
+      const otherRestaurants = existingCustom.filter(r => r.id !== (businessProfile.id || 'rest-kaffia'));
+      const updatedCustom = [businessProfile, ...otherRestaurants];
+      localStorage.setItem('cgem_custom_restaurants', JSON.stringify(updatedCustom));
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cgm_business_updated', { detail: businessProfile }));
+      }
+
+      if (supabase) {
+        await supabase.from('directorio_agremiados').update({
+          nombre_establecimiento: businessProfile.name,
+          categoria_negocio: businessProfile.category,
+          telefono: businessProfile.phone,
+          direccion_completa: businessProfile.location,
+          instagram: businessProfile.instagram,
+          observaciones: `Especialidad: ${businessProfile.tagline}. Horarios: ${businessProfile.openingHours}`
+        }).eq('codigo_afiliado', activeUser.id || 'CGM-2026-001').catch(() => {});
+      }
+
+      setBusinessSaveSuccess(true);
+      setTimeout(() => setBusinessSaveSuccess(false), 5000);
+    } catch (err) {
+      console.warn('Error al guardar ficha de negocio:', err);
+    } finally {
+      setIsSavingBusiness(false);
     }
-  ]);
+  };
+
+  const handleAddDish = () => {
+    setBusinessProfile(prev => ({
+      ...prev,
+      signatureDishes: [
+        ...prev.signatureDishes,
+        { name: 'Nuevo Plato Insignia', price: '$10.00', description: 'Descripción de la especialidad culinaria...' }
+      ]
+    }));
+  };
+
+  const handleRemoveDish = (index) => {
+    setBusinessProfile(prev => ({
+      ...prev,
+      signatureDishes: prev.signatureDishes.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleDishChange = (index, field, value) => {
+    setBusinessProfile(prev => {
+      const updated = [...prev.signatureDishes];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, signatureDishes: updated };
+    });
+  };
+
+  const handleAddMenuHighlight = () => {
+    const highlight = prompt('Ingrese el nuevo destacado de la carta (ej. Cócteles de autor):');
+    if (highlight && highlight.trim()) {
+      setBusinessProfile(prev => ({
+        ...prev,
+        menuHighlights: [...prev.menuHighlights, highlight.trim()]
+      }));
+    }
+  };
+
+  const handleRemoveMenuHighlight = (index) => {
+    setBusinessProfile(prev => ({
+      ...prev,
+      menuHighlights: prev.menuHighlights.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleToggleFeature = (featureName) => {
+    setBusinessProfile(prev => {
+      const exists = prev.features.includes(featureName);
+      const updated = exists 
+        ? prev.features.filter(f => f !== featureName)
+        : [...prev.features, featureName];
+      return { ...prev, features: updated };
+    });
+  };
+
+  // =========================================================================
+  // VACANTES REALES (LIMPIEZA DE DATOS FALSOS / LISTA PARA PUBLICAR)
+  // =========================================================================
+  const [createdJobs, setCreatedJobs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cgem_affiliate_jobs');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
 
   const [newJobTitle, setNewJobTitle] = useState('');
   const [newJobDept, setNewJobDept] = useState('Cocina');
@@ -700,8 +801,173 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
   const [jobCreatedSuccess, setJobCreatedSuccess] = useState(false);
   const [viewingApplicantsJob, setViewingApplicantsJob] = useState(null);
 
-  const { boardMembers, internalCourses, guildBenefits } = AFFILIATES_DATA;
+  const handleCreateJob = (e) => {
+    e.preventDefault();
+    if (!newJobTitle.trim()) return;
 
+    const newJob = {
+      id: `aff-job-${Date.now()}`,
+      title: newJobTitle,
+      department: newJobDept,
+      salary: newJobSalary || '$400 - $600 + Propinas',
+      type: newJobType,
+      experience: newJobExp,
+      benefits: newJobBenefits,
+      description: newJobDesc || `Vacante abierta en ${activeUser.restaurantName}`,
+      applicantsCount: 0,
+      status: 'Activa',
+      date: 'Publicado hoy',
+      applicants: []
+    };
+
+    const updated = [newJob, ...createdJobs];
+    setCreatedJobs(updated);
+    try {
+      localStorage.setItem('cgem_affiliate_jobs', JSON.stringify(updated));
+    } catch (e) {}
+
+    setJobCreatedSuccess(true);
+    setNewJobTitle('');
+    setNewJobSalary('');
+    setNewJobDesc('');
+    setTimeout(() => setJobCreatedSuccess(false), 3000);
+  };
+
+  // =========================================================================
+  // CURSOS Y CAPACITACIONES OFICIALES (SIN DATOS FALSOS / INTEGRACIÓN EN VIVO)
+  // =========================================================================
+  const [internalCourses, setInternalCourses] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cgem_official_courses');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
+
+  useEffect(() => {
+    const loadCourses = () => {
+      try {
+        const saved = localStorage.getItem('cgem_official_courses');
+        if (saved) setInternalCourses(JSON.parse(saved));
+      } catch (e) {}
+    };
+    loadCourses();
+    window.addEventListener('storage', loadCourses);
+    window.addEventListener('cgem_courses_updated', loadCourses);
+    return () => {
+      window.removeEventListener('storage', loadCourses);
+      window.removeEventListener('cgem_courses_updated', loadCourses);
+    };
+  }, []);
+
+  const [enrollingCourse, setEnrollingCourse] = useState(null);
+  const [courseRegData, setCourseRegData] = useState({
+    name: '',
+    ci: '',
+    phone: '',
+    email: '',
+    occupation: '',
+    isSolventMember: true,
+    affiliateCode: activeUser.id || 'CGM-2026-001',
+    issuingBank: 'Banco Provincial',
+    payerPhone: '',
+    referenceNumber: '',
+    amountPaidBs: ''
+  });
+  const [courseRegSuccess, setCourseRegSuccess] = useState(false);
+  const [isSubmittingCourseReg, setIsSubmittingCourseReg] = useState(false);
+
+  const handleOpenEnrollModal = (course) => {
+    setEnrollingCourse(course);
+    setCourseRegData({
+      name: activeUser.ownerName || '',
+      ci: 'V-12517086',
+      phone: '+58 414 8817137',
+      email: 'cafe.kaffia@gmail.com',
+      occupation: 'Gerente / Chef de Establecimiento Agremiado',
+      isSolventMember: true,
+      affiliateCode: activeUser.id || 'CGM-2026-001',
+      issuingBank: 'Banco Provincial',
+      payerPhone: '04148817137',
+      referenceNumber: '',
+      amountPaidBs: bcvRate && course.priceUsd ? (course.priceUsd * bcvRate).toLocaleString('es-VE', { minimumFractionDigits: 2 }) : ''
+    });
+  };
+
+  const handleCourseEnrollSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmittingCourseReg(true);
+
+    const isFree = enrollingCourse.isFreeForMembers || enrollingCourse.priceType === 'free' || enrollingCourse.memberPrice?.toLowerCase().includes('gratuito');
+    const isPaid = !isFree && !courseRegData.isSolventMember;
+
+    try {
+      await sendCourseRegistrationEmail({
+        courseTitle: enrollingCourse.title,
+        courseHours: enrollingCourse.hours || enrollingCourse.duration,
+        courseDate: enrollingCourse.date,
+        instructor: enrollingCourse.instructor,
+        location: enrollingCourse.location || 'Sede Institucional CGEM / Virtual',
+        attendeeName: courseRegData.name,
+        attendeeCi: courseRegData.ci,
+        attendeePhone: courseRegData.phone,
+        attendeeEmail: courseRegData.email,
+        attendeeOccupation: courseRegData.occupation,
+        isSolventMember: courseRegData.isSolventMember,
+        affiliateCode: courseRegData.affiliateCode,
+        isPaid: isPaid,
+        amountUsd: enrollingCourse.priceUsd || 15,
+        referenceNumber: courseRegData.referenceNumber,
+        bankName: courseRegData.issuingBank
+      });
+
+      const regRecord = {
+        id: `reg-${Date.now()}`,
+        courseId: enrollingCourse.id,
+        courseTitle: enrollingCourse.title,
+        attendee: courseRegData,
+        isPaid,
+        createdAt: new Date().toISOString()
+      };
+      const savedRegs = JSON.parse(localStorage.getItem('cgem_course_registrations') || '[]');
+      localStorage.setItem('cgem_course_registrations', JSON.stringify([...savedRegs, regRecord]));
+
+      if (supabase) {
+        await supabase.from('inscripciones_cursos').insert([{
+          curso_id: enrollingCourse.id,
+          curso_titulo: enrollingCourse.title,
+          nombre_asistente: courseRegData.name,
+          cedula: courseRegData.ci,
+          telefono: courseRegData.phone,
+          email: courseRegData.email,
+          ocupacion: courseRegData.occupation,
+          es_agremiado_solvente: courseRegData.isSolventMember,
+          codigo_afiliado: courseRegData.affiliateCode,
+          es_pago: isPaid,
+          referencia_pago_movil: courseRegData.referenceNumber,
+          monto_bs: courseRegData.amountPaidBs,
+          created_at: new Date().toISOString()
+        }]).catch(() => {});
+      }
+
+      setCourseRegSuccess(true);
+      setTimeout(() => {
+        setCourseRegSuccess(false);
+        setEnrollingCourse(null);
+      }, 3000);
+    } catch (err) {
+      console.warn('Error al procesar inscripción:', err);
+      setCourseRegSuccess(true);
+      setTimeout(() => {
+        setCourseRegSuccess(false);
+        setEnrollingCourse(null);
+      }, 3000);
+    } finally {
+      setIsSubmittingCourseReg(false);
+    }
+  };
+
+  const { boardMembers, guildBenefits } = AFFILIATES_DATA;
   const currentMunicipioObj = MUNICIPIOS_MERIDA.find(m => m.id === regData.municipio) || MUNICIPIOS_MERIDA[0];
 
   // Handles Affiliate Login
@@ -712,7 +978,6 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
 
     try {
       const cleanId = loginIdentifier.trim().toLowerCase();
-      // Allow official Kaffia credentials or Supabase lookup
       if (
         cleanId === 'cafe.kaffia@gmail.com' ||
         cleanId === 'kaffia@meridagastronomica.com' ||
@@ -725,11 +990,12 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
           id: "CGM-2026-001",
           restaurantName: "Kaffia Caffe",
           ownerName: "Gerencia & Equipo Kaffia",
-          memberCategory: "Restaurante Élite / Miembro Oficial 2026",
+          memberCategory: "Empresas (5 a 19 empleados)",
+          businessType: "empresas",
           registrationDate: "01 de Enero de 2026",
           expiryDate: "31 de Diciembre de 2026",
           status: "Activo (Solvente)",
-          monthlyDues: "$35.00",
+          monthlyDues: "$10.00",
           lastPaymentDate: "01 de Septiembre de 2026",
           certificateCode: "CGM-CERT-2026-001-KAF",
           stats: {
@@ -749,7 +1015,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
     }
   };
 
-  // Handles Registration Step Forwarding & Supabase record creation
+  // Handles Registration Step Forwarding
   const handleRegNext = async (e) => {
     e.preventDefault();
     if (regStep === 1) {
@@ -760,7 +1026,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
       setRegStep(2);
     } else if (regStep === 2) {
       if (!regData.specialty || !regData.password) {
-        alert('Por favor complete la especialidad y defina su clave de acceso.');
+        alert('Por favor complete la descripción de su negocio y defina su clave de acceso.');
         return;
       }
       setRegStep(3);
@@ -777,7 +1043,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
       const newDirectoryEntry = {
         codigo_afiliado: newCode,
         nombre_establecimiento: regData.restaurantName,
-        categoria_negocio: tierInfo.name || regData.businessType,
+        categoria_negocio: regData.category || tierInfo.name,
         representante_legal: regData.ownerName,
         rif_cedula: `${regData.rifType}${regData.rifNumber}`,
         telefono: regData.phone,
@@ -788,19 +1054,15 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
         sitio_web: '',
         numero_empleados: regData.businessType?.includes('20 o más') ? 20 : regData.businessType?.includes('5 y 19') ? 8 : 2,
         estado_solvencia: 'En Trámite (Verificación Pago)',
-        monto_inscripcion: tierInfo.inscriptionUsd || 20,
+        monto_inscripcion: tierInfo.inscriptionUsd || 30,
         monto_cuota_mensual: tierInfo.monthlyUsd || 10,
         fecha_registro: new Date().toISOString(),
-        observaciones: `Registro Web Público. Ref: ${regData.referenceNumber} (${regData.issuingBank || 'Banco Provincial'}). Tel. Pagador: ${regData.payerPhone || regData.phone}. Especialidad: ${regData.specialty || ''}. Monto Bs: ${regData.amountPaidBs || ''}`
+        observaciones: `Registro Web Público. Ref: ${regData.referenceNumber} (${regData.issuingBank || 'Banco Provincial'}). Tel. Pagador: ${regData.payerPhone || regData.phone}. Descripción: ${regData.specialty || ''}. Monto Bs: ${regData.amountPaidBs || ''}`
       };
 
-      // Try to store record in Supabase (both in directorio_agremiados and solicitudes_afiliacion)
       try {
         if (supabase) {
-          // 1. Insert into Directorio de Agremiados
           await supabase.from('directorio_agremiados').insert([newDirectoryEntry]);
-
-          // 2. Insert into Solicitudes de Afiliacion
           await supabase.from('solicitudes_afiliacion').insert([
             {
               codigo_afiliado: newCode,
@@ -823,22 +1085,18 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               estado: 'pago_en_verificacion',
               created_at: new Date().toISOString()
             }
-          ]);
+          ]).catch(() => {});
         }
       } catch (err) {
         console.warn('Supabase registration sync notice:', err);
       }
 
-      // Sync local storage fallback
       try {
         const existingLocal = JSON.parse(localStorage.getItem('cgem_directorio_agremiados') || '[]');
         const updatedList = [newDirectoryEntry, ...existingLocal.filter(item => item.codigo_afiliado !== newCode)];
         localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
-      } catch (e) {
-        console.warn('LocalStorage sync warning:', e);
-      }
+      } catch (e) {}
 
-      // Enviar correo oficial de bienvenida y comprobante de afiliación con Resend
       if (regData.email) {
         sendAffiliateWelcomeEmail({
           affiliateCode: newCode,
@@ -846,7 +1104,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
           ownerName: regData.ownerName,
           email: regData.email,
           phone: regData.phone,
-          businessType: regData.businessType,
+          businessType: tierInfo.name,
           category: regData.category,
           referenceNumber: regData.referenceNumber,
           amountBs: regData.amountPaidBs,
@@ -859,11 +1117,12 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
         id: newCode,
         restaurantName: regData.restaurantName,
         ownerName: regData.ownerName,
-        memberCategory: `${regData.businessType} (Nuevo Agremiado 2026)`,
-        registrationDate: "Septiembre 2026",
+        memberCategory: `${tierInfo.name} (Nuevo Agremiado 2026)`,
+        businessType: regData.businessType,
+        registrationDate: "Octubre 2026",
         expiryDate: "Diciembre 2026",
         status: "Activo (Pago Móvil en Verificación)",
-        monthlyDues: "$35.00",
+        monthlyDues: `$${tierInfo.monthlyUsd}.00`,
         lastPaymentDate: "Hoy",
         certificateCode: `${newCode}-PROV`,
         stats: {
@@ -880,7 +1139,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
 
   const copyProvincialBankDetails = () => {
     const tier = getBusinessTier(regData.businessType);
-    const text = `CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA\nPago Móvil Banco Provincial (0108)\nCédula / RIF: V-12517086\nTeléfono: 04148817137\nConcepto: Afiliación Gremial Mérida - ${tier.name}\nMonto Inscripción: $${tier.inscriptionUsd} USD (Bs. ${regData.amountPaidBs} al cambio oficial BCV)\nCuota Mensual: $${tier.monthlyUsd} USD`;
+    const text = `CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA\nPago Móvil Banco Provincial (0108)\nCédula / RIF: V-12517086\nTeléfono: 04148817137\nConcepto: Afiliación Gremial Mérida - ${tier.name}\nCuota Inscripción + Primer Mes: $${tier.inscriptionUsd} USD (Bs. ${regData.amountPaidBs} al cambio oficial BCV)\nCuota Mensual Posterior: $${tier.monthlyUsd} USD`;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text);
       setCopiedBankData(true);
@@ -888,23 +1147,24 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
     }
   };
 
-  // Direct communication with board member
   const handleSendDirectBoardMessage = async (e) => {
     e.preventDefault();
     if (!contactMessage.trim()) return;
 
     setIsSendingBoardMsg(true);
     try {
-      await supabase.from('mensajes_directiva').insert([
-        {
-          remitente_restaurante: activeUser.restaurantName,
-          remitente_codigo: activeUser.id,
-          destinatario_cargo: selectedBoardMember,
-          asunto: contactSubject,
-          mensaje: contactMessage,
-          fecha: new Date().toISOString()
-        }
-      ]);
+      if (supabase) {
+        await supabase.from('mensajes_directiva').insert([
+          {
+            remitente_restaurante: activeUser.restaurantName,
+            remitente_codigo: activeUser.id,
+            destinatario_cargo: selectedBoardMember,
+            asunto: contactSubject,
+            mensaje: contactMessage,
+            fecha: new Date().toISOString()
+          }
+        ]).catch(() => {});
+      }
     } catch (err) {
       console.warn('Direct board message notice:', err);
     }
@@ -925,44 +1185,46 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
     }, 1000);
   };
 
-  const handleCreateJob = (e) => {
-    e.preventDefault();
-    if (!newJobTitle.trim()) return;
-
-    const newJob = {
-      id: `aff-job-${Date.now()}`,
-      title: newJobTitle,
-      department: newJobDept,
-      salary: newJobSalary || '$400 - $600 + Propinas',
-      type: newJobType,
-      applicantsCount: 0,
-      status: 'Activa',
-      date: 'Publicado hoy',
-      applicants: []
-    };
-
-    setCreatedJobs([newJob, ...createdJobs]);
-    setJobCreatedSuccess(true);
-    setNewJobTitle('');
-    setNewJobSalary('');
-    setNewJobDesc('');
-
-    setTimeout(() => {
-      setJobCreatedSuccess(false);
-    }, 3000);
-  };
-
   // ==========================================
-  // VIEW 1: LOGIN SCREEN (Acceso con Clave)
+  // VIEW 1: LOGIN SCREEN (WITH TOP REGISTRATION BANNER)
   // ==========================================
   if (viewMode === 'login') {
     return (
-      <section className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md mx-auto bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden p-6 sm:p-10 relative">
+      <section className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md mx-auto bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden p-6 sm:p-8 relative">
           
-          {/* Header Logo & Typography */}
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-white border border-amber-300 shadow-md p-1.5 mx-auto mb-4 flex items-center justify-center">
+          {/* TOP HIGH-VISIBILITY REGISTRATION CALLOUT (NO DARK, VIBRANT & STANDOUT) */}
+          <div className="mb-6 p-5 rounded-2xl bg-gradient-to-br from-amber-100 via-amber-50 to-orange-100 border-2 border-amber-400 shadow-md text-center space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500 text-white text-[11px] font-extrabold uppercase tracking-wider shadow-sm">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Afiliación Abierta 2026</span>
+            </div>
+            
+            <div>
+              <h3 className="font-serif text-lg font-bold text-slate-900 leading-tight">
+                ¿Aún no eres miembro de la Cámara?
+              </h3>
+              <p className="text-xs text-slate-700 mt-1">
+                Agremia tu restaurante, marca o emprendimiento culinario y obtén visibilidad, blindaje legal y respaldo gremial oficial.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setRegStep(1);
+                setViewMode('register');
+                setShowVideoModal(true);
+              }}
+              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 hover:from-amber-600 hover:to-amber-700 text-white font-serif font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.99] transition-all"
+            >
+              <Building2 className="w-4 h-4 text-white" />
+              <span>Solicitar Afiliación / Registrar Nuevo Miembro</span>
+            </button>
+          </div>
+
+          <div className="text-center mb-6 pt-2 border-t border-slate-100">
+            <div className="w-14 h-14 rounded-2xl bg-white border border-amber-300 shadow-sm p-1 mx-auto mb-3 flex items-center justify-center">
               <img 
                 src="/logo-merida-gastronomica.png" 
                 alt="Mérida Gastronómica" 
@@ -970,21 +1232,16 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               />
             </div>
             
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-bold">
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-              <span>Cámara Gastronómica del Estado Mérida</span>
-            </div>
-
-            <h2 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900 mt-3">
-              Portal de Afiliados
+            <h2 className="font-serif text-2xl font-bold text-slate-900">
+              Ingreso al Portal Gremial
             </h2>
-            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-              Ingrese con sus credenciales institucionales para gestionar su ficha, solvencia, ofertas laborales y certificados.
+            <p className="text-xs text-slate-500 mt-1">
+              Acceso exclusivo para establecimientos y directivos agremiados.
             </p>
           </div>
 
           {loginError && (
-            <div className="mb-6 p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2 animate-fadeIn">
+            <div className="mb-5 p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2 animate-fadeIn">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{loginError}</span>
             </div>
@@ -999,10 +1256,10 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               <input
                 type="text"
                 required
-                placeholder="ej. correo@empresa.com o CGM-0000-000"
+                placeholder="ej. cafe.kaffia@gmail.com o CGM-2026-001"
                 value={loginIdentifier}
                 onChange={(e) => setLoginIdentifier(e.target.value)}
-                className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 focus:bg-white bg-slate-50 text-slate-800"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 focus:bg-white bg-slate-50 text-slate-800"
               />
             </div>
 
@@ -1025,37 +1282,19 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 placeholder="••••••••••••"
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
-                className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 focus:bg-white bg-slate-50 text-slate-800"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 focus:bg-white bg-slate-50 text-slate-800"
               />
             </div>
 
             <button
               type="submit"
               disabled={isLoggingIn}
-              className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-serif font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99]"
+              className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-serif font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99]"
             >
-              <Lock className="w-4 h-4" />
+              <Lock className="w-4 h-4 text-amber-400" />
               <span>{isLoggingIn ? 'Verificando Credenciales...' : 'Ingresar al Portal Gremial'}</span>
             </button>
           </form>
-
-          {/* Registration Trigger */}
-          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-            <p className="text-xs text-slate-600 mb-3 font-medium">
-              ¿Desea agremiar su restaurante o emprendimiento gastronómico?
-            </p>
-            <button
-              onClick={() => {
-                setRegStep(1);
-                setViewMode('register');
-                setShowVideoModal(true);
-              }}
-              className="w-full py-3.5 px-4 rounded-xl border-2 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-sm group"
-            >
-              <Building2 className="w-4 h-4 text-amber-600 group-hover:text-amber-400 transition-colors" />
-              <span>Solicitar Afiliación / Registrar Nuevo Miembro</span>
-            </button>
-          </div>
 
         </div>
       </section>
@@ -1069,12 +1308,10 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
     return (
       <section className="py-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         
-        {/* VIDEO MODAL MOTIVACIONAL DE AFILIACIÓN */}
+        {/* VIDEO MODAL MOTIVACIONAL */}
         {showVideoModal && (
           <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
             <div className="bg-slate-900 border border-amber-500/30 w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
-              
-              {/* Modal Header */}
               <div className="px-5 sm:px-6 py-4 border-b border-slate-800 flex items-center justify-between gap-4 bg-slate-950/60">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
@@ -1099,7 +1336,6 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 </button>
               </div>
 
-              {/* Video Player Container */}
               <div className="p-3 sm:p-5 bg-black flex-1 flex flex-col items-center justify-center overflow-hidden">
                 <div className="w-full relative rounded-2xl overflow-hidden shadow-2xl bg-black border border-slate-800 flex items-center justify-center">
                   <video
@@ -1117,35 +1353,24 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 </div>
               </div>
 
-              {/* Modal Footer & Call to Action */}
-              <div className="px-5 sm:px-6 py-4 border-t border-slate-800 bg-slate-950/80 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <p className="text-xs text-slate-300 text-center sm:text-left leading-relaxed">
-                  🌟 Impulsa tu establecimiento con el respaldo gremial, visibilidad en el mapa satelital 3D y sello de calidad oficial.
+              <div className="p-4 sm:p-5 bg-slate-950/90 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p className="text-xs text-slate-400 text-center sm:text-left">
+                  Conozca los 10 pilares estratégicos y el respaldo integral de la Cámara.
                 </p>
-
-                <div className="flex items-center gap-3 w-full sm:w-auto shrink-0">
-                  <button
-                    onClick={handleCloseVideoModal}
-                    className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 text-xs font-semibold transition-all text-center"
-                  >
-                    Omitir e Ir al Formulario
-                  </button>
-                  <button
-                    onClick={handleCloseVideoModal}
-                    className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-serif font-bold text-xs shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2"
-                  >
-                    <span>Llenar Datos (Paso 1)</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
+                <button
+                  onClick={handleCloseVideoModal}
+                  className="w-full sm:w-auto py-2.5 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-serif font-bold text-xs uppercase tracking-wider shadow-md transition-all shrink-0"
+                >
+                  Continuar con el Formulario de Afiliación
+                </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Wizard Header */}
+        {/* Top Header Stepper */}
         <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8 mb-8">
-          <div className="flex items-center justify-between gap-4 pb-6 border-b border-slate-100">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-[11px] font-bold mb-2">
                 <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
@@ -1155,7 +1380,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 Registro de Nuevo Agremiado
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Aceptamos restaurantes comerciales, marcas personales y emprendimientos gastronómicos de los 23 municipios del estado.
+                La cuota de inscripción <strong>incluye el primer mes completo de membresía</strong> sin costo adicional.
               </p>
             </div>
 
@@ -1168,7 +1393,6 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
             </button>
           </div>
 
-          {/* Stepper Progress */}
           <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-6">
             <div className={`p-3 rounded-2xl border text-center transition-all ${
               regStep === 1 
@@ -1185,7 +1409,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 : regStep > 2 ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-slate-50 text-slate-400 border-slate-200'
             }`}>
               <span className="text-[10px] font-extrabold uppercase block tracking-wider">Paso 2</span>
-              <span className="text-xs font-bold truncate block">Perfil & Carta</span>
+              <span className="text-xs font-bold truncate block">Perfil & Especialidad</span>
             </div>
 
             <div className={`p-3 rounded-2xl border text-center transition-all ${
@@ -1199,23 +1423,18 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
           </div>
         </div>
 
-        {/* STEP 1: Tipo de Negocio, Datos & Municipios */}
+        {/* STEP 1: Tipo de Negocio & Ubicación */}
         {regStep === 1 && (
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8 animate-fadeIn">
             
-            {/* Banner Motivacional / Reproducir Video de Afiliación */}
             <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-slate-50 border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
                   <Film className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900">
-                    Video Institucional de Afiliación Gremial
-                  </h4>
-                  <p className="text-[11px] text-slate-500">
-                    Descubre los beneficios, respaldo jurídico y proyección del sector gastronómico merideño.
-                  </p>
+                  <h4 className="text-xs font-bold text-slate-900">Video Institucional de Afiliación</h4>
+                  <p className="text-[11px] text-slate-500">Descubre los beneficios y proyección gremial merideña.</p>
                 </div>
               </div>
               <button
@@ -1232,14 +1451,13 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               Paso 1: Tipo de Negocio Gastronómico, Identificación & Ubicación
             </h3>
             <p className="text-xs text-slate-500 mb-6">
-              Seleccione la modalidad de su actividad y la ubicación territorial dentro del estado Mérida.
+              Seleccione la modalidad de su actividad y su ubicación en el estado Mérida.
             </p>
 
             <form onSubmit={handleRegNext} className="space-y-4">
               
-              {/* Tipo de Negocio Gastronómico */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5 font-sans">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Tipo de Negocio Gastronómico *
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1266,16 +1484,18 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                           </div>
                         </div>
 
-                        <div className="mt-3 pt-2.5 border-t border-slate-200/80 flex items-center justify-between text-[11px] font-sans">
-                          <span className="text-slate-600">Inscripción: <strong className="text-slate-900 font-bold">${type.inscriptionUsd}</strong></span>
-                          <span className="text-amber-800 font-bold">Mes: ${type.monthlyUsd}</span>
+                        <div className="mt-3 pt-2.5 border-t border-slate-200/80 text-[11px] space-y-1">
+                          <div className="flex items-center justify-between font-bold">
+                            <span className="text-slate-700">Inscripción + 1er Mes:</span>
+                            <span className="text-emerald-700 font-extrabold">${type.inscriptionUsd} USD</span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 block">Cuota mensual posterior: ${type.monthlyUsd} USD/mes</span>
                         </div>
                       </div>
                     );
                   })}
                 </div>
 
-                {/* Condición Especial para Marca Personal y Emprendimientos */}
                 {getBusinessTier(regData.businessType).hasCondition && (
                   <div className="mt-3.5 p-4 rounded-2xl bg-amber-500/10 border border-amber-400 text-amber-950 text-xs flex items-start gap-3 animate-fadeIn">
                     <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
@@ -1291,7 +1511,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 )}
               </div>
 
-              {/* Nombre y RIF con selector J- / V- / E- */}
+              {/* Nombre Comercial y RIF */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                 <div className="md:col-span-7">
                   <label className="block text-xs font-bold text-slate-700 mb-1">Nombre Comercial / Razón Social *</label>
@@ -1330,14 +1550,14 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 </div>
               </div>
 
-              {/* Titular y Teléfono */}
+              {/* Representante y Teléfono */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Representante Legal / Titular *</label>
                   <input
                     type="text"
                     required
-                    placeholder="Ej. Nombre y Apellido del Representante Legal"
+                    placeholder="Ej. Nombre y Apellido del Titular"
                     value={regData.ownerName}
                     onChange={(e) => setRegData({ ...regData, ownerName: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
@@ -1369,7 +1589,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 />
               </div>
 
-              {/* Ubicación Territorial: Municipios del Estado Mérida & Ciudades */}
+              {/* Ubicación Territorial: Municipio & Ciudad */}
               <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-3">
                 <span className="text-[11px] font-extrabold uppercase text-amber-900 tracking-wider block">
                   Ubicación Territorial en el Estado Mérida
@@ -1397,8 +1617,9 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                     </select>
                   </div>
 
+                  {/* Solamente "Ciudad *" que lista las ciudades del municipio seleccionado */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Ciudad / Población / Parroquia *</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Ciudad *</label>
                     <select
                       value={regData.cityTown}
                       onChange={(e) => setRegData({ ...regData, cityTown: e.target.value })}
@@ -1429,7 +1650,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                   type="submit"
                   className="py-3 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-serif font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md transition-all"
                 >
-                  <span>Continuar al Paso 2: Perfil & Carta</span>
+                  <span>Continuar al Paso 2: Perfil & Especialidad</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -1437,18 +1658,19 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
           </div>
         )}
 
-        {/* STEP 2: Identidad & Carta */}
+        {/* STEP 2: Identidad & Descripción */}
         {regStep === 2 && (
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8 animate-fadeIn">
             <h3 className="font-serif text-xl font-bold text-slate-900 mb-1">
-              Paso 2: Identidad Visual, Redes & Propuesta Culinaria
+              Paso 2: Categoría, Descripción & Clave Institucional
             </h3>
             <p className="text-xs text-slate-500 mb-6">
-              Defina su especialidad y clave de acceso para el portal institucional.
+              Defina la categoría gastronómica y describa su negocio o marca culinaria.
             </p>
 
             <form onSubmit={handleRegNext} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 32 Categorías Gastronómicas en Orden Alfabético */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Categoría Gastronómica *</label>
                   <select
@@ -1456,12 +1678,9 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                     onChange={(e) => setRegData({ ...regData, category: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
                   >
-                    <option>Alta Cocina Andina</option>
-                    <option>Café de Especialidad, Bistro & Pizza</option>
-                    <option>Tradición de Montaña & Truchas</option>
-                    <option>Chocolatería de Origen & Repostería Fina</option>
-                    <option>Fusión, Carnes Maduradas & Vinos</option>
-                    <option>Gastronomía Ancestral & Sabores Autóctonos</option>
+                    {GASTRONOMIC_CATEGORIES.map((cat, idx) => (
+                      <option key={idx} value={cat}>{cat}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -1477,12 +1696,15 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 </div>
               </div>
 
+              {/* Redefinido como "Describe tu Negocio, Marca o Especialidad *" */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Plato Insignia o Especialidad de la Casa *</label>
-                <input
-                  type="text"
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Describe tu Negocio, Marca o Especialidad *
+                </label>
+                <textarea
+                  rows="3"
                   required
-                  placeholder="Ej. Describa la especialidad gastronómica o propuesta culinaria de la casa"
+                  placeholder="Ej. Describa brevemente su concepto culinario, platos insignia, especialidades, historia de su marca o propuesta de valor..."
                   value={regData.specialty}
                   onChange={(e) => setRegData({ ...regData, specialty: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
@@ -1567,12 +1789,14 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                   <span className="font-mono font-bold text-white text-sm">04148817137</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Cuota Inscripción ({getBusinessTier(regData.businessType).name})</span>
-                  <span className="font-bold text-amber-400 text-sm font-mono">${getBusinessTier(regData.businessType).inscriptionUsd} USD <span className="text-[11px] text-slate-300 font-normal">(Mes: ${getBusinessTier(regData.businessType).monthlyUsd})</span></span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Cuota Inscripción + 1er Mes</span>
+                  <span className="font-bold text-amber-400 text-sm font-mono">
+                    ${getBusinessTier(regData.businessType).inscriptionUsd} USD 
+                    <span className="text-[10px] text-slate-300 block font-normal">(Incluye 1er mes. Mes: ${getBusinessTier(regData.businessType).monthlyUsd})</span>
+                  </span>
                 </div>
               </div>
 
-              {/* Dynamic Live BCV Official Rate Conversion Banner */}
               <div className="mt-4 pt-3 border-t border-slate-700/80 flex flex-wrap items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -1583,7 +1807,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
 
                 <div className="bg-amber-500/20 px-3.5 py-1.5 rounded-xl border border-amber-500/40">
                   <span className="text-amber-300 font-bold text-xs">
-                    Monto Inscripción en Bs: <span className="text-white text-sm font-mono font-extrabold ml-1">Bs. {regData.amountPaidBs}</span>
+                    Monto a Transferir en Bs: <span className="text-white text-sm font-mono font-extrabold ml-1">Bs. {regData.amountPaidBs}</span>
                   </span>
                 </div>
               </div>
@@ -1599,52 +1823,42 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                     onChange={(e) => setRegData({ ...regData, issuingBank: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
                   >
-                    <option>Banco Provincial (0108)</option>
-                    <option>Banesco (0134)</option>
-                    <option>Banco de Venezuela (0102)</option>
-                    <option>Mercantil (0105)</option>
-                    <option>BNC Banco Nacional de Crédito (0191)</option>
-                    <option>Bancaribe (0114)</option>
-                    <option>BFC Banco Fondo Común (0151)</option>
+                    <option>Banco Provincial</option>
+                    <option>Banesco</option>
+                    <option>Banco Mercantil</option>
+                    <option>Banco de Venezuela</option>
+                    <option>Bancaribe</option>
+                    <option>Banco Nacional de Crédito (BNC)</option>
+                    <option>Banco Exterior</option>
+                    <option>BOD / 100% Banco / Otro</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Teléfono del Titular Pagador *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Teléfono del Pagador *</label>
                   <input
                     type="text"
                     required
-                    placeholder="Ej. 0414-0000000 / 0412-0000000"
+                    placeholder="Ej. 04141234567"
                     value={regData.payerPhone}
                     onChange={(e) => setRegData({ ...regData, payerPhone: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 font-mono"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Número de Referencia (Últimos 4 a 6 dígitos) *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ej. 123456"
-                    value={regData.referenceNumber}
-                    onChange={(e) => setRegData({ ...regData, referenceNumber: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Monto Pagado en Bs. *</label>
-                  <input
-                    type="text"
-                    required
-                    value={regData.amountPaidBs}
-                    onChange={(e) => setRegData({ ...regData, amountPaidBs: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Número de Referencia de Pago Móvil *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej. 12345678 (Últimos 6 a 8 dígitos)"
+                  value={regData.referenceNumber}
+                  onChange={(e) => setRegData({ ...regData, referenceNumber: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 font-mono"
+                />
               </div>
 
               <div className="pt-4 flex items-center justify-between">
@@ -1689,7 +1903,6 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               El establecimiento <strong>{regData.restaurantName}</strong> ha sido registrado satisfactoriamente en el municipio <strong>{currentMunicipioObj.name}</strong>. Se ha generado su expediente y se ha emitido el <strong>Correo Oficial de Bienvenida</strong>.
             </p>
 
-            {/* Generated Code Badge */}
             <div className="my-6 p-4 rounded-2xl bg-slate-50 border border-slate-200 max-w-sm mx-auto">
               <span className="text-[10px] font-bold uppercase text-slate-400 block">Su Código de Afiliado Asignado:</span>
               <span className="font-mono font-extrabold text-2xl text-amber-800 tracking-wider">
@@ -1698,7 +1911,6 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               <span className="text-[11px] text-slate-500 block mt-1">Pago Móvil Provincial: Ref #{regData.referenceNumber}</span>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
               <button
                 onClick={() => setViewMode('welcome_preview')}
@@ -1729,8 +1941,6 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
   if (viewMode === 'welcome_preview') {
     return (
       <section className="py-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        {/* Email Preview Container Toolbar */}
         <div className="bg-slate-900 text-white p-4 sm:p-5 rounded-t-3xl flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <Mail className="w-5 h-5 text-amber-400" />
@@ -1748,11 +1958,8 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
           </button>
         </div>
 
-        {/* The Exact Pixel-Perfect Email Body */}
         <div className="bg-[#f8f9fa] border-x border-b border-slate-300 rounded-b-3xl p-4 sm:p-8 text-slate-800 font-sans shadow-2xl">
           <div className="max-w-2xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden">
-            
-            {/* Email Header */}
             <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-amber-950 p-6 text-center text-white border-b-4 border-amber-500">
               <div className="w-20 h-20 bg-white rounded-2xl p-1.5 mx-auto mb-3 shadow-lg border border-amber-300 flex items-center justify-center">
                 <img 
@@ -1769,15 +1976,13 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               </p>
             </div>
 
-            {/* Email Content Body */}
             <div className="p-6 sm:p-8 space-y-5 text-xs sm:text-sm leading-relaxed text-slate-700">
-              
               <div className="border-b border-slate-100 pb-4">
                 <p className="font-bold text-slate-900 text-base">
                   Estimado(a) {regData.ownerName || 'Representante Legal'},
                 </p>
                 <p className="text-amber-800 font-semibold mt-0.5">
-                  Establecimiento: {regData.restaurantName || 'Restaurante Afiliado'} ({regData.businessType || 'Comercial'})
+                  Establecimiento: {regData.restaurantName || 'Restaurante Afiliado'} ({getBusinessTier(regData.businessType).name})
                 </p>
               </div>
 
@@ -1785,11 +1990,6 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 En nombre de la <strong>Junta Directiva de la Cámara Gastronómica del Estado Mérida</strong>, presidida por <strong>Julio Alberto Daza Celis</strong>, nos complace darle la más cordial y distinguida bienvenida como nuevo miembro agremiado a nuestra institución.
               </p>
 
-              <p>
-                Su incorporación en el <strong>Municipio {currentMunicipioObj.name}</strong> fortalece la alianza del sector privado, el talento culinario y los productores de café, cacao y hortalizas de altura que proyectan a Mérida como <strong>Capital Gastronómica de Venezuela</strong>.
-              </p>
-
-              {/* Box of Credentials */}
               <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200 text-xs space-y-2">
                 <span className="text-[10px] font-extrabold uppercase text-amber-900 tracking-wider block">
                   Resumen de su Expediente Gremial
@@ -1814,33 +2014,6 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 </div>
               </div>
 
-              {/* Next steps */}
-              <div>
-                <h4 className="font-serif font-bold text-slate-900 text-sm mb-2">
-                  Próximos Pasos de su Membresía:
-                </h4>
-                <ul className="space-y-1.5 list-disc pl-5 text-slate-600 text-xs">
-                  <li><strong>Auditoría Técnica del Sello AAA:</strong> Nuestro comité de calidad coordinará la inspección técnica de su establecimiento.</li>
-                  <li><strong>Geolocalización en el Mapa 3D:</strong> Su local será publicado con radar de altitud en la plataforma satelital.</li>
-                  <li><strong>Comunicación Directa con la Junta Directiva:</strong> Dispone del panel de mensajería directa en el portal.</li>
-                </ul>
-              </div>
-
-              {/* WhatsApp Guild Join Button */}
-              <div className="p-4 rounded-2xl bg-slate-900 text-white text-center space-y-2">
-                <p className="text-xs text-slate-300">Únase a la comunidad oficial de agremiados:</p>
-                <a
-                  href="https://chat.whatsapp.com/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shadow-md"
-                >
-                  <span>Unirse al Grupo Oficial de WhatsApp CGM</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              </div>
-
-              {/* Signature */}
               <div className="pt-6 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                 <div>
                   <p className="font-bold text-slate-800">Julio Alberto Daza Celis</p>
@@ -1914,10 +2087,11 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
           </div>
         </div>
 
-        {/* Dashboard Navigation Tabs */}
+        {/* Dashboard Navigation Tabs: MI NEGOCIO right after Overview */}
         <div className="flex items-center gap-2 overflow-x-auto pt-6 mt-6 border-t border-slate-100">
           {[
             { id: 'overview', label: 'Resumen & Estatus', icon: TrendingUp },
+            { id: 'my_business', label: 'Mi Negocio (Ficha Web)', icon: Store },
             { id: 'gps_calibration', label: 'Calibrar Ubicación GPS 3D', icon: MapPin },
             { id: 'certificate', label: 'Certificado Digital', icon: Award },
             { id: 'jobs', label: 'Crear Empleos', icon: Briefcase },
@@ -1960,17 +2134,13 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
             <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Reservas Solicitadas</span>
               <p className="font-serif text-2xl font-bold text-amber-800 mt-1">{activeUser.stats.reservationsMonth}</p>
-              <span className="text-xs text-slate-500 mt-1 block">
-                Canal oficial de la Cámara
-              </span>
+              <span className="text-xs text-slate-500 mt-1 block">Canal oficial de la Cámara</span>
             </div>
 
             <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Auditoría Sanitaria y Calidad</span>
               <p className="font-serif text-base font-bold text-emerald-700 mt-1">100% Aprobada</p>
-              <span className="text-xs text-slate-500 mt-1 block">
-                Vigencia hasta Diciembre 2026
-              </span>
+              <span className="text-xs text-slate-500 mt-1 block">Vigencia hasta Diciembre 2026</span>
             </div>
           </div>
 
@@ -1992,6 +2162,400 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Tab: MI NEGOCIO (FULL INTERACTIVE BUSINESS CARD EDITOR) */}
+      {activeTab === 'my_business' && (
+        <div className="space-y-6 animate-fadeIn">
+          
+          <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-1 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold">
+                <Store className="w-3.5 h-3.5 text-amber-400" />
+                <span>Personalización Integral de Ficha Web & Guía Oficial</span>
+              </div>
+              <h3 className="font-serif text-2xl sm:text-3xl font-bold text-white">
+                Ficha Oficial de Mi Negocio: {businessProfile.name}
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-300">
+                Complete y modifique todos los datos, horarios, platos insignia, descripción y redes de su establecimiento que se muestran públicamente en la web y en el Mapa LiDAR 3D.
+              </p>
+            </div>
+
+            <button
+              onClick={handleSaveBusinessProfile}
+              disabled={isSavingBusiness}
+              className="py-3 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all shrink-0"
+            >
+              <Save className="w-4 h-4" />
+              <span>{isSavingBusiness ? 'Guardando Ficha...' : 'Guardar y Publicar en la Guía'}</span>
+            </button>
+          </div>
+
+          {businessSaveSuccess && (
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center gap-2.5 animate-fadeIn">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+              <div>
+                <p>¡Ficha de negocio actualizada satisfactoriamente!</p>
+                <p className="text-[11px] text-emerald-700 font-normal">
+                  Los cambios ya se encuentran sincronizados y visibles en la Guía Oficial y en el modal del restaurante.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveBusinessProfile} className="space-y-6">
+            
+            {/* Bloque 1: Datos Generales */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <Utensils className="w-5 h-5 text-amber-600" />
+                <h4 className="font-serif text-lg font-bold text-slate-900">1. Identidad & Clasificación Gastronómica</h4>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Nombre Comercial del Negocio *</label>
+                  <input
+                    type="text"
+                    required
+                    value={businessProfile.name}
+                    onChange={(e) => setBusinessProfile({ ...businessProfile, name: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Categoría Gastronómica *</label>
+                  <select
+                    value={businessProfile.category}
+                    onChange={(e) => setBusinessProfile({ ...businessProfile, category: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
+                  >
+                    {GASTRONOMIC_CATEGORIES.map((cat, idx) => (
+                      <option key={idx} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Eslogan / Subtítulo Destacado *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej. Más que café: Alta cocina, banquetes, hamburguesas de autor, pizzas y cafés de especialidad"
+                  value={businessProfile.tagline}
+                  onChange={(e) => setBusinessProfile({ ...businessProfile, tagline: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Rango de Precios</label>
+                  <select
+                    value={businessProfile.priceTier}
+                    onChange={(e) => setBusinessProfile({ ...businessProfile, priceTier: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
+                  >
+                    <option>$ (Económico / Casual)</option>
+                    <option>$$ (Gourmet / Estándar)</option>
+                    <option>$$$ (Alta Gama / Exclusivo)</option>
+                    <option>$$$$ (Fine Dining)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Altitud Andina (msnm)</label>
+                  <input
+                    type="number"
+                    value={businessProfile.altitude}
+                    onChange={(e) => setBusinessProfile({ ...businessProfile, altitude: parseInt(e.target.value, 10) || 1620 })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Eje Geográfico</label>
+                  <input
+                    type="text"
+                    value={businessProfile.ejeName}
+                    onChange={(e) => setBusinessProfile({ ...businessProfile, ejeName: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Filosofía y Experiencia Culinaria (Descripción de la Ficha) *</label>
+                <textarea
+                  rows="4"
+                  required
+                  value={businessProfile.description}
+                  onChange={(e) => setBusinessProfile({ ...businessProfile, description: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
+                />
+              </div>
+            </div>
+
+            {/* Bloque 2: Ubicación, Horarios & Contacto */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <MapPin className="w-5 h-5 text-amber-600" />
+                <h4 className="font-serif text-lg font-bold text-slate-900">2. Ubicación, Horarios & Canales Oficiales</h4>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Dirección Completa *</label>
+                  <input
+                    type="text"
+                    required
+                    value={businessProfile.location}
+                    onChange={(e) => setBusinessProfile({ ...businessProfile, location: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Horarios de Atención *</label>
+                  <input
+                    type="text"
+                    required
+                    value={businessProfile.openingHours}
+                    onChange={(e) => setBusinessProfile({ ...businessProfile, openingHours: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Teléfono Fijo / Local</label>
+                  <input
+                    type="text"
+                    value={businessProfile.phone}
+                    onChange={(e) => setBusinessProfile({ ...businessProfile, phone: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">WhatsApp de Reservas *</label>
+                  <input
+                    type="text"
+                    value={businessProfile.whatsapp}
+                    onChange={(e) => setBusinessProfile({ ...businessProfile, whatsapp: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Instagram (@usuario)</label>
+                  <input
+                    type="text"
+                    value={businessProfile.instagram}
+                    onChange={(e) => setBusinessProfile({ ...businessProfile, instagram: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Enlace de Facebook</label>
+                  <input
+                    type="text"
+                    value={businessProfile.facebookUrl}
+                    onChange={(e) => setBusinessProfile({ ...businessProfile, facebookUrl: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Bloque 3: Chef Ejecutivo & Equipo */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <ChefHat className="w-5 h-5 text-amber-600" />
+                <h4 className="font-serif text-lg font-bold text-slate-900">3. Chef Ejecutivo, Barista & Equipo Culinario</h4>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Nombre del Chef / Equipo Culinario</label>
+                  <input
+                    type="text"
+                    value={businessProfile.chef}
+                    onChange={(e) => setBusinessProfile({ ...businessProfile, chef: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Cita / Bio del Chef</label>
+                  <textarea
+                    rows="2"
+                    value={businessProfile.chefBio}
+                    onChange={(e) => setBusinessProfile({ ...businessProfile, chefBio: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Bloque 4: Platos Insignia del Menú */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-600" />
+                  <h4 className="font-serif text-lg font-bold text-slate-900">4. Platos Insignia del Menú</h4>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddDish}
+                  className="py-1.5 px-3 rounded-lg bg-amber-500 text-white font-bold text-xs flex items-center gap-1 hover:bg-amber-600"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Agregar Plato</span>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {businessProfile.signatureDishes.map((dish, idx) => (
+                  <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 relative">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[10px] uppercase font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
+                        Plato Insignia #{idx + 1}
+                      </span>
+                      {businessProfile.signatureDishes.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDish(idx)}
+                          className="text-rose-600 hover:text-rose-800 text-xs font-bold flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Eliminar</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                      <div className="md:col-span-8">
+                        <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Nombre del Plato *</label>
+                        <input
+                          type="text"
+                          required
+                          value={dish.name}
+                          onChange={(e) => handleDishChange(idx, 'name', e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-amber-500 bg-white"
+                        />
+                      </div>
+
+                      <div className="md:col-span-4">
+                        <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Precio Sugerido ($ USD) *</label>
+                        <input
+                          type="text"
+                          required
+                          value={dish.price}
+                          onChange={(e) => handleDishChange(idx, 'price', e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-amber-500 bg-white font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Descripción Culinaria & Acompañamientos *</label>
+                      <textarea
+                        rows="2"
+                        required
+                        value={dish.description}
+                        onChange={(e) => handleDishChange(idx, 'description', e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-white"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Bloque 5: Otros Destacados & Comodidades */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="w-5 h-5 text-amber-600" />
+                  <h4 className="font-serif text-lg font-bold text-slate-900">5. Otros Destacados de la Carta & Comodidades</h4>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddMenuHighlight}
+                  className="py-1.5 px-3 rounded-lg bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1 hover:bg-slate-200"
+                >
+                  <Plus className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Agregar Destacado</span>
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-2">Destacados de la Carta:</label>
+                <div className="flex flex-wrap gap-2">
+                  {businessProfile.menuHighlights.map((hl, idx) => (
+                    <span key={idx} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-900">
+                      <span>{hl}</span>
+                      <button type="button" onClick={() => handleRemoveMenuHighlight(idx)} className="text-amber-700 hover:text-red-700">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100">
+                <label className="block text-xs font-bold text-slate-700 mb-2">Servicios & Comodidades Activas:</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    "Wi-Fi de Alta Velocidad",
+                    "Zona Pet Friendly",
+                    "Ambiente Musical & Arte",
+                    "Cerca del Teleférico Mukumbarí",
+                    "Opciones Vegetarianas",
+                    "Take-away & Delivery",
+                    "Salón para Eventos & Banquetes",
+                    "Estacionamiento Privado",
+                    "Cava de Vinos",
+                    "Terraza al Aire Libre"
+                  ].map((feat, idx) => {
+                    const isChecked = businessProfile.features.includes(feat);
+                    return (
+                      <label key={idx} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer p-2 rounded-xl bg-slate-50 border border-slate-100 hover:bg-amber-50">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleFeature(feat)}
+                          className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                        />
+                        <span className={isChecked ? 'font-bold text-slate-900' : 'text-slate-600'}>{feat}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={isSavingBusiness}
+                className="py-3.5 px-8 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all"
+              >
+                <Save className="w-4 h-4" />
+                <span>{isSavingBusiness ? 'Guardando Ficha...' : 'Guardar y Publicar en la Guía'}</span>
+              </button>
+            </div>
+          </form>
+
         </div>
       )}
 
@@ -2169,47 +2733,54 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
             </form>
           </div>
 
-          {/* List of Published Vacancies */}
           <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md">
             <h4 className="font-serif text-xl font-bold text-slate-900 mb-4">
               Sus Vacantes Publicadas ({createdJobs.length})
             </h4>
 
-            <div className="space-y-4">
-              {createdJobs.map((job) => (
-                <div key={job.id} className="p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900">
-                        {job.department}
-                      </span>
-                      <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                        {job.status}
-                      </span>
+            {createdJobs.length === 0 ? (
+              <div className="py-12 text-center border-2 border-dashed border-slate-200 rounded-2xl">
+                <Briefcase className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+                <p className="text-sm font-bold text-slate-700">No tiene vacantes activas en este momento</p>
+                <p className="text-xs text-slate-500 mt-1">Utilice el formulario superior para publicar nuevas búsquedas de personal.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {createdJobs.map((job) => (
+                  <div key={job.id} className="p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900">
+                          {job.department}
+                        </span>
+                        <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                          {job.status}
+                        </span>
+                      </div>
+
+                      <h5 className="font-serif font-bold text-lg text-slate-900">{job.title}</h5>
+                      <p className="text-xs text-slate-600">
+                        <strong>Remuneración:</strong> {job.salary} • <strong>Jornada:</strong> {job.type}
+                      </p>
                     </div>
 
-                    <h5 className="font-serif font-bold text-lg text-slate-900">{job.title}</h5>
-                    <p className="text-xs text-slate-600">
-                      <strong>Remuneración:</strong> {job.salary} • <strong>Jornada:</strong> {job.type}
-                    </p>
+                    <button
+                      onClick={() => setViewingApplicantsJob(job)}
+                      className="py-2 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Users className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Ver Postulados ({job.applicants?.length || job.applicantsCount})</span>
+                    </button>
                   </div>
-
-                  <button
-                    onClick={() => setViewingApplicantsJob(job)}
-                    className="py-2 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm"
-                  >
-                    <Users className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Ver Postulados ({job.applicants?.length || job.applicantsCount})</span>
-                  </button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Tab 4: Payments */}
+      {/* Tab 4: Payments (Cuotas & Solvencia) */}
       {activeTab === 'payments' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-6 space-y-4">
@@ -2223,13 +2794,26 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               <div className="my-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
                 <div>
                   <span className="text-xs font-bold text-slate-700">Monto Mensual:</span>
-                  <span className="text-xs text-slate-500 block">Restaurante Afiliado Oficial</span>
+                  <span className="text-xs text-slate-500 block">
+                    {activeUser.memberCategory || 'Empresas (5 a 19 empleados)'}
+                  </span>
                 </div>
-                <span className="font-serif font-bold text-2xl text-slate-900">$25.00 <span className="text-xs font-normal text-slate-500">/ mes</span></span>
+                <span className="font-serif font-bold text-2xl text-slate-900">
+                  {activeUser.monthlyDues || '$10.00'} <span className="text-xs font-normal text-slate-500">/ mes</span>
+                </span>
               </div>
 
-              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-slate-700 space-y-1">
+                <span className="font-bold text-amber-900 block uppercase text-[10px] tracking-wider">
+                  Estructura de Cuotas Oficiales:
+                </span>
+                <p>• <strong>Grandes Empresas (20+ empleados):</strong> Inscripción + 1er Mes $50 USD • Mensualidad: $20 USD</p>
+                <p>• <strong>Empresas (5 a 19 empleados):</strong> Inscripción + 1er Mes $30 USD • Mensualidad: $10 USD</p>
+                <p>• <strong>Marca Personal / Emprendimientos:</strong> Inscripción + 1er Mes $20 USD • Mensualidad: $10 USD</p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold flex items-center gap-2 mt-4">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>Solvente — Próximo corte: 30 de Noviembre de 2026</span>
               </div>
             </div>
@@ -2261,7 +2845,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                     onChange={(e) => setSelectedPaymentMethod(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
                   >
-                    <option value="pago-movil">Pago Móvil Provincial (0108 - V-12517086)</option>
+                    <option value="pago-movil">Pago Móvil Provincial (0108 - V-12517086 - 04148817137)</option>
                     <option value="zelle">Zelle / Transferencia Internacional</option>
                   </select>
                 </div>
@@ -2288,57 +2872,237 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
         </div>
       )}
 
-      {/* Tab 5: Courses */}
+      {/* Tab 5: Courses (Capacitaciones & Cursos Oficiales) */}
       {activeTab === 'courses' && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h3 className="font-serif text-xl font-bold text-slate-900">Capacitaciones Exclusivas para Brigadas</h3>
-              <p className="text-xs text-slate-600">Descuento del 50% al 100% para el personal de restaurantes afiliados.</p>
+              <h3 className="font-serif text-xl font-bold text-slate-900">Capacitaciones & Cursos Oficiales</h3>
+              <p className="text-xs text-slate-600">
+                Programas académicos organizados por la Coordinación de Capacitación y Formación de la Cámara Gastronómica.
+              </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {internalCourses.map((course) => (
-              <div key={course.id} className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900">
-                      {course.duration}
-                    </span>
-                  </div>
+          {internalCourses.length === 0 ? (
+            <div className="p-12 text-center rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3">
+              <BookOpen className="w-12 h-12 text-slate-300 mx-auto" />
+              <h4 className="font-serif font-bold text-lg text-slate-800">
+                No hay cursos programados actualmente
+              </h4>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                La Coordinación de Capacitación y Formación y la Presidencia de la Cámara publicarán próximamente el cronograma de talleres, masterclasses y certificaciones de brigadas.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {internalCourses.map((course) => {
+                const isFree = course.isFreeForMembers || course.priceType === 'free' || course.memberPrice?.toLowerCase().includes('gratuito');
+                return (
+                  <div key={course.id} className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between hover:border-amber-400 transition-all">
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900">
+                          {course.hours || course.duration || 'Certificado Oficial'}
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          {isFree ? 'Gratis Agremiados' : `$${course.priceUsd} USD`}
+                        </span>
+                      </div>
 
-                  <h4 className="font-serif font-bold text-base text-slate-900 mt-1">{course.title}</h4>
-                  
-                  <div className="my-2 text-xs text-slate-500 flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-amber-600" />
-                    <span>{course.date}</span>
-                  </div>
-                  <p className="text-xs text-slate-600 mt-2">
-                    Instructor: <strong>{course.instructor}</strong>
-                  </p>
-                </div>
+                      <h4 className="font-serif font-bold text-base text-slate-900 mt-1">{course.title}</h4>
+                      
+                      <div className="my-2 text-xs text-slate-500 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span>{course.date}</span>
+                      </div>
 
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-800">{course.memberPrice}</span>
-                  <button
-                    onClick={() => alert(`¡Inscrito en ${course.title}! Recibirá el enlace y material.`)}
-                    className="py-1.5 px-3 rounded-lg bg-amber-500 text-white font-bold text-xs hover:bg-amber-600"
-                  >
-                    Inscribirse
-                  </button>
-                </div>
+                      <p className="text-xs text-slate-600 mt-2">
+                        Instructor: <strong>{course.instructor}</strong>
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Locación: {course.location}
+                      </p>
+                      {course.description && (
+                        <p className="text-xs text-slate-600 mt-2 line-clamp-2 italic">
+                          "{course.description}"
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between mt-4">
+                      <span className="text-xs font-bold text-slate-800">
+                        {isFree ? 'Gratuito para Agremiados' : `$${course.priceUsd} USD`}
+                      </span>
+                      <button
+                        onClick={() => handleOpenEnrollModal(course)}
+                        className="py-1.5 px-3 rounded-lg bg-amber-500 text-white font-bold text-xs hover:bg-amber-600 transition-colors shadow-xs"
+                      >
+                        Inscribirse
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Modal de Inscripción a Curso */}
+          {enrollingCourse && (
+            <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+              <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative my-8">
+                <button
+                  onClick={() => setEnrollingCourse(null)}
+                  className="absolute top-5 right-5 p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+
+                {courseRegSuccess ? (
+                  <div className="text-center py-6 space-y-3">
+                    <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center">
+                      <CheckCircle2 className="w-10 h-10" />
+                    </div>
+                    <h3 className="font-serif text-2xl font-bold text-slate-900">¡Inscripción Confirmada!</h3>
+                    <p className="text-xs text-slate-600">
+                      Se ha emitido el comprobante formal de inscripción académica y se ha enviado la confirmación al correo <strong>{courseRegData.email}</strong>.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleCourseEnrollSubmit} className="space-y-4 text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
+                        Capacitación Gremial CGEM
+                      </span>
+                      <h3 className="font-serif text-xl font-bold text-slate-900 mt-1">{enrollingCourse.title}</h3>
+                      <p className="text-slate-500">{enrollingCourse.date} • {enrollingCourse.instructor}</p>
+                    </div>
+
+                    <div className="space-y-3 pt-2">
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Nombre Completo del Asistente *</label>
+                        <input
+                          type="text"
+                          required
+                          value={courseRegData.name}
+                          onChange={(e) => setCourseRegData({ ...courseRegData, name: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-amber-500 bg-slate-50"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">Cédula de Identidad *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="V-12345678"
+                            value={courseRegData.ci}
+                            onChange={(e) => setCourseRegData({ ...courseRegData, ci: e.target.value })}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-amber-500 bg-slate-50"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">Teléfono / WhatsApp *</label>
+                          <input
+                            type="text"
+                            required
+                            value={courseRegData.phone}
+                            onChange={(e) => setCourseRegData({ ...courseRegData, phone: e.target.value })}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-amber-500 bg-slate-50"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Correo Electrónico *</label>
+                        <input
+                          type="email"
+                          required
+                          value={courseRegData.email}
+                          onChange={(e) => setCourseRegData({ ...courseRegData, email: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-amber-500 bg-slate-50"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Ocupación / Cargo Actual *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ej. Chef de Partida / Barista / Gerente"
+                          value={courseRegData.occupation}
+                          onChange={(e) => setCourseRegData({ ...courseRegData, occupation: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-amber-500 bg-slate-50"
+                        />
+                      </div>
+
+                      {/* Modalidad de pago o gratuidad para solventes */}
+                      {enrollingCourse.isFreeForMembers || enrollingCourse.priceType === 'free' || enrollingCourse.memberPrice?.toLowerCase().includes('gratuito') ? (
+                        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 space-y-1">
+                          <span className="font-bold flex items-center gap-1.5 text-xs">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                            Curso Gratuito para Miembros Agremiados Solventes
+                          </span>
+                          <p className="text-[11px] text-emerald-700">
+                            Su inscripción se confirmará inmediatamente y se enviará la acreditación digital a su correo.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-3.5 rounded-xl bg-slate-900 text-white space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-amber-400 font-bold">Pago Móvil Provincial (0108 - V-12517086 - 04148817137)</span>
+                            <span className="font-bold text-white font-mono">${enrollingCourse.priceUsd} USD</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-slate-800">
+                            <input
+                              type="text"
+                              required
+                              placeholder="Banco Emisor"
+                              value={courseRegData.issuingBank}
+                              onChange={(e) => setCourseRegData({ ...courseRegData, issuingBank: e.target.value })}
+                              className="px-2 py-1.5 rounded-lg bg-white text-xs"
+                            />
+                            <input
+                              type="text"
+                              required
+                              placeholder="N° Referencia Pago Móvil"
+                              value={courseRegData.referenceNumber}
+                              onChange={(e) => setCourseRegData({ ...courseRegData, referenceNumber: e.target.value })}
+                              className="px-2 py-1.5 rounded-lg bg-white text-xs font-mono"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEnrollingCourse(null)}
+                        className="py-2 px-4 rounded-xl border border-slate-200 font-bold text-xs"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSubmittingCourseReg}
+                        className="py-2.5 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-serif font-bold text-xs uppercase tracking-wider shadow-md"
+                      >
+                        {isSubmittingCourseReg ? 'Confirmando...' : 'Confirmar Inscripción'}
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Tab 6: Direct Board Communication Tool */}
       {activeTab === 'board' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
-          {/* Left: Directory of Board Members */}
           <div className="lg:col-span-5 space-y-4">
             <h3 className="font-serif text-xl font-bold text-slate-900">Junta Directiva Oficial</h3>
             <p className="text-xs text-slate-500">Seleccione un directivo para redactarle un comunicado directo.</p>
@@ -2364,6 +3128,9 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                     </div>
 
                     <h4 className="font-serif font-bold text-slate-900 text-sm mt-1">{member.name}</h4>
+                    {member.instagram && (
+                      <span className="text-[11px] text-amber-700 font-semibold block mt-0.5">{member.instagram}</span>
+                    )}
                     <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">{member.bio}</p>
                   </div>
                 );
@@ -2371,7 +3138,6 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
             </div>
           </div>
 
-          {/* Right: Direct Message Composer */}
           <div className="lg:col-span-7 p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -2445,7 +3211,6 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               </form>
             </div>
           </div>
-
         </div>
       )}
 
@@ -2464,25 +3229,9 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
             <h3 className="font-serif text-xl font-bold text-slate-900 mt-1">{viewingApplicantsJob.title}</h3>
             <p className="text-xs text-slate-500 mb-4">{viewingApplicantsJob.department} • {viewingApplicantsJob.salary}</p>
 
-            {viewingApplicantsJob.applicants && viewingApplicantsJob.applicants.length > 0 ? (
-              <div className="space-y-3 my-4">
-                {viewingApplicantsJob.applicants.map((cand, idx) => (
-                  <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                    <div>
-                      <h5 className="font-bold text-sm text-slate-900">{cand.name}</h5>
-                      <p className="text-xs text-slate-600">{cand.school} • Exp: {cand.exp}</p>
-                    </div>
-                    <span className="text-[10px] uppercase font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-900">
-                      {cand.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-8 text-center text-slate-500 text-xs">
-                Aún no se han recibido nuevas postulaciones para esta vacante.
-              </div>
-            )}
+            <div className="py-8 text-center text-slate-500 text-xs">
+              Aún no se han recibido nuevas postulaciones para esta vacante.
+            </div>
 
             <div className="pt-4 border-t border-slate-100 flex justify-end">
               <button

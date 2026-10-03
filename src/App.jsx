@@ -65,6 +65,52 @@ export function App() {
   const [focusRestaurantId, setFocusRestaurantId] = useState(null);
   const [guideSearchTerm, setGuideSearchTerm] = useState('');
 
+  // Live Synchronized Restaurants State (Includes custom edits from MI NEGOCIO)
+  const [restaurants, setRestaurants] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cgem_custom_restaurants');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      const myProfile = localStorage.getItem('cgem_my_business_profile');
+      if (myProfile) {
+        const myObj = JSON.parse(myProfile);
+        const exists = RESTAURANTS_DATA.some(r => r.id === myObj.id);
+        if (exists) {
+          return RESTAURANTS_DATA.map(r => r.id === myObj.id ? { ...r, ...myObj } : r);
+        }
+        return [myObj, ...RESTAURANTS_DATA];
+      }
+    } catch (e) {}
+    return RESTAURANTS_DATA;
+  });
+
+  useEffect(() => {
+    const handleBusinessUpdate = () => {
+      try {
+        const myProfile = localStorage.getItem('cgem_my_business_profile');
+        if (myProfile) {
+          const myObj = JSON.parse(myProfile);
+          setRestaurants(prev => {
+            const exists = prev.some(r => r.id === myObj.id);
+            if (exists) {
+              return prev.map(r => r.id === myObj.id ? { ...r, ...myObj } : r);
+            }
+            return [myObj, ...prev];
+          });
+        }
+      } catch (e) {}
+    };
+
+    window.addEventListener('cgm_business_updated', handleBusinessUpdate);
+    window.addEventListener('storage', handleBusinessUpdate);
+    return () => {
+      window.removeEventListener('cgm_business_updated', handleBusinessUpdate);
+      window.removeEventListener('storage', handleBusinessUpdate);
+    };
+  }, []);
+
   const t = translations[lang] || translations.es;
 
   // Process and parse current URL location
@@ -78,7 +124,7 @@ export function App() {
     // 1. Check direct restaurant slug in path: /restaurante/:slug
     if (pathname.startsWith('/restaurante/')) {
       const slug = pathname.replace('/restaurante/', '');
-      const found = RESTAURANTS_DATA.find(r => 
+      const found = (restaurants || RESTAURANTS_DATA).find(r => 
         (r.slug && r.slug.toLowerCase() === slug) || 
         r.id.toLowerCase() === slug
       );
@@ -93,7 +139,7 @@ export function App() {
     // 2. Check query param: ?restaurante=slug or ?restaurant=id or ?r=id
     const restParam = params.get('restaurante') || params.get('restaurant') || params.get('r') || hash;
     if (restParam) {
-      const found = RESTAURANTS_DATA.find(r => 
+      const found = (restaurants || RESTAURANTS_DATA).find(r => 
         r.id.toLowerCase() === restParam.toLowerCase() || 
         (r.slug && r.slug.toLowerCase() === restParam.toLowerCase())
       );
@@ -180,7 +226,7 @@ export function App() {
   };
 
   const handleSelectRestaurantById = (id) => {
-    const found = RESTAURANTS_DATA.find(r => r.id === id);
+    const found = (restaurants || RESTAURANTS_DATA).find(r => r.id === id);
     if (found) {
       setSelectedRestaurant(found);
       const newUrl = `/restaurante/${found.slug || found.id}`;
@@ -490,7 +536,7 @@ export function App() {
         {activeTab === 'guide' && (
           <div className="pt-24 pb-16">
             <RestaurantGuide 
-              restaurants={RESTAURANTS_DATA} 
+              restaurants={restaurants} 
               onSelectRestaurant={setSelectedRestaurant}
               onBookDirect={handleBookDirect}
               onViewOnMap={handleViewOnMap}
@@ -504,6 +550,7 @@ export function App() {
         {activeTab === 'lidar' && (
           <div className="pt-24 pb-16">
             <LidarMap 
+              restaurants={restaurants}
               onSelectRestaurantById={handleSelectRestaurantById}
               focusRestaurantId={focusRestaurantId}
               t={t}

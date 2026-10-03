@@ -401,4 +401,60 @@ export async function sendBoardAttendanceEmail({
   return memberResult;
 }
 
+/**
+ * Notificación de Inscripción a Capacitaciones & Cursos Oficiales (CGEM)
+ */
+export async function sendCourseRegistrationEmail({
+  courseTitle,
+  courseHours,
+  courseDate,
+  instructor,
+  location,
+  attendeeName,
+  attendeeCi,
+  attendeePhone,
+  attendeeEmail,
+  attendeeOccupation,
+  isSolventMember,
+  affiliateCode,
+  isPaid,
+  amountUsd,
+  referenceNumber,
+  bankName
+}) {
+  const subject = `Confirmación de Inscripción Académica: ${attendeeName} - ${courseTitle}`;
+
+  const content = `
+    <h2 style="color: #0f172a; margin-top: 0;">Confirmación Oficial de Inscripción Académica</h2>
+    <p>Estimado(a) <strong>${attendeeName}</strong>,</p>
+    <p>La <strong>Cámara Gastronómica del Estado Mérida</strong> y su <strong>Coordinación de Capacitación y Formación</strong> confirman formalmente su inscripción en el programa académico:</p>
+    
+    <div class="info-box">
+      <p style="margin: 4px 0;"><strong>Curso / Taller:</strong> <span style="font-size: 15px; color: #b45309; font-weight: bold;">${courseTitle}</span></p>
+      <p style="margin: 4px 0;"><strong>Duración Académica:</strong> ${courseHours || 'Certificado Oficial'}</p>
+      <p style="margin: 4px 0;"><strong>Fecha & Horario:</strong> ${courseDate}</p>
+      <p style="margin: 4px 0;"><strong>Instructor / Facilitador:</strong> ${instructor}</p>
+      <p style="margin: 4px 0;"><strong>Locación / Sede:</strong> ${location}</p>
+      <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 10px 0;" />
+      <p style="margin: 4px 0;"><strong>Participante:</strong> ${attendeeName} (C.I. ${attendeeCi})</p>
+      <p style="margin: 4px 0;"><strong>Ocupación / Cargo:</strong> ${attendeeOccupation || 'Profesional / Estudiante'}</p>
+      <p style="margin: 4px 0;"><strong>Condición de Acceso:</strong> ${isSolventMember ? `<span style="color: #059669; font-weight: bold;">✓ Gratuito para Afiliado Solvente (${affiliateCode || 'CGEM'})</span>` : (isPaid ? `Pago Verificado (${amountUsd} USD - Ref: ${referenceNumber} ${bankName})` : 'Entrada Libre')}</p>
+      <p style="margin: 4px 0;"><strong>Estatus:</strong> <span style="color: #059669; font-weight: bold;">✓ INSCRIPCIÓN CONFIRMADA</span></p>
+    </div>
+
+    <p style="font-size: 13px; color: #64748b; margin-top: 16px;">
+      Presente este comprobante o su documento de identidad al inicio de la jornada para recibir su material de apoyo y acreditación de asistencia.
+    </p>
+  `;
+
+  return sendEmail({
+    to: attendeeEmail,
+    replyTo: 'meridacamaragastronomica@gmail.com',
+    subject,
+    html: getEmailBaseTemplate(subject, content),
+    text: `Inscripción confirmada para ${attendeeName} en ${courseTitle} (${courseDate}).`
+  });
+}
+
+
 

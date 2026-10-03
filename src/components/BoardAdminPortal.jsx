@@ -44,7 +44,11 @@ import {
   Copy,
   RefreshCw,
   DollarSign,
-  Tag
+  Tag,
+  GraduationCap,
+  History,
+  Ticket,
+  Image as ImageIcon
 } from 'lucide-react';
 import { BOARD_MEMBERS_DATA, INITIAL_BOARD_AGENDA_DATA } from '../data/boardData';
 import { LEGAL_DATA } from '../data/legalData';
@@ -90,7 +94,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
     currentUser?.email?.toLowerCase() === 'dazajulio@gmail.com' || 
     (currentUser?.role && currentUser?.role.toLowerCase().includes('presidente') && !currentUser?.role.toLowerCase().includes('vicepresidente'));
 
-  const isExecutiveDirector = currentUser?.id === 'dir-ejecutiva' || 
+  const isExecutiveDirector = currentUser?.id === 'dir-ejecutivo' || 
+    currentUser?.id === 'dir-ejecutiva' || 
     currentUser?.email?.toLowerCase() === 'margiovi@gmail.com' || 
     (currentUser?.role && currentUser?.role.toLowerCase().includes('ejecutivo'));
 
@@ -264,7 +269,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedMonth, setSelectedMonth] = useState('all'); // 'all' or 1..12
   const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('timeline'); // timeline | board_list | legal_resources | directorio
+  const [viewMode, setViewMode] = useState('timeline'); // timeline | directorio | completed_report | courses_management | events_management | board_list | legal_resources
 
   // Admin Event Management Modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -288,6 +293,108 @@ export function BoardAdminPortal({ t, onNavigate }) {
     description: '',
     maxAttendees: '',
     status: 'confirmado'
+  });
+
+  // =========================================================================
+  // 1. COMPLETED EVENTS REPORT (ROLLING 90 DAYS WITH AUTO-CLEAN)
+  // =========================================================================
+  const [completedBoardEvents, setCompletedBoardEvents] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cgem_completed_board_events');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
+          return parsed.filter(ev => {
+            const time = ev.completedAt ? new Date(ev.completedAt).getTime() : new Date(ev.date).getTime();
+            return time >= ninetyDaysAgo;
+          });
+        }
+      }
+    } catch (e) {}
+    return [];
+  });
+
+  // Auto-clean and persist completed events
+  useEffect(() => {
+    try {
+      const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
+      const cleanList = completedBoardEvents.filter(ev => {
+        const time = ev.completedAt ? new Date(ev.completedAt).getTime() : new Date(ev.date).getTime();
+        return time >= ninetyDaysAgo;
+      });
+      localStorage.setItem('cgem_completed_board_events', JSON.stringify(cleanList));
+    } catch (e) {}
+  }, [completedBoardEvents]);
+
+  // =========================================================================
+  // 2. OFFICIAL COURSES MANAGEMENT (PRESIDENCY & DIRECTORS)
+  // =========================================================================
+  const [officialCourses, setOfficialCourses] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cgem_official_courses');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('cgem_official_courses', JSON.stringify(officialCourses));
+      window.dispatchEvent(new Event('cgem_courses_updated'));
+    } catch (e) {}
+  }, [officialCourses]);
+
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState(null);
+  const [courseFormData, setCourseFormData] = useState({
+    title: '',
+    hours: '16 Horas Académicas',
+    dates: '',
+    schedule: '09:00 AM - 01:00 PM',
+    instructor: '',
+    location: 'Sede CGEM / Laboratorio ULA',
+    isOnline: false,
+    category: 'Formación Gastronómica',
+    description: '',
+    spots: 25,
+    priceMemberText: 'Gratuito para Miembros Solventes',
+    priceGeneralUSD: 35,
+    image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80'
+  });
+
+  // =========================================================================
+  // 3. OFFICIAL PUBLIC EVENTS & FESTIVALS MANAGEMENT (PRESIDENCY)
+  // =========================================================================
+  const [officialEvents, setOfficialEvents] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cgem_official_events');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('cgem_official_events', JSON.stringify(officialEvents));
+      window.dispatchEvent(new Event('cgem_events_updated'));
+    } catch (e) {}
+  }, [officialEvents]);
+
+  const [isPublicEventModalOpen, setIsPublicEventModalOpen] = useState(false);
+  const [editingPublicEvent, setEditingPublicEvent] = useState(null);
+  const [publicEventFormData, setPublicEventFormData] = useState({
+    title: '',
+    date: new Date().toISOString().split('T')[0],
+    month: 'Enero',
+    location: 'Centro Histórico / Mérida',
+    category: 'Festival Gastronómico',
+    badge: 'Evento Oficial 2026',
+    ticketPrice: 'Gratuito Miembros / Entrada Libre',
+    priceUSD: 0,
+    description: '',
+    highlights: ['Catas guiadas y degustaciones', 'Masterclasses con chefs invitados'],
+    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80'
   });
 
   // Legal Document Creation & Editing Modal State (President Only)
@@ -569,6 +676,181 @@ export function BoardAdminPortal({ t, onNavigate }) {
       status: 'confirmado'
     });
     setIsCreateModalOpen(true);
+  };
+
+  // =========================================================================
+  // COURSE MANAGEMENT HANDLERS (PRESIDENCY & DIRECTORS)
+  // =========================================================================
+  const openNewCourseModal = () => {
+    setEditingCourse(null);
+    setCourseFormData({
+      title: '',
+      hours: '16 Horas Académicas',
+      dates: '',
+      schedule: '09:00 AM - 01:00 PM',
+      instructor: '',
+      location: 'Sede CGEM / Laboratorio ULA',
+      isOnline: false,
+      category: 'Formación Gastronómica',
+      description: '',
+      spots: 25,
+      priceMemberText: 'Gratuito para Miembros Solventes',
+      priceGeneralUSD: 35,
+      image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80'
+    });
+    setIsCourseModalOpen(true);
+  };
+
+  const openEditCourseModal = (course) => {
+    setEditingCourse(course);
+    setCourseFormData({
+      title: course.title || '',
+      hours: course.hours || '16 Horas Académicas',
+      dates: course.dates || '',
+      schedule: course.schedule || '09:00 AM - 01:00 PM',
+      instructor: course.instructor || '',
+      location: course.location || 'Sede CGEM / Laboratorio ULA',
+      isOnline: course.isOnline || false,
+      category: course.category || 'Formación Gastronómica',
+      description: course.description || '',
+      spots: course.spots || 25,
+      priceMemberText: course.priceMemberText || 'Gratuito para Miembros Solventes',
+      priceGeneralUSD: course.priceGeneralUSD || 35,
+      image: course.image || 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80'
+    });
+    setIsCourseModalOpen(true);
+  };
+
+  const handleSaveCourse = (e) => {
+    e.preventDefault();
+    if (editingCourse) {
+      const updated = officialCourses.map(c => c.id === editingCourse.id ? { ...c, ...courseFormData } : c);
+      setOfficialCourses(updated);
+      setActionSuccessMessage(`Curso "${courseFormData.title}" actualizado exitosamente.`);
+    } else {
+      const newCourse = {
+        id: `course-${Date.now()}`,
+        ...courseFormData,
+        created_at: new Date().toISOString()
+      };
+      setOfficialCourses([newCourse, ...officialCourses]);
+      setActionSuccessMessage(`Nuevo curso "${courseFormData.title}" publicado en la Academia.`);
+    }
+    setIsCourseModalOpen(false);
+    setEditingCourse(null);
+    setTimeout(() => setActionSuccessMessage(''), 4000);
+  };
+
+  const handleDeleteCourse = (courseId, title) => {
+    if (window.confirm(`¿Está seguro de eliminar el curso "${title}"?`)) {
+      setOfficialCourses(officialCourses.filter(c => c.id !== courseId));
+      setActionSuccessMessage(`Curso "${title}" eliminado.`);
+      setTimeout(() => setActionSuccessMessage(''), 4000);
+    }
+  };
+
+  // =========================================================================
+  // PUBLIC EVENTS & FESTIVALS HANDLERS (PRESIDENCY)
+  // =========================================================================
+  const openNewPublicEventModal = () => {
+    setEditingPublicEvent(null);
+    setPublicEventFormData({
+      title: '',
+      date: new Date().toISOString().split('T')[0],
+      month: 'Enero',
+      location: 'Centro Histórico / Mérida',
+      category: 'Festival Gastronómico',
+      badge: 'Evento Oficial 2026',
+      ticketPrice: 'Gratuito Miembros / Entrada Libre',
+      priceUSD: 0,
+      description: '',
+      highlights: ['Catas guiadas y degustaciones', 'Masterclasses con chefs invitados'],
+      image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80'
+    });
+    setIsPublicEventModalOpen(true);
+  };
+
+  const openEditPublicEventModal = (event) => {
+    setEditingPublicEvent(event);
+    setPublicEventFormData({
+      title: event.title || '',
+      date: event.date || '',
+      month: event.month || 'Enero',
+      location: event.location || '',
+      category: event.category || 'Festival Gastronómico',
+      badge: event.badge || 'Evento Oficial 2026',
+      ticketPrice: event.ticketPrice || 'Gratuito Miembros / Entrada Libre',
+      priceUSD: event.priceUSD || 0,
+      description: event.description || '',
+      highlights: Array.isArray(event.highlights) ? event.highlights : ['Catas guiadas y degustaciones', 'Masterclasses con chefs'],
+      image: event.image || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80'
+    });
+    setIsPublicEventModalOpen(true);
+  };
+
+  const handleSavePublicEvent = (e) => {
+    e.preventDefault();
+    if (editingPublicEvent) {
+      const updated = officialEvents.map(ev => ev.id === editingPublicEvent.id ? { ...ev, ...publicEventFormData } : ev);
+      setOfficialEvents(updated);
+      setActionSuccessMessage(`Evento "${publicEventFormData.title}" actualizado con éxito.`);
+    } else {
+      const newEv = {
+        id: `pub-ev-${Date.now()}`,
+        ...publicEventFormData,
+        created_at: new Date().toISOString()
+      };
+      setOfficialEvents([newEv, ...officialEvents]);
+      setActionSuccessMessage(`Evento público "${publicEventFormData.title}" publicado en la Agenda Oficial.`);
+    }
+    setIsPublicEventModalOpen(false);
+    setEditingPublicEvent(null);
+    setTimeout(() => setActionSuccessMessage(''), 4000);
+  };
+
+  const handleDeletePublicEvent = (eventId, title) => {
+    if (window.confirm(`¿Está seguro de eliminar el evento "${title}"?`)) {
+      setOfficialEvents(officialEvents.filter(ev => ev.id !== eventId));
+      setActionSuccessMessage(`Evento "${title}" eliminado.`);
+      setTimeout(() => setActionSuccessMessage(''), 4000);
+    }
+  };
+
+  // =========================================================================
+  // EVENTO CUMPLIDO & REPORTE TRIMESTRAL HANDLERS
+  // =========================================================================
+  const handleMarkEventCompleted = (event) => {
+    if (!currentUser?.isAdminLevel) return;
+    if (window.confirm(`¿Marcar la actividad "${event.title}" como EVENTO CUMPLIDO?\n\nEsta actividad se archivará formalmente en el Reporte de Gestión de los últimos 3 meses con el registro de sus asistentes confirmados.`)) {
+      const completedItem = {
+        ...event,
+        status: 'cumplido',
+        completedAt: new Date().toISOString()
+      };
+      setCompletedBoardEvents(prev => [completedItem, ...prev]);
+      setAgendaEvents(prev => prev.filter(ev => ev.id !== event.id));
+      setActionSuccessMessage(`Actividad "${event.title}" marcada como CUMPLIDA y registrada en el Reporte Histórico.`);
+      setTimeout(() => setActionSuccessMessage(''), 4000);
+    }
+  };
+
+  const handleExportCompletedReportCSV = () => {
+    const headers = "ID,Titulo,Tipo,Fecha_Actividad,Fecha_Cumplido,Lugar,Organizador,Total_Asistentes,Asistentes_Confirmados\n";
+    const rows = completedBoardEvents.map(ev => {
+      const attendees = (ev.confirmedAttendees || []).map(a => `${a.name} (${a.role})`).join('; ');
+      return `"${ev.id || ''}","${(ev.title || '').replace(/"/g, '""')}","${ev.typeLabel || ev.type || ''}","${ev.date || ''}","${ev.completedAt || ''}","${(ev.location || '').replace(/"/g, '""')}","${(ev.organizer || '').replace(/"/g, '""')}","${(ev.confirmedAttendees || []).length}","${attendees.replace(/"/g, '""')}"`;
+    }).join("\n");
+
+    const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `reporte_eventos_cumplidos_cgem_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setActionSuccessMessage('Reporte de gestión descargado exitosamente en CSV.');
+    setTimeout(() => setActionSuccessMessage(''), 4000);
   };
 
   // =========================================================================
@@ -1027,8 +1309,10 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 </h1>
                 
                 <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 mt-1 font-sans">
-                  <span className="font-mono text-amber-900 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">{currentUser.ci}</span>
-                  <span>&bull;</span>
+                  {currentUser.instagram && (
+                    <span className="font-sans text-amber-900 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">{currentUser.instagram}</span>
+                  )}
+                  {currentUser.instagram && <span>&bull;</span>}
                   <span className="font-medium">{currentUser.email}</span>
                   <span>&bull;</span>
                   <span className="text-emerald-700 font-bold flex items-center gap-1">
@@ -1057,6 +1341,36 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 >
                   <Plus className="w-4 h-4 text-white" />
                   <span>Nuevo Agremiado</span>
+                </button>
+              )}
+
+              {currentUser.isAdminLevel && viewMode === 'courses_management' && (
+                <button
+                  onClick={openNewCourseModal}
+                  className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
+                >
+                  <Plus className="w-4 h-4 text-white" />
+                  <span>Nuevo Curso / Taller</span>
+                </button>
+              )}
+
+              {currentUser.isAdminLevel && viewMode === 'events_management' && (
+                <button
+                  onClick={openNewPublicEventModal}
+                  className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
+                >
+                  <Plus className="w-4 h-4 text-white" />
+                  <span>Nuevo Evento / Festival</span>
+                </button>
+              )}
+
+              {viewMode === 'completed_report' && (
+                <button
+                  onClick={handleExportCompletedReportCSV}
+                  className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-white" />
+                  <span>Descargar Reporte CSV</span>
                 </button>
               )}
 
@@ -1119,7 +1433,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   <span>Agenda Cronológica</span>
                 </button>
 
-                {/* 2. DIRECTORIO DE AGREMIADOS (Presidente & Dirección Ejecutiva) */}
+                {/* 2. DIRECTORIO DE AGREMIADOS */}
                 {canAccessDirectory && (
                   <button
                     onClick={() => setViewMode('directorio')}
@@ -1134,7 +1448,50 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   </button>
                 )}
 
-                {/* 3. Directorio de Junta Directiva */}
+                {/* 3. Reporte de Eventos Cumplidos (Últimos 3 Meses) */}
+                <button
+                  onClick={() => setViewMode('completed_report')}
+                  className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
+                    viewMode === 'completed_report'
+                      ? 'bg-teal-600 text-white shadow-sm font-extrabold'
+                      : 'text-teal-900 hover:text-teal-950 bg-teal-50 hover:bg-teal-100 border border-teal-200'
+                  }`}
+                >
+                  <History className={`w-3.5 h-3.5 ${viewMode === 'completed_report' ? 'text-white' : 'text-teal-700'}`} />
+                  <span>Eventos Cumplidos ({completedBoardEvents.length})</span>
+                </button>
+
+                {/* 4. Gestión de Cursos & Capacitaciones (Presidente / Directiva) */}
+                {currentUser.isAdminLevel && (
+                  <button
+                    onClick={() => setViewMode('courses_management')}
+                    className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
+                      viewMode === 'courses_management'
+                        ? 'bg-sky-600 text-white shadow-sm font-extrabold'
+                        : 'text-sky-900 hover:text-sky-950 bg-sky-50 hover:bg-sky-100 border border-sky-200'
+                    }`}
+                  >
+                    <GraduationCap className={`w-3.5 h-3.5 ${viewMode === 'courses_management' ? 'text-white' : 'text-sky-700'}`} />
+                    <span>Cursos & Academia ({officialCourses.length})</span>
+                  </button>
+                )}
+
+                {/* 5. Gestión de Eventos & Festivales Públicos (Presidente / Directiva) */}
+                {currentUser.isAdminLevel && (
+                  <button
+                    onClick={() => setViewMode('events_management')}
+                    className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
+                      viewMode === 'events_management'
+                        ? 'bg-amber-600 text-white shadow-sm font-extrabold'
+                        : 'text-amber-900 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 border border-amber-200'
+                    }`}
+                  >
+                    <Ticket className={`w-3.5 h-3.5 ${viewMode === 'events_management' ? 'text-white' : 'text-amber-700'}`} />
+                    <span>Eventos & Festivales ({officialEvents.length})</span>
+                  </button>
+                )}
+
+                {/* 6. Directorio de Junta Directiva */}
                 <button
                   onClick={() => setViewMode('board_list')}
                   className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
@@ -1147,7 +1504,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   <span>Junta Directiva</span>
                 </button>
 
-                {/* 4. Gestor de Recursos Jurídicos (Exclusivo Presidente) */}
+                {/* 7. Gestor de Recursos Jurídicos (Exclusivo Presidente) */}
                 {isPresident && (
                   <button
                     onClick={() => setViewMode('legal_resources')}
@@ -1775,26 +2132,37 @@ export function BoardAdminPortal({ t, onNavigate }) {
                             </p>
                           </div>
 
-                          {/* Admin Edit / Delete Controls (Presidente & Director Ejecutivo) */}
+                          {/* Admin Edit / Delete / Evento Cumplido Controls */}
                           {currentUser.isAdminLevel && (
-                            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                            <div className="space-y-2 pt-3 border-t border-slate-100">
                               <button
-                                onClick={() => openEditModal(event)}
-                                className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 transition-colors text-xs flex items-center gap-1 font-bold font-sans"
-                                title="Editar actividad"
+                                onClick={() => handleMarkEventCompleted(event)}
+                                className="w-full py-2 px-3 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 transition-all text-xs flex items-center justify-center gap-1.5 font-extrabold font-sans shadow-xs active:scale-98"
+                                title="Marcar como cumplido y archivar en el reporte histórico de los últimos 3 meses"
                               >
-                                <Edit3 className="w-3.5 h-3.5 text-amber-700" />
-                                <span>Editar</span>
+                                <CheckCircle2 className="w-4 h-4 text-teal-600" />
+                                <span>EVENTO CUMPLIDO</span>
                               </button>
 
-                              <button
-                                onClick={() => handleDeleteEvent(event.id)}
-                                className="p-2 rounded-lg bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-700 transition-colors text-xs flex items-center gap-1 font-bold font-sans"
-                                title="Eliminar actividad"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span>Eliminar</span>
-                              </button>
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => openEditModal(event)}
+                                  className="flex-1 p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 transition-colors text-xs flex items-center justify-center gap-1 font-bold font-sans"
+                                  title="Editar actividad"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5 text-amber-700" />
+                                  <span>Editar</span>
+                                </button>
+
+                                <button
+                                  onClick={() => handleDeleteEvent(event.id)}
+                                  className="flex-1 p-2 rounded-lg bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-700 transition-colors text-xs flex items-center justify-center gap-1 font-bold font-sans"
+                                  title="Eliminar actividad"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Eliminar</span>
+                                </button>
+                              </div>
                             </div>
                           )}
 
@@ -1808,6 +2176,499 @@ export function BoardAdminPortal({ t, onNavigate }) {
               </div>
             )}
 
+          </div>
+        )}
+
+        {/* =========================================================================
+            VIEW MODE: REPORTE DE EVENTOS CUMPLIDOS (ÚLTIMOS 3 MESES)
+            ========================================================================= */}
+        {viewMode === 'completed_report' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Header Box */}
+            <div className="bg-gradient-to-br from-teal-950 via-slate-900 to-emerald-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-teal-800/40">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 pb-6 border-b border-teal-800/50">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 border border-teal-400/40 text-[10px] font-extrabold uppercase tracking-wider mb-2 font-sans">
+                    <History className="w-3.5 h-3.5 text-teal-400" />
+                    <span>Histórico de Gestión & Cumplimiento Directivo (Ventana Móvil 90 Días)</span>
+                  </div>
+                  <h2 className="font-serif font-black text-2xl sm:text-3xl text-white uppercase tracking-wide">
+                    Reporte de Actividades & Compromisos Cumplidos
+                  </h2>
+                  <p className="text-xs sm:text-sm text-teal-200/80 mt-1 max-w-2xl font-sans">
+                    Registro formal de convocatorias, sesiones de junta, eventos institucionales y reuniones gremiales ejecutadas con verificación de asistencia de la Junta Directiva.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 font-sans">
+                  <button
+                    onClick={handleExportCompletedReportCSV}
+                    className="py-3 px-5 rounded-xl bg-teal-500 hover:bg-teal-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider shadow-lg flex items-center gap-2 transition-all active:scale-98"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-slate-950" />
+                    <span>Descargar Reporte CSV</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Stats Summary */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 font-sans">
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-teal-300 block">Actividades Cumplidas</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-white">{completedBoardEvents.length}</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">En los últimos 90 días</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-emerald-400 block">Total Asistencias Computadas</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-emerald-400">
+                    {completedBoardEvents.reduce((acc, ev) => acc + (ev.confirmedAttendees?.length || 0), 0)}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Participaciones registradas</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-amber-300 block">Depuración Automática</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-white">90 Días</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Ciclo continuo de archivo</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Completed Events List */}
+            {completedBoardEvents.length === 0 ? (
+              <div className="p-12 text-center rounded-3xl bg-white border border-slate-200 space-y-3 shadow-sm font-sans">
+                <CheckCircle2 className="w-12 h-12 text-slate-300 mx-auto" />
+                <h3 className="font-serif font-black text-lg text-slate-700 uppercase">
+                  No hay actividades archivadas en el período actual
+                </h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Al marcar actividades como "EVENTO CUMPLIDO" desde la Agenda Cronológica, aparecerán reflejadas aquí con sus métricas de asistencia.
+                </p>
+                <button
+                  onClick={() => setViewMode('timeline')}
+                  className="mt-2 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-sm"
+                >
+                  Ir a Agenda Cronológica
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {completedBoardEvents.map((event) => {
+                  const attendeeCount = event.confirmedAttendees?.length || 0;
+                  return (
+                    <div 
+                      key={event.id}
+                      className="bg-white rounded-3xl border border-teal-200 hover:border-teal-400 p-6 shadow-sm transition-all"
+                    >
+                      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2 mb-1.5 font-sans">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-900 border border-teal-300">
+                              <CheckCircle2 className="w-3 h-3 text-teal-700" />
+                              Evento Cumplido
+                            </span>
+                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                              {event.typeLabel || event.type}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              Fecha Ejecución: {event.date}
+                            </span>
+                            {event.completedAt && (
+                              <span className="text-[10px] text-teal-700 font-mono">
+                                &bull; Registrado: {new Date(event.completedAt).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+
+                          <h3 className="font-serif font-black text-xl text-slate-900">
+                            {event.title}
+                          </h3>
+                        </div>
+
+                        <div className="flex items-center gap-2 font-sans text-xs">
+                          <span className="font-bold px-3 py-1 rounded-xl bg-teal-50 text-teal-800 border border-teal-200">
+                            {attendeeCount} Asistentes Confirmados
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Details & Location */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-600 mt-4 font-sans">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-teal-600 shrink-0" />
+                          <span>{event.location}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-sky-600 shrink-0" />
+                          <span>Organizó: <strong>{event.organizer}</strong></span>
+                        </div>
+                      </div>
+
+                      {event.description && (
+                        <p className="text-xs text-slate-600 mt-3 font-sans leading-relaxed">
+                          {event.description}
+                        </p>
+                      )}
+
+                      {/* Attendee Roster */}
+                      <div className="mt-4 pt-3 border-t border-slate-100 font-sans">
+                        <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-2">
+                          Directivos que Asistieron y Certificaron la Actividad:
+                        </span>
+                        {attendeeCount === 0 ? (
+                          <span className="text-xs text-slate-400 italic">Sin lista nominal registrada.</span>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-2">
+                            {event.confirmedAttendees.map((att, idx) => (
+                              <span 
+                                key={idx}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-800 font-medium"
+                              >
+                                <span className="w-2 h-2 rounded-full bg-teal-500" />
+                                <span>{att.name}</span>
+                                <span className="text-slate-500 text-[10px]">({att.role})</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            VIEW MODE: GESTIÓN DE CURSOS & CAPACITACIONES (PRESIDENCIA / DIRECTIVA)
+            ========================================================================= */}
+        {viewMode === 'courses_management' && currentUser.isAdminLevel && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Header Box */}
+            <div className="bg-gradient-to-br from-sky-950 via-slate-900 to-indigo-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-sky-800/40">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 pb-6 border-b border-sky-800/50">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/40 text-[10px] font-extrabold uppercase tracking-wider mb-2 font-sans">
+                    <GraduationCap className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Control Académico Oficial & Capacitación Técnica</span>
+                  </div>
+                  <h2 className="font-serif font-black text-2xl sm:text-3xl text-white uppercase tracking-wide">
+                    Gestor de Cursos & Capacitaciones
+                  </h2>
+                  <p className="text-xs sm:text-sm text-sky-200/80 mt-1 max-w-2xl font-sans">
+                    Publique programas de formación, talleres y masterclasses. Los agremiados solventes acceden de forma gratuita; para no afiliados se habilita el cobro en USD vía Pago Móvil Provincial.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 font-sans">
+                  <button
+                    onClick={openNewCourseModal}
+                    className="py-3 px-5 rounded-xl bg-sky-500 hover:bg-sky-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider shadow-lg flex items-center gap-2 transition-all active:scale-98"
+                  >
+                    <Plus className="w-4 h-4 text-slate-950" />
+                    <span>Crear Nuevo Curso</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Course Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 font-sans">
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-sky-300 block">Cursos Publicados</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-white">{officialCourses.length}</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">En oferta académica</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-emerald-400 block">Afiliados Solventes</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-emerald-400">100% Gratis</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Beneficio gremial</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-amber-300 block">Sincronización</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-amber-300">En Vivo</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Portal & Academia</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-teal-300 block">Método de Pago</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-white">Provincial</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Pago Móvil Oficial</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Courses Grid */}
+            {officialCourses.length === 0 ? (
+              <div className="p-12 text-center rounded-3xl bg-white border border-slate-200 space-y-3 shadow-sm font-sans">
+                <GraduationCap className="w-12 h-12 text-slate-300 mx-auto" />
+                <h3 className="font-serif font-black text-lg text-slate-700 uppercase">
+                  No hay cursos o capacitaciones registradas
+                </h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Haga clic en el botón a continuación para crear el primer curso oficial con sus horas académicas, instructor y aranceles.
+                </p>
+                <button
+                  onClick={openNewCourseModal}
+                  className="mt-2 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-sm"
+                >
+                  Publicar Primer Curso
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
+                {officialCourses.map((course) => (
+                  <div 
+                    key={course.id}
+                    className="bg-white rounded-3xl border border-slate-200 hover:border-sky-400 shadow-sm overflow-hidden flex flex-col justify-between transition-all"
+                  >
+                    <div>
+                      {course.image && (
+                        <div className="relative h-44 w-full overflow-hidden bg-slate-100">
+                          <img 
+                            src={course.image} 
+                            alt={course.title} 
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute top-3 left-3">
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-sky-600 text-white shadow-sm">
+                              {course.category}
+                            </span>
+                          </div>
+                          <div className="absolute top-3 right-3">
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/90 text-slate-900 shadow-sm">
+                              {course.hours}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="p-5 space-y-3">
+                        <h3 className="font-serif font-black text-lg text-slate-900 leading-snug">
+                          {course.title}
+                        </h3>
+
+                        <div className="space-y-1.5 text-xs text-slate-600">
+                          <div className="flex items-center gap-2">
+                            <Users className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                            <span>Instructor: <strong className="text-slate-800">{course.instructor || 'Facilitador CGEM'}</strong></span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CalendarIcon className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            <span>Fechas: <strong>{course.dates || 'Por definir'}</strong> ({course.schedule})</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span className="truncate">{course.isOnline ? 'Online / Aula Virtual' : course.location}</span>
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed">
+                          {course.description}
+                        </p>
+
+                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                          <div>
+                            <span className="text-[10px] font-bold text-emerald-700 block">Afiliados Solventes:</span>
+                            <span className="font-extrabold text-emerald-900">Gratis</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] font-bold text-slate-500 block">Público General:</span>
+                            <span className="font-extrabold text-slate-900">${course.priceGeneralUSD || 35} USD</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        Cupos: {course.spots || 25}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openEditCourseModal(course)}
+                          className="p-2 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-sky-700" />
+                          <span>Editar</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCourse(course.id, course.title)}
+                          className="p-2 rounded-lg bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 text-xs font-bold flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Eliminar</span>
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            VIEW MODE: GESTIÓN DE EVENTOS & FESTIVALES PÚBLICOS (PRESIDENCIA)
+            ========================================================================= */}
+        {viewMode === 'events_management' && currentUser.isAdminLevel && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Header Box */}
+            <div className="bg-gradient-to-br from-amber-950 via-slate-900 to-stone-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-amber-800/40">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 pb-6 border-b border-amber-800/50">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40 text-[10px] font-extrabold uppercase tracking-wider mb-2 font-sans">
+                    <Ticket className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Cartelera Oficial & Festivales Gastronómicos 2026</span>
+                  </div>
+                  <h2 className="font-serif font-black text-2xl sm:text-3xl text-white uppercase tracking-wide">
+                    Gestor de Eventos & Festivales
+                  </h2>
+                  <p className="text-xs sm:text-sm text-amber-200/80 mt-1 max-w-2xl font-sans">
+                    Publique y administre los eventos y festividades públicas que se visualizarán en el Calendario Anual de Mérida Gastronómica.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 font-sans">
+                  <button
+                    onClick={openNewPublicEventModal}
+                    className="py-3 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider shadow-lg flex items-center gap-2 transition-all active:scale-98"
+                  >
+                    <Plus className="w-4 h-4 text-slate-950" />
+                    <span>Nuevo Evento / Festival</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Event Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 font-sans">
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-amber-300 block">Eventos Activos</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-white">{officialEvents.length}</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">En agenda pública</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-emerald-400 block">Sincronización Web</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-emerald-400">Inmediata</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Calendario anual</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-sky-300 block">Acreditaciones</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-sky-300">Digitales</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Inscripción web</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-teal-300 block">Garantía Gremial</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-white">CGEM</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Aval institucional</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Public Events Grid */}
+            {officialEvents.length === 0 ? (
+              <div className="p-12 text-center rounded-3xl bg-white border border-slate-200 space-y-3 shadow-sm font-sans">
+                <Ticket className="w-12 h-12 text-slate-300 mx-auto" />
+                <h3 className="font-serif font-black text-lg text-slate-700 uppercase">
+                  No hay eventos o festivales publicados actualmente
+                </h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Agregue una nueva feria gastronómica, cata o congreso para que esté disponible para el público y turistas.
+                </p>
+                <button
+                  onClick={openNewPublicEventModal}
+                  className="mt-2 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-sm"
+                >
+                  Publicar Primer Evento
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
+                {officialEvents.map((event) => (
+                  <div 
+                    key={event.id}
+                    className="bg-white rounded-3xl border border-slate-200 hover:border-amber-400 shadow-sm overflow-hidden flex flex-col justify-between transition-all"
+                  >
+                    <div>
+                      {event.image && (
+                        <div className="relative h-44 w-full overflow-hidden bg-slate-100">
+                          <img 
+                            src={event.image} 
+                            alt={event.title} 
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute top-3 left-3">
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-amber-500 text-slate-950 shadow-sm">
+                              {event.month}
+                            </span>
+                          </div>
+                          <div className="absolute top-3 right-3">
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/90 text-slate-900 shadow-sm">
+                              {event.badge}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="p-5 space-y-3">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                          {event.category}
+                        </span>
+
+                        <h3 className="font-serif font-black text-lg text-slate-900 leading-snug">
+                          {event.title}
+                        </h3>
+
+                        <div className="space-y-1.5 text-xs text-slate-600">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            <span>Fecha: <strong>{event.date}</strong></span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                            <span className="truncate">{event.location}</span>
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed">
+                          {event.description}
+                        </p>
+
+                        <div className="pt-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Acceso:</span>
+                          <span className="text-xs font-bold text-emerald-700">{event.ticketPrice}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => openEditPublicEventModal(event)}
+                        className="p-2 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-amber-700" />
+                        <span>Editar</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeletePublicEvent(event.id, event.title)}
+                        className="p-2 rounded-lg bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 text-xs font-bold flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Eliminar</span>
+                      </button>
+                    </div>
+
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1857,18 +2718,20 @@ export function BoardAdminPortal({ t, onNavigate }) {
                       {member.role}
                     </p>
 
-                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-600 font-mono">
+                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-600 font-sans">
+                      {member.instagram && (
+                        <div className="flex justify-between">
+                          <span>Instagram:</span>
+                          <span className="text-amber-800 font-bold">{member.instagram}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
-                        <span className="font-sans">Cédula:</span>
-                        <span className="text-slate-900 font-bold">{member.ci}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="font-sans">Correo:</span>
+                          <span>Correo:</span>
                         <span className="text-slate-900 truncate max-w-[170px]" title={member.email}>{member.email}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="font-sans">Acceso:</span>
-                        <span className={member.hasPasswordSet ? 'text-emerald-700 font-bold font-sans' : 'text-slate-400 font-sans'}>
+                        <span>Acceso:</span>
+                        <span className={member.hasPasswordSet ? 'text-emerald-700 font-bold' : 'text-slate-400'}>
                           {member.hasPasswordSet ? 'Habilitado' : 'Pre-registrado'}
                         </span>
                       </div>
@@ -2671,6 +3534,447 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 >
                   <Check className="w-4 h-4" />
                   <span>{editingLegalDoc ? 'Actualizar Documento' : 'Publicar Documento'}</span>
+                </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL: CREATE / EDIT OFFICIAL COURSE (PRESIDENCY / ACADEMY)
+          ========================================================================= */}
+      {isCourseModalOpen && currentUser.isAdminLevel && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn font-sans">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto text-slate-800">
+            
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-sky-100 text-sky-800 border border-sky-300">
+                  <GraduationCap className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif font-black text-xl text-slate-900 uppercase tracking-wider">
+                    {editingCourse ? 'Editar Programa de Capacitación' : 'Publicar Nuevo Curso Oficial'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Academia Gastronómica CGEM &bull; Oferta Formativa
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsCourseModalOpen(false)}
+                className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCourse} className="mt-6 space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Título del Curso / Taller *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={courseFormData.title}
+                  onChange={(e) => setCourseFormData({ ...courseFormData, title: e.target.value })}
+                  placeholder="ej: Costos Gastronómicos & Estandarización de Recetas 2026"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 font-medium text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Horas Académicas *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={courseFormData.hours}
+                    onChange={(e) => setCourseFormData({ ...courseFormData, hours: e.target.value })}
+                    placeholder="ej: 16 Horas Académicas"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Categoría Formativa *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={courseFormData.category}
+                    onChange={(e) => setCourseFormData({ ...courseFormData, category: e.target.value })}
+                    placeholder="ej: Gestión & Finanzas, Cocina Andina, Barismo..."
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Fechas Programadas *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={courseFormData.dates}
+                    onChange={(e) => setCourseFormData({ ...courseFormData, dates: e.target.value })}
+                    placeholder="ej: 15 y 16 de Noviembre 2026"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Horario de Clases *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={courseFormData.schedule}
+                    onChange={(e) => setCourseFormData({ ...courseFormData, schedule: e.target.value })}
+                    placeholder="ej: 09:00 AM - 01:00 PM"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Instructor / Facilitador *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={courseFormData.instructor}
+                    onChange={(e) => setCourseFormData({ ...courseFormData, instructor: e.target.value })}
+                    placeholder="ej: Chef Ejecutivo / Especialista ULA"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Locación / Sede Física *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={courseFormData.location}
+                    onChange={(e) => setCourseFormData({ ...courseFormData, location: e.target.value })}
+                    placeholder="ej: Sede CGEM / Laboratorio Hotel Escuela ULA"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Cupos Disponibles
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={courseFormData.spots}
+                    onChange={(e) => setCourseFormData({ ...courseFormData, spots: parseInt(e.target.value, 10) || 20 })}
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Arancel Miembro Solvente
+                  </label>
+                  <input
+                    type="text"
+                    value={courseFormData.priceMemberText}
+                    onChange={(e) => setCourseFormData({ ...courseFormData, priceMemberText: e.target.value })}
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Precio Público General (USD)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={courseFormData.priceGeneralUSD}
+                    onChange={(e) => setCourseFormData({ ...courseFormData, priceGeneralUSD: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Imagen Referencial (URL)
+                </label>
+                <input
+                  type="url"
+                  value={courseFormData.image}
+                  onChange={(e) => setCourseFormData({ ...courseFormData, image: e.target.value })}
+                  placeholder="https://images.unsplash.com/..."
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Descripción & Contenido Programático *
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  value={courseFormData.description}
+                  onChange={(e) => setCourseFormData({ ...courseFormData, description: e.target.value })}
+                  placeholder="Objetivos de aprendizaje, módulos, materiales incluidos y certificación institucional..."
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-sky-500 focus:bg-white leading-relaxed"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="isOnlineCourse"
+                  checked={courseFormData.isOnline}
+                  onChange={(e) => setCourseFormData({ ...courseFormData, isOnline: e.target.checked })}
+                  className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 border-slate-300"
+                />
+                <label htmlFor="isOnlineCourse" className="text-xs font-bold text-slate-700 cursor-pointer">
+                  Modalidad Virtual / Online (Zoom / Aula Virtual ULA)
+                </label>
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsCourseModalOpen(false)}
+                  className="py-3 px-5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  className="py-3 px-6 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-serif font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-md active:scale-98"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{editingCourse ? 'Actualizar Curso' : 'Publicar Curso'}</span>
+                </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL: CREATE / EDIT OFFICIAL PUBLIC EVENT (PRESIDENCY)
+          ========================================================================= */}
+      {isPublicEventModalOpen && currentUser.isAdminLevel && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn font-sans">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto text-slate-800">
+            
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-amber-100 text-amber-800 border border-amber-300">
+                  <Ticket className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif font-black text-xl text-slate-900 uppercase tracking-wider">
+                    {editingPublicEvent ? 'Editar Evento / Festival' : 'Publicar Nuevo Evento o Festival'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Calendario Oficial de Festivales & Festividades Mérida 2026
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsPublicEventModalOpen(false)}
+                className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePublicEvent} className="mt-6 space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Título del Evento o Festival *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={publicEventFormData.title}
+                  onChange={(e) => setPublicEventFormData({ ...publicEventFormData, title: e.target.value })}
+                  placeholder="ej: Expo Mérida Gastronómica 2026 & Salón del Cacao Porcelana"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 font-medium text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Mes Principal *
+                  </label>
+                  <select
+                    value={publicEventFormData.month}
+                    onChange={(e) => setPublicEventFormData({ ...publicEventFormData, month: e.target.value })}
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
+                  >
+                    {MONTHS.map(m => (
+                      <option key={m.num} value={m.name}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Fecha Exacta o Rango *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={publicEventFormData.date}
+                    onChange={(e) => setPublicEventFormData({ ...publicEventFormData, date: e.target.value })}
+                    placeholder="ej: 18 al 22 de Octubre 2026"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Categoría *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={publicEventFormData.category}
+                    onChange={(e) => setPublicEventFormData({ ...publicEventFormData, category: e.target.value })}
+                    placeholder="ej: Feria Gastronómica, Cata & Maridaje, Congreso..."
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Distintivo / Badge
+                  </label>
+                  <input
+                    type="text"
+                    value={publicEventFormData.badge}
+                    onChange={(e) => setPublicEventFormData({ ...publicEventFormData, badge: e.target.value })}
+                    placeholder="ej: Evento Oficial 2026 / Edición XI"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Sede / Locación *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={publicEventFormData.location}
+                    onChange={(e) => setPublicEventFormData({ ...publicEventFormData, location: e.target.value })}
+                    placeholder="ej: Centro de Convenciones Mucumbarila, Mérida"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Tipo de Entrada / Acceso *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={publicEventFormData.ticketPrice}
+                    onChange={(e) => setPublicEventFormData({ ...publicEventFormData, ticketPrice: e.target.value })}
+                    placeholder="ej: Entrada Libre / Gratuito Miembros Solvente"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Imagen de Banner (URL)
+                </label>
+                <input
+                  type="url"
+                  value={publicEventFormData.image}
+                  onChange={(e) => setPublicEventFormData({ ...publicEventFormData, image: e.target.value })}
+                  placeholder="https://images.unsplash.com/..."
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Descripción del Evento *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={publicEventFormData.description}
+                  onChange={(e) => setPublicEventFormData({ ...publicEventFormData, description: e.target.value })}
+                  placeholder="Reseña general, ponentes invitados, actividades para el público y turistas..."
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-amber-500 focus:bg-white leading-relaxed"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Puntos Destacados (separados por coma)
+                </label>
+                <input
+                  type="text"
+                  value={Array.isArray(publicEventFormData.highlights) ? publicEventFormData.highlights.join(', ') : ''}
+                  onChange={(e) => setPublicEventFormData({ 
+                    ...publicEventFormData, 
+                    highlights: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                  })}
+                  placeholder="ej: Catas guiadas, Showcookings con chefs, Rueda de negocios"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
+                />
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsPublicEventModalOpen(false)}
+                  className="py-3 px-5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  className="py-3 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-md active:scale-98"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{editingPublicEvent ? 'Actualizar Evento' : 'Publicar Evento'}</span>
                 </button>
               </div>
 

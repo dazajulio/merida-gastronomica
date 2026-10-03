@@ -82,7 +82,7 @@ const MAP_STYLES = [
   }
 ];
 
-export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
+export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaurants = RESTAURANTS_DATA }) {
   const [activeRouteId, setActiveRouteId] = useState('eje-metropolitano');
   const [selectedCheckpoint, setSelectedCheckpoint] = useState(null);
   const [selectedStyleId, setSelectedStyleId] = useState('outdoors');
@@ -185,7 +185,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t }) {
     markersRef.current = [];
 
     // 3. MANDATORY: ALWAYS RENDER ALL REGISTERED RESTAURANTS IN PERMANENT 3D CARDS (LIVE SYNCED)
-    RESTAURANTS_DATA.forEach((restData) => {
+    (restaurants || RESTAURANTS_DATA).forEach((restData) => {
       const liveCoords = getLiveRestaurantCoords(restData);
       const restLng = liveCoords.lng;
       const restLat = liveCoords.lat;
