@@ -73,10 +73,6 @@ export function HeroSection({ t, setActiveTab, onQuickSearch }) {
           </span>
         </h1>
 
-        {/* Subtitle */}
-        <p className="mt-6 text-sm sm:text-lg text-slate-100 max-w-2xl mx-auto font-normal leading-relaxed drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)] font-sans">
-          Mérida se posiciona como marca gastronómica global. Descubra la herencia culinaria de los Andes, el café de especialidad y el cacao fino de aroma frente a las cumbres nevadas.
-        </p>
 
         {/* Translucent Search Bar */}
         <div className="mt-8 max-w-2xl mx-auto">
