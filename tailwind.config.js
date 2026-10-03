@@ -35,7 +35,9 @@ export default {
         // Extra Condensed / Tall Display font for headings and high impact titles
         serif: ['"Barlow Condensed"', '"Oswald"', '"Outfit"', 'sans-serif'],
         condensed: ['"Barlow Condensed"', '"Oswald"', 'sans-serif'],
-        display: ['"Barlow Condensed"', '"Oswald"', 'sans-serif'],
+        // Script / Manuscrita elegante
+        script: ['"Great Vibes"', '"Alex Brush"', 'cursive'],
+        cursive: ['"Great Vibes"', '"Alex Brush"', 'cursive'],
         // Clean and open geometric sans for reading, body and UI
         sans: ['"Montserrat"', '"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
       },

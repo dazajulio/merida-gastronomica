@@ -10,6 +10,11 @@
   }
 }
 
+.font-script, .font-cursive {
+  font-family: 'Great Vibes', 'Alex Brush', cursive;
+  font-weight: 400;
+}
+
 /* Custom Scrollbar - Warm & Modern */
 ::-webkit-scrollbar {
   width: 8px;

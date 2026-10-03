@@ -1,16 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Compass, 
-  UtensilsCrossed, 
-  Search, 
-  Sparkles, 
-  ArrowRight, 
-  ShieldCheck,
-  MapPin
-} from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 
-export function HeroSection({ t, setActiveTab, onQuickSearch }) {
-  const [searchQuery, setSearchQuery] = useState('');
+export function HeroSection() {
   const [scrollY, setScrollY] = useState(0);
 
   // Parallax scroll listener
@@ -22,16 +13,8 @@ export function HeroSection({ t, setActiveTab, onQuickSearch }) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      onQuickSearch(searchQuery);
-      setActiveTab('guide');
-    }
-  };
-
   return (
-    <section className="relative min-h-[96vh] flex items-center justify-center pt-28 pb-20 overflow-hidden bg-slate-950">
+    <section className="relative min-h-[85vh] sm:min-h-[92vh] flex items-center justify-center pt-24 pb-16 overflow-hidden bg-slate-950">
       
       {/* High-Resolution Hero Background with Smooth Parallax Scroll */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
@@ -49,96 +32,33 @@ export function HeroSection({ t, setActiveTab, onQuickSearch }) {
           />
         </div>
 
-        {/* Minimal soft vignette overlay: keeps all food details crystal clear */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-black/45" />
-        <div className="absolute inset-0 bg-black/10" />
+        {/* Minimal soft vignette overlay: keeps food and mountain details crystal clear */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/45" />
+        <div className="absolute inset-0 bg-black/15" />
       </div>
 
       {/* Main Hero Editorial Content */}
-      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 w-full text-center text-white">
+      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 w-full text-center text-white flex flex-col items-center justify-center">
         
         {/* Prestige Institutional Badge (Translucent & Soft) */}
-        <div className="inline-flex items-center gap-2.5 px-5 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/25 mb-6 shadow-xl animate-fadeIn">
-          <ShieldCheck className="w-4 h-4 text-amber-400" />
-          <span className="text-[10px] sm:text-xs font-extrabold tracking-[0.2em] uppercase text-white font-sans">
+        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-black/40 backdrop-blur-md border border-white/25 mb-8 shadow-xl animate-fadeIn">
+          <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+          <span className="text-[11px] sm:text-xs font-bold tracking-[0.2em] uppercase text-white font-sans">
             CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA
           </span>
         </div>
 
-        {/* Clean, Majestic & Ultra-Professional Typography (Playfair Display) */}
-        <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white max-w-4xl mx-auto leading-tight sm:leading-[1.15] uppercase drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)]">
-          LA COCINA ANDINA,
-          <span className="block mt-1 sm:mt-2 text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-amber-200 drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)]">
-            NUESTRO LEGADO AL MUNDO
+        {/* Clean, Majestic & Elegant Typography */}
+        <div className="max-w-4xl mx-auto">
+          {/* Manuscrita / Script Elegante sin negrita */}
+          <span className="block font-script font-normal text-5xl sm:text-7xl md:text-8xl lg:text-9xl text-amber-100/95 tracking-normal normal-case capitalize leading-[1.1] drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)]">
+            La Cocina Andina,
           </span>
-        </h1>
 
-
-        {/* Translucent Search Bar */}
-        <div className="mt-8 max-w-2xl mx-auto">
-          <form 
-            onSubmit={handleSearchSubmit}
-            className="relative flex items-center bg-white/80 backdrop-blur-md border border-white/50 rounded-2xl p-1.5 shadow-xl focus-within:border-amber-400 focus-within:bg-white focus-within:ring-4 focus-within:ring-amber-400/20 transition-all text-slate-900"
-          >
-            <div className="pl-3 pr-2 text-amber-600">
-              <Search className="w-5 h-5" />
-            </div>
-            <input 
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar trucha, pizca andina, café de altura, cacao, restaurantes..."
-              className="w-full bg-transparent text-slate-900 placeholder-slate-500 text-xs sm:text-sm font-semibold focus:outline-none px-2 py-2"
-            />
-            <button
-              type="submit"
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-terracotta text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 hover:brightness-110 active:scale-95 transition-all shadow-md shrink-0"
-            >
-              <span>Explorar</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </form>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="mt-10 pt-6 border-t border-white/20 grid grid-cols-2 md:grid-cols-4 gap-3.5 max-w-4xl mx-auto">
-          
-          <div className="p-4 rounded-2xl bg-white/85 backdrop-blur-md border border-white/60 shadow-lg text-slate-900">
-            <div className="text-2xl font-bold font-serif text-amber-700">
-              45+
-            </div>
-            <p className="text-[11px] text-slate-700 mt-0.5 font-bold uppercase tracking-wider font-sans">
-              Restaurantes Certificados
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/85 backdrop-blur-md border border-white/60 shadow-lg text-slate-900">
-            <div className="text-2xl font-bold font-serif text-sky-700">
-              4.765 m
-            </div>
-            <p className="text-[11px] text-slate-700 mt-0.5 font-bold uppercase tracking-wider font-sans">
-              Cocina de Altura
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/85 backdrop-blur-md border border-white/60 shadow-lg text-slate-900">
-            <div className="text-2xl font-bold font-serif text-terracotta">
-              5
-            </div>
-            <p className="text-[11px] text-slate-700 mt-0.5 font-bold uppercase tracking-wider font-sans">
-              Ejes Gastronómicos
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/85 backdrop-blur-md border border-white/60 shadow-lg text-slate-900">
-            <div className="text-2xl font-bold font-serif text-emerald-700">
-              100%
-            </div>
-            <p className="text-[11px] text-slate-700 mt-0.5 font-bold uppercase tracking-wider font-sans">
-              Cacao & Café de Origen
-            </p>
-          </div>
-
+          {/* Subtítulo Principal de Alto Impacto */}
+          <h1 className="font-serif text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-amber-200 uppercase drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] mt-2 sm:mt-4 leading-tight">
+            NUESTRO LEGADO AL MUNDO
+          </h1>
         </div>
 
       </div>
