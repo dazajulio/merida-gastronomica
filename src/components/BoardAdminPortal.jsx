@@ -386,15 +386,56 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const [publicEventFormData, setPublicEventFormData] = useState({
     title: '',
     date: new Date().toISOString().split('T')[0],
-    month: 'Enero',
+    month: 'Octubre',
     location: 'Centro Histórico / Mérida',
     category: 'Festival Gastronómico',
     badge: 'Evento Oficial 2026',
-    ticketPrice: 'Gratuito Miembros / Entrada Libre',
-    priceUSD: 0,
+    accessType: 'member_free_paid_general', // 'free' | 'member_free_paid_general' | 'paid'
+    priceGeneralUSD: 10,
+    priceMemberUSD: 0,
+    ticketPrice: 'Gratuito Miembros / $10 USD General',
+    isPagoMovilEnabled: true,
+    pagoMovilBank: '0108 - Banco Provincial',
+    pagoMovilCi: 'V-12517086',
+    pagoMovilPhone: '0414-8817137',
     description: '',
     highlights: ['Catas guiadas y degustaciones', 'Masterclasses con chefs invitados'],
     image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80'
+  });
+
+  // =========================================================================
+  // 4. VINCULACIONES TURÍSTICAS & SERVICIOS STATE (PRESIDENCY)
+  // =========================================================================
+  const [touristServices, setTouristServices] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cgem_tourist_services');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('cgem_tourist_services', JSON.stringify(touristServices));
+      window.dispatchEvent(new Event('cgm_tourist_services_updated'));
+    } catch (e) {}
+  }, [touristServices]);
+
+  const [isTouristServiceModalOpen, setIsTouristServiceModalOpen] = useState(false);
+  const [editingTouristService, setEditingTouristService] = useState(null);
+  const [touristServiceFormData, setTouristServiceFormData] = useState({
+    title: '',
+    category: 'Movilidad & Transporte VIP',
+    badge: 'Operador Certificado',
+    image: '',
+    rating: 5.0,
+    priceFrom: '$50',
+    unit: 'por persona',
+    description: '',
+    features: ['Atención personalizada', 'Guía bilingüe certificado', 'Póliza de seguro incluida'],
+    contactPhone: '+58 412 6408957',
+    contactWhatsapp: '+58 414 8817137',
+    location: 'Mérida, Venezuela'
   });
 
   // Legal Document Creation & Editing Modal State (President Only)
@@ -757,12 +798,18 @@ export function BoardAdminPortal({ t, onNavigate }) {
     setPublicEventFormData({
       title: '',
       date: new Date().toISOString().split('T')[0],
-      month: 'Enero',
+      month: 'Octubre',
       location: 'Centro Histórico / Mérida',
       category: 'Festival Gastronómico',
       badge: 'Evento Oficial 2026',
-      ticketPrice: 'Gratuito Miembros / Entrada Libre',
-      priceUSD: 0,
+      accessType: 'member_free_paid_general',
+      priceGeneralUSD: 10,
+      priceMemberUSD: 0,
+      ticketPrice: 'Gratuito Miembros / $10 USD General',
+      isPagoMovilEnabled: true,
+      pagoMovilBank: '0108 - Banco Provincial',
+      pagoMovilCi: 'V-12517086',
+      pagoMovilPhone: '0414-8817137',
       description: '',
       highlights: ['Catas guiadas y degustaciones', 'Masterclasses con chefs invitados'],
       image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80'
@@ -775,12 +822,18 @@ export function BoardAdminPortal({ t, onNavigate }) {
     setPublicEventFormData({
       title: event.title || '',
       date: event.date || '',
-      month: event.month || 'Enero',
+      month: event.month || 'Octubre',
       location: event.location || '',
       category: event.category || 'Festival Gastronómico',
       badge: event.badge || 'Evento Oficial 2026',
-      ticketPrice: event.ticketPrice || 'Gratuito Miembros / Entrada Libre',
-      priceUSD: event.priceUSD || 0,
+      accessType: event.accessType || (event.ticketPrice?.toLowerCase().includes('gratis') && !event.ticketPrice?.includes('$') ? 'free' : 'member_free_paid_general'),
+      priceGeneralUSD: event.priceGeneralUSD !== undefined ? event.priceGeneralUSD : (event.priceUSD || 10),
+      priceMemberUSD: event.priceMemberUSD !== undefined ? event.priceMemberUSD : 0,
+      ticketPrice: event.ticketPrice || 'Gratuito Miembros / $10 USD General',
+      isPagoMovilEnabled: event.isPagoMovilEnabled !== false,
+      pagoMovilBank: event.pagoMovilBank || '0108 - Banco Provincial',
+      pagoMovilCi: event.pagoMovilCi || 'V-12517086',
+      pagoMovilPhone: event.pagoMovilPhone || '0414-8817137',
       description: event.description || '',
       highlights: Array.isArray(event.highlights) ? event.highlights : ['Catas guiadas y degustaciones', 'Masterclasses con chefs'],
       image: event.image || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80'
@@ -790,14 +843,30 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
   const handleSavePublicEvent = (e) => {
     e.preventDefault();
+    // Auto-generate ticketPrice text if needed
+    let generatedTicketText = publicEventFormData.ticketPrice;
+    if (publicEventFormData.accessType === 'free') {
+      generatedTicketText = 'Entrada Totalmente Libre / Gratuito';
+    } else if (publicEventFormData.accessType === 'member_free_paid_general') {
+      generatedTicketText = `Gratuito Miembros / $${publicEventFormData.priceGeneralUSD || 10} USD General`;
+    } else if (publicEventFormData.accessType === 'paid') {
+      generatedTicketText = `$${publicEventFormData.priceGeneralUSD || 10} USD Entrada General`;
+    }
+
+    const payload = {
+      ...publicEventFormData,
+      ticketPrice: generatedTicketText,
+      priceUSD: parseFloat(publicEventFormData.priceGeneralUSD) || 0
+    };
+
     if (editingPublicEvent) {
-      const updated = officialEvents.map(ev => ev.id === editingPublicEvent.id ? { ...ev, ...publicEventFormData } : ev);
+      const updated = officialEvents.map(ev => ev.id === editingPublicEvent.id ? { ...ev, ...payload } : ev);
       setOfficialEvents(updated);
       setActionSuccessMessage(`Evento "${publicEventFormData.title}" actualizado con éxito.`);
     } else {
       const newEv = {
         id: `pub-ev-${Date.now()}`,
-        ...publicEventFormData,
+        ...payload,
         created_at: new Date().toISOString()
       };
       setOfficialEvents([newEv, ...officialEvents]);
@@ -812,6 +881,80 @@ export function BoardAdminPortal({ t, onNavigate }) {
     if (window.confirm(`¿Está seguro de eliminar el evento "${title}"?`)) {
       setOfficialEvents(officialEvents.filter(ev => ev.id !== eventId));
       setActionSuccessMessage(`Evento "${title}" eliminado.`);
+      setTimeout(() => setActionSuccessMessage(''), 4000);
+    }
+  };
+
+  // =========================================================================
+  // VINCULACIONES TURÍSTICAS & SERVICIOS HANDLERS (PRESIDENCY)
+  // =========================================================================
+  const openNewTouristServiceModal = () => {
+    setEditingTouristService(null);
+    setTouristServiceFormData({
+      title: '',
+      category: 'Movilidad & Transporte VIP',
+      badge: 'Operador Certificado',
+      image: '',
+      rating: 5.0,
+      priceFrom: '$50',
+      unit: 'por persona',
+      description: '',
+      features: ['Atención personalizada', 'Guía bilingüe certificado', 'Póliza de seguro incluida'],
+      contactPhone: '+58 412 6408957',
+      contactWhatsapp: '+58 414 8817137',
+      location: 'Mérida, Venezuela'
+    });
+    setIsTouristServiceModalOpen(true);
+  };
+
+  const openEditTouristServiceModal = (service) => {
+    setEditingTouristService(service);
+    setTouristServiceFormData({
+      title: service.title || '',
+      category: service.category || 'Movilidad & Transporte VIP',
+      badge: service.badge || 'Operador Certificado',
+      image: service.image || '',
+      rating: service.rating || 5.0,
+      priceFrom: service.priceFrom || '$50',
+      unit: service.unit || 'por persona',
+      description: service.description || '',
+      features: Array.isArray(service.features) ? service.features : (typeof service.features === 'string' ? service.features.split(',').map(s => s.trim()) : []),
+      contactPhone: service.contactPhone || '+58 412 6408957',
+      contactWhatsapp: service.contactWhatsapp || '+58 414 8817137',
+      location: service.location || 'Mérida, Venezuela'
+    });
+    setIsTouristServiceModalOpen(true);
+  };
+
+  const handleSaveTouristService = (e) => {
+    e.preventDefault();
+    const payload = {
+      ...touristServiceFormData,
+      features: Array.isArray(touristServiceFormData.features) ? touristServiceFormData.features : String(touristServiceFormData.features).split(',').map(s => s.trim()).filter(Boolean)
+    };
+
+    if (editingTouristService) {
+      const updated = touristServices.map(s => s.id === editingTouristService.id ? { ...s, ...payload } : s);
+      setTouristServices(updated);
+      setActionSuccessMessage(`Servicio turístico "${payload.title}" actualizado con éxito.`);
+    } else {
+      const newService = {
+        id: `tour-serv-${Date.now()}`,
+        ...payload,
+        created_at: new Date().toISOString()
+      };
+      setTouristServices([newService, ...touristServices]);
+      setActionSuccessMessage(`Nuevo servicio turístico "${payload.title}" publicado en el portal.`);
+    }
+    setIsTouristServiceModalOpen(false);
+    setEditingTouristService(null);
+    setTimeout(() => setActionSuccessMessage(''), 4000);
+  };
+
+  const handleDeleteTouristService = (serviceId, title) => {
+    if (window.confirm(`¿Está seguro de eliminar el servicio turístico "${title}"?`)) {
+      setTouristServices(touristServices.filter(s => s.id !== serviceId));
+      setActionSuccessMessage(`Servicio "${title}" eliminado.`);
       setTimeout(() => setActionSuccessMessage(''), 4000);
     }
   };
@@ -1364,6 +1507,16 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 </button>
               )}
 
+              {currentUser.isAdminLevel && viewMode === 'tourist_services' && (
+                <button
+                  onClick={openNewTouristServiceModal}
+                  className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
+                >
+                  <Plus className="w-4 h-4 text-white" />
+                  <span>Nuevo Servicio Turístico</span>
+                </button>
+              )}
+
               {viewMode === 'completed_report' && (
                 <button
                   onClick={handleExportCompletedReportCSV}
@@ -1491,7 +1644,22 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   </button>
                 )}
 
-                {/* 6. Directorio de Junta Directiva */}
+                {/* 6. Vinculaciones Turísticas & Servicios VIP (Presidente / Directiva) */}
+                {currentUser.isAdminLevel && (
+                  <button
+                    onClick={() => setViewMode('tourist_services')}
+                    className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
+                      viewMode === 'tourist_services'
+                        ? 'bg-purple-600 text-white shadow-sm font-extrabold'
+                        : 'text-purple-900 hover:text-purple-950 bg-purple-50 hover:bg-purple-100 border border-purple-200'
+                    }`}
+                  >
+                    <Compass className={`w-3.5 h-3.5 ${viewMode === 'tourist_services' ? 'text-white' : 'text-purple-700'}`} />
+                    <span>Servicios Turísticos ({touristServices.length})</span>
+                  </button>
+                )}
+
+                {/* 7. Directorio de Junta Directiva */}
                 <button
                   onClick={() => setViewMode('board_list')}
                   className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
@@ -1504,7 +1672,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   <span>Junta Directiva</span>
                 </button>
 
-                {/* 7. Gestor de Recursos Jurídicos (Exclusivo Presidente) */}
+                {/* 8. Gestor de Recursos Jurídicos (Exclusivo Presidente) */}
                 {isPresident && (
                   <button
                     onClick={() => setViewMode('legal_resources')}
@@ -2658,6 +2826,173 @@ export function BoardAdminPortal({ t, onNavigate }) {
                       </button>
                       <button
                         onClick={() => handleDeletePublicEvent(event.id, event.title)}
+                        className="p-2 rounded-lg bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 text-xs font-bold flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Eliminar</span>
+                      </button>
+                    </div>
+
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            VIEW MODE: VINCULACIONES TURÍSTICAS & SERVICIOS (PRESIDENCIA)
+            ========================================================================= */}
+        {viewMode === 'tourist_services' && currentUser.isAdminLevel && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Header Box */}
+            <div className="bg-gradient-to-br from-purple-950 via-slate-900 to-indigo-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-purple-800/40">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 pb-6 border-b border-purple-800/50">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/40 text-[10px] font-extrabold uppercase tracking-wider mb-2 font-sans">
+                    <Compass className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Convenios & Prestadores Homologados</span>
+                  </div>
+                  <h2 className="font-serif font-black text-2xl sm:text-3xl text-white uppercase tracking-wide">
+                    Gestor de Vinculaciones Turísticas
+                  </h2>
+                  <p className="text-xs sm:text-sm text-purple-200/80 mt-1 max-w-2xl font-sans">
+                    Cargue y administre los operadores turísticos oficiales, traslados, experiencias de montaña y servicios VIP de Mérida Gastronómica.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 font-sans">
+                  <button
+                    onClick={openNewTouristServiceModal}
+                    className="py-3 px-5 rounded-xl bg-purple-500 hover:bg-purple-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider shadow-lg flex items-center gap-2 transition-all active:scale-98"
+                  >
+                    <Plus className="w-4 h-4 text-slate-950" />
+                    <span>Nuevo Servicio Turístico</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 font-sans">
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-purple-300 block">Servicios Activos</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-white">{touristServices.length}</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">En portal público</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-emerald-400 block">Certificación</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-emerald-400">Oficial</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Aval CGEM</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-sky-300 block">Atención Directa</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-sky-300">WhatsApp</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Contacto concierge</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <span className="text-[10px] uppercase font-bold text-amber-300 block">Estado Web</span>
+                  <span className="font-serif font-black text-2xl sm:text-3xl text-white">Sincronizado</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Tiempo real</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Tourist Services Grid */}
+            {touristServices.length === 0 ? (
+              <div className="p-12 text-center rounded-3xl bg-white border border-slate-200 space-y-3 shadow-sm font-sans">
+                <Compass className="w-12 h-12 text-slate-300 mx-auto" />
+                <h3 className="font-serif font-black text-lg text-slate-700 uppercase">
+                  No hay vinculaciones turísticas registradas actualmente
+                </h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Agregue convenios con operadores de transporte 4x4, posadas, senderismo o experiencias gastronómicas para mostrarlas al público y turistas.
+                </p>
+                <button
+                  onClick={openNewTouristServiceModal}
+                  className="mt-2 py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-sm"
+                >
+                  Agregar Primer Servicio Turístico
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
+                {touristServices.map((service) => (
+                  <div 
+                    key={service.id}
+                    className="bg-white rounded-3xl border border-slate-200 hover:border-purple-400 shadow-sm overflow-hidden flex flex-col justify-between transition-all"
+                  >
+                    <div>
+                      {service.image ? (
+                        <div className="relative h-44 w-full overflow-hidden bg-slate-100">
+                          <img 
+                            src={service.image} 
+                            alt={service.title} 
+                            className="w-full h-full object-cover"
+                          />
+                          {service.badge && (
+                            <div className="absolute top-3 right-3">
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/90 text-slate-900 shadow-sm">
+                                {service.badge}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="h-28 w-full bg-slate-100 flex items-center justify-center text-purple-600">
+                          <Compass className="w-8 h-8" />
+                        </div>
+                      )}
+
+                      <div className="p-5 space-y-3">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                          {service.category}
+                        </span>
+
+                        <h3 className="font-serif font-black text-lg text-slate-900 leading-snug">
+                          {service.title}
+                        </h3>
+
+                        <div className="space-y-1.5 text-xs text-slate-600">
+                          {service.location && (
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                              <span className="truncate">{service.location}</span>
+                            </div>
+                          )}
+                          {service.contactWhatsapp && (
+                            <div className="flex items-center gap-2">
+                              <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span>WhatsApp: <strong>{service.contactWhatsapp}</strong></span>
+                            </div>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed">
+                          {service.description}
+                        </p>
+
+                        {service.priceFrom && (
+                          <div className="pt-2">
+                            <span className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Tarifa:</span>
+                            <span className="text-xs font-bold text-purple-700">{service.priceFrom} {service.unit}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => openEditTouristServiceModal(service)}
+                        className="p-2 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-purple-700" />
+                        <span>Editar</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTouristService(service.id, service.title)}
                         className="p-2 rounded-lg bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 text-xs font-bold flex items-center gap-1"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -3901,6 +4236,129 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 </div>
               </div>
 
+              {/* Access Type & Pricing Controls */}
+              <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-3">
+                <label className="block font-bold text-slate-800 uppercase tracking-wider text-xs">
+                  Modalidad de Acceso & Venta de Entradas *
+                </label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPublicEventFormData({
+                      ...publicEventFormData,
+                      accessType: 'member_free_paid_general',
+                      priceMemberUSD: 0,
+                      isPagoMovilEnabled: true,
+                      ticketPrice: `Gratuito Miembros / $${publicEventFormData.priceGeneralUSD || 10} USD General`
+                    })}
+                    className={`p-2.5 rounded-xl border text-left transition-all text-xs font-sans ${
+                      publicEventFormData.accessType === 'member_free_paid_general'
+                        ? 'bg-amber-500 text-slate-950 font-bold border-amber-600 shadow-xs'
+                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="block font-extrabold">⭐ Mixto (Recomendado)</span>
+                    <span className="text-[10px] opacity-90 block mt-0.5">Gratis Miembros / Pago General</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPublicEventFormData({
+                      ...publicEventFormData,
+                      accessType: 'paid',
+                      isPagoMovilEnabled: true,
+                      ticketPrice: `$${publicEventFormData.priceGeneralUSD || 10} USD Entrada General`
+                    })}
+                    className={`p-2.5 rounded-xl border text-left transition-all text-xs font-sans ${
+                      publicEventFormData.accessType === 'paid'
+                        ? 'bg-amber-500 text-slate-950 font-bold border-amber-600 shadow-xs'
+                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="block font-extrabold">🎟️ Entrada Paga</span>
+                    <span className="text-[10px] opacity-90 block mt-0.5">Pago General con Pago Móvil</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPublicEventFormData({
+                      ...publicEventFormData,
+                      accessType: 'free',
+                      priceGeneralUSD: 0,
+                      priceMemberUSD: 0,
+                      isPagoMovilEnabled: false,
+                      ticketPrice: 'Entrada Totalmente Libre / Gratuito'
+                    })}
+                    className={`p-2.5 rounded-xl border text-left transition-all text-xs font-sans ${
+                      publicEventFormData.accessType === 'free'
+                        ? 'bg-amber-500 text-slate-950 font-bold border-amber-600 shadow-xs'
+                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="block font-extrabold">🆓 Entrada Libre</span>
+                    <span className="text-[10px] opacity-90 block mt-0.5">Acceso 100% Gratuito</span>
+                  </button>
+                </div>
+
+                {publicEventFormData.accessType !== 'free' && (
+                  <div className="pt-2 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1 text-[11px]">
+                          Precio Público General (USD) *
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          required
+                          value={publicEventFormData.priceGeneralUSD || ''}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            setPublicEventFormData({
+                              ...publicEventFormData,
+                              priceGeneralUSD: val,
+                              ticketPrice: publicEventFormData.accessType === 'member_free_paid_general'
+                                ? `Gratuito Miembros / $${val} USD General`
+                                : `$${val} USD Entrada General`
+                            });
+                          }}
+                          placeholder="ej: 10"
+                          className="w-full px-3 py-2.5 rounded-xl bg-white border border-amber-300 text-slate-900 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1 text-[11px]">
+                          Texto Visible en Entrada
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={publicEventFormData.ticketPrice}
+                          onChange={(e) => setPublicEventFormData({ ...publicEventFormData, ticketPrice: e.target.value })}
+                          placeholder="ej: Gratuito Miembros / $10 USD General"
+                          className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Pago Movil Details Banner */}
+                    <div className="p-3 rounded-xl bg-white border border-amber-300 text-xs space-y-1.5 font-mono text-slate-800">
+                      <div className="flex items-center gap-2 font-bold text-amber-900 font-sans">
+                        <CreditCard className="w-4 h-4 text-amber-600" />
+                        <span>Pago Móvil Oficial Habilitado para este Evento:</span>
+                      </div>
+                      <div className="text-[11px] grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                        <div>Banco: <strong>0108 Provincial</strong></div>
+                        <div>C.I.: <strong>V-12517086</strong></div>
+                        <div>Tlf: <strong>0414-8817137</strong></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
@@ -3918,30 +4376,16 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
                 <div>
                   <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Tipo de Entrada / Acceso *
+                    Imagen de Banner (URL)
                   </label>
                   <input
-                    type="text"
-                    required
-                    value={publicEventFormData.ticketPrice}
-                    onChange={(e) => setPublicEventFormData({ ...publicEventFormData, ticketPrice: e.target.value })}
-                    placeholder="ej: Entrada Libre / Gratuito Miembros Solvente"
+                    type="url"
+                    value={publicEventFormData.image}
+                    onChange={(e) => setPublicEventFormData({ ...publicEventFormData, image: e.target.value })}
+                    placeholder="https://images.unsplash.com/..."
                     className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Imagen de Banner (URL)
-                </label>
-                <input
-                  type="url"
-                  value={publicEventFormData.image}
-                  onChange={(e) => setPublicEventFormData({ ...publicEventFormData, image: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
-                />
               </div>
 
               <div>
@@ -3989,6 +4433,209 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 >
                   <Check className="w-4 h-4" />
                   <span>{editingPublicEvent ? 'Actualizar Evento' : 'Publicar Evento'}</span>
+                </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL: CREATE / EDIT TOURIST SERVICE (PRESIDENCY)
+          ========================================================================= */}
+      {isTouristServiceModalOpen && currentUser.isAdminLevel && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn font-sans">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto text-slate-800">
+            
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-purple-100 text-purple-800 border border-purple-300">
+                  <Compass className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif font-black text-xl text-slate-900 uppercase tracking-wider">
+                    {editingTouristService ? 'Editar Servicio Turístico' : 'Nueva Vinculación Turística Oficial'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Convenios, Transporte VIP, Posadas & Operadores Homologados
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsTouristServiceModalOpen(false)}
+                className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTouristService} className="mt-6 space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Título del Servicio u Operador *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={touristServiceFormData.title}
+                  onChange={(e) => setTouristServiceFormData({ ...touristServiceFormData, title: e.target.value })}
+                  placeholder="ej: Traslados Ejecutivos 4x4 & Rutas de Alta Montaña"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 font-medium text-sm focus:outline-none focus:border-purple-500 focus:bg-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Categoría del Servicio *
+                  </label>
+                  <select
+                    value={touristServiceFormData.category}
+                    onChange={(e) => setTouristServiceFormData({ ...touristServiceFormData, category: e.target.value })}
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-purple-500 focus:bg-white"
+                  >
+                    <option value="Movilidad & Transporte VIP">Movilidad & Transporte VIP</option>
+                    <option value="Atracción & Ecoturismo">Atracción & Ecoturismo</option>
+                    <option value="Hospitalidad & Posadas">Hospitalidad & Posadas</option>
+                    <option value="Chefs Privados & Experiencias">Chefs Privados & Experiencias</option>
+                    <option value="Aventura & Alta Montaña">Aventura & Alta Montaña</option>
+                    <option value="Guías Turísticos Oficiales">Guías Turísticos Oficiales</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Distintivo / Badge
+                  </label>
+                  <input
+                    type="text"
+                    value={touristServiceFormData.badge}
+                    onChange={(e) => setTouristServiceFormData({ ...touristServiceFormData, badge: e.target.value })}
+                    placeholder="ej: Operador Certificado / Flota 4x4"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-purple-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Tarifa Referencial
+                  </label>
+                  <input
+                    type="text"
+                    value={touristServiceFormData.priceFrom}
+                    onChange={(e) => setTouristServiceFormData({ ...touristServiceFormData, priceFrom: e.target.value })}
+                    placeholder="ej: $50 o $80"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-purple-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Unidad de Cobro
+                  </label>
+                  <input
+                    type="text"
+                    value={touristServiceFormData.unit}
+                    onChange={(e) => setTouristServiceFormData({ ...touristServiceFormData, unit: e.target.value })}
+                    placeholder="ej: por persona / por día"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-purple-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    WhatsApp de Contacto *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={touristServiceFormData.contactWhatsapp}
+                    onChange={(e) => setTouristServiceFormData({ ...touristServiceFormData, contactWhatsapp: e.target.value })}
+                    placeholder="ej: 04148817137"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-purple-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Sede / Cobertura Territorial *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={touristServiceFormData.location}
+                    onChange={(e) => setTouristServiceFormData({ ...touristServiceFormData, location: e.target.value })}
+                    placeholder="ej: Mérida Ciudad, El Valle, Páramo..."
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-purple-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Imagen del Servicio (URL)
+                  </label>
+                  <input
+                    type="url"
+                    value={touristServiceFormData.image}
+                    onChange={(e) => setTouristServiceFormData({ ...touristServiceFormData, image: e.target.value })}
+                    placeholder="https://images.unsplash.com/..."
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-purple-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Descripción del Servicio *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={touristServiceFormData.description}
+                  onChange={(e) => setTouristServiceFormData({ ...touristServiceFormData, description: e.target.value })}
+                  placeholder="Detalles de la experiencia, garantías, beneficios para el turista..."
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-purple-500 focus:bg-white leading-relaxed"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Puntos Clave / Qué Incluye (separados por coma)
+                </label>
+                <input
+                  type="text"
+                  value={Array.isArray(touristServiceFormData.features) ? touristServiceFormData.features.join(', ') : touristServiceFormData.features}
+                  onChange={(e) => setTouristServiceFormData({ 
+                    ...touristServiceFormData, 
+                    features: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                  })}
+                  placeholder="ej: Vehículo 4x4 asegurado, Guía bilingüe, Asistencia médica"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-purple-500 focus:bg-white"
+                />
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsTouristServiceModalOpen(false)}
+                  className="py-3 px-5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-xs"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  className="py-3 px-6 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-serif font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-md active:scale-98"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{editingTouristService ? 'Actualizar Servicio' : 'Publicar Servicio'}</span>
                 </button>
               </div>
 

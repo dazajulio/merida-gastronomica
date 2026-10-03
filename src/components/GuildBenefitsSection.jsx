@@ -101,10 +101,6 @@ export function GuildBenefitsSection({ setActiveTab, initialView = 'all' }) {
               <span>Solicitar Afiliación Gremial</span>
               <ArrowRight className="w-4 h-4" />
             </button>
-            <div className="flex items-center gap-2 text-xs text-amber-200/80 bg-white/5 px-4 py-3 rounded-2xl border border-white/10">
-              <Sparkles className="w-4 h-4 text-amber-400" />
-              <span>Cuota anual oficial: $30 USD (tasa BCV)</span>
-            </div>
           </div>
         </div>
 

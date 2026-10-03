@@ -68,13 +68,14 @@ export function EventsCalendar({ t }) {
 
   const handleOpenRsvp = (event) => {
     setRsvpModalEvent(event);
-    setAttendeeType('afiliado');
+    const isFree = event.accessType === 'free' || (!event.priceGeneralUSD && !event.priceUSD && event.ticketPrice?.toLowerCase().includes('libre'));
+    setAttendeeType(isFree ? 'libre' : 'afiliado');
     setFullName('');
     setEmail('');
     setPhone('');
     setAffiliateCode('');
     setPaymentRef('');
-    setPaymentBank('Provincial');
+    setPaymentBank('0108 - Banco Provincial');
     setPaymentPhone('');
     setRsvpSuccess(false);
   };
@@ -82,15 +83,39 @@ export function EventsCalendar({ t }) {
   const handleRsvpSubmit = (e) => {
     e.preventDefault();
     setRsvpSuccess(true);
+    
+    // Save registration record to localStorage
+    try {
+      const savedRsvps = localStorage.getItem('cgem_event_rsvps');
+      const list = savedRsvps ? JSON.parse(savedRsvps) : [];
+      const newRsvp = {
+        id: `rsvp-${Date.now()}`,
+        eventId: rsvpModalEvent.id,
+        eventTitle: rsvpModalEvent.title,
+        attendeeType,
+        fullName,
+        email,
+        phone,
+        affiliateCode: attendeeType === 'afiliado' ? affiliateCode : '',
+        paymentRef: attendeeType === 'publico' ? paymentRef : '',
+        paymentBank: attendeeType === 'publico' ? paymentBank : '',
+        registeredAt: new Date().toISOString(),
+        status: attendeeType === 'afiliado' || attendeeType === 'libre' ? 'confirmado' : 'pendiente_conciliacion'
+      };
+      localStorage.setItem('cgem_event_rsvps', JSON.stringify([newRsvp, ...list]));
+    } catch (err) {}
+
     setTimeout(() => {
       setRsvpSuccess(false);
       setRsvpModalEvent(null);
       if (attendeeType === 'afiliado') {
-        alert(`¡Inscripción Confirmada! Como Miembro Solvente, su acreditación digital gratuita para "${rsvpModalEvent.title}" ha sido reservada con éxito. Se ha enviado un comprobante a ${email}.`);
+        alert(`¡Inscripción Confirmada! Como Miembro Solvente (${affiliateCode || 'CGM'}), su acreditación digital gratuita para "${rsvpModalEvent.title}" ha sido reservada con éxito. Se ha enviado un comprobante a ${email}.`);
+      } else if (attendeeType === 'libre') {
+        alert(`¡Acreditación Exitosa! Su entrada libre para "${rsvpModalEvent.title}" ha sido registrada con éxito. Se ha enviado su pase a ${email}.`);
       } else {
         alert(`¡Registro en Proceso! Hemos recibido su reporte de Pago Móvil (Ref. ${paymentRef}) para "${rsvpModalEvent.title}". Recibirá su acreditación digital formal en ${email} tras la conciliación bancaria.`);
       }
-    }, 1200);
+    }, 1000);
   };
 
   return (
@@ -261,31 +286,33 @@ export function EventsCalendar({ t }) {
               <p className="text-xs text-amber-800 font-bold mt-1">{rsvpModalEvent.date} — {rsvpModalEvent.location}</p>
             </div>
 
-            {/* Selector: Miembro Solvente (Gratis) vs Público General */}
-            <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => setAttendeeType('afiliado')}
-                className={`py-2 px-3 rounded-xl transition-all ${
-                  attendeeType === 'afiliado'
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Miembro Solvente CGM (Gratis)
-              </button>
-              <button
-                type="button"
-                onClick={() => setAttendeeType('publico')}
-                className={`py-2 px-3 rounded-xl transition-all ${
-                  attendeeType === 'publico'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Público General / Entrada
-              </button>
-            </div>
+            {/* Selector if event is not 100% free */}
+            {rsvpModalEvent.accessType !== 'free' && !rsvpModalEvent.ticketPrice?.toLowerCase().includes('totalmente libre') && (
+              <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setAttendeeType('afiliado')}
+                  className={`py-2 px-3 rounded-xl transition-all ${
+                    attendeeType === 'afiliado'
+                      ? 'bg-emerald-600 text-white shadow-sm font-extrabold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  ⭐ Miembro Solvente (Gratis)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAttendeeType('publico')}
+                  className={`py-2 px-3 rounded-xl transition-all ${
+                    attendeeType === 'publico'
+                      ? 'bg-amber-500 text-slate-950 shadow-sm font-extrabold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  🎟️ Público (${rsvpModalEvent.priceGeneralUSD || rsvpModalEvent.priceUSD || 10} USD)
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handleRsvpSubmit} className="space-y-3 text-xs">
               <div>
@@ -325,10 +352,17 @@ export function EventsCalendar({ t }) {
                 </div>
               </div>
 
-              {attendeeType === 'afiliado' ? (
+              {attendeeType === 'libre' && (
+                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs flex items-center gap-2 font-bold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Entrada 100% Libre y Gratuita para todo público</span>
+                </div>
+              )}
+
+              {attendeeType === 'afiliado' && (
                 <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2">
                   <div className="flex items-center gap-2 text-emerald-900 font-bold">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                     <span>Beneficio de Miembro Solvente: Acceso Sin Costo</span>
                   </div>
                   <div>
@@ -339,42 +373,60 @@ export function EventsCalendar({ t }) {
                       value={affiliateCode}
                       onChange={(e) => setAffiliateCode(e.target.value)}
                       placeholder="Ej. CGM-2026-001" 
-                      className="w-full bg-white border border-emerald-300 rounded-xl px-3 py-2 text-slate-800 uppercase focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full bg-white border border-emerald-300 rounded-xl px-3 py-2 text-slate-800 uppercase font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
                 </div>
-              ) : (
-                <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 space-y-3">
-                  <div className="flex items-center gap-2 text-amber-950 font-bold">
-                    <CreditCard className="w-4 h-4 text-amber-600" />
-                    <span>Datos de Pago Móvil Oficial Banco Provincial</span>
+              )}
+
+              {attendeeType === 'publico' && (
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 space-y-3">
+                  <div className="flex items-center justify-between gap-2 text-amber-950 font-bold">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-amber-600" />
+                      <span>Datos de Pago Móvil Oficial Banco Provincial</span>
+                    </div>
+                    <span className="text-xs bg-amber-200 text-amber-900 px-2.5 py-0.5 rounded-md font-extrabold">
+                      ${rsvpModalEvent.priceGeneralUSD || rsvpModalEvent.priceUSD || 10} USD
+                    </span>
                   </div>
-                  <div className="text-[11px] text-slate-700 space-y-0.5 bg-white p-2.5 rounded-xl border border-amber-200 font-mono">
-                    <div>Banco: <strong>0108 - Banco Provincial</strong></div>
-                    <div>Cédula / RIF: <strong>V-12517086</strong></div>
-                    <div>Teléfono: <strong>0414-8817137</strong></div>
+
+                  <div className="text-[11px] text-slate-800 space-y-1 bg-white p-3 rounded-xl border border-amber-200 font-mono">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Banco:</span>
+                      <strong>0108 - Banco Provincial</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Cédula / RIF:</span>
+                      <strong>V-12517086</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Teléfono:</span>
+                      <strong>0414-8817137</strong>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-slate-700 font-bold mb-1">Banco Emisor</label>
+                      <label className="block text-slate-700 font-bold mb-1 text-[11px]">Banco Emisor *</label>
                       <input 
                         type="text" 
+                        required
                         value={paymentBank}
                         onChange={(e) => setPaymentBank(e.target.value)}
-                        placeholder="Ej. Banesco, Mercantil..." 
-                        className="w-full bg-white border border-amber-300 rounded-xl px-2.5 py-1.5 text-slate-800 text-xs"
+                        placeholder="Ej. Banesco, Mercantil, BDV..." 
+                        className="w-full bg-white border border-amber-300 rounded-xl px-2.5 py-2 text-slate-800 text-xs focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-700 font-bold mb-1">Nro. de Referencia *</label>
+                      <label className="block text-slate-700 font-bold mb-1 text-[11px]">Nro. de Referencia *</label>
                       <input 
                         type="text" 
                         required
                         value={paymentRef}
                         onChange={(e) => setPaymentRef(e.target.value)}
                         placeholder="Ej. 123456" 
-                        className="w-full bg-white border border-amber-300 rounded-xl px-2.5 py-1.5 text-slate-800 text-xs font-mono"
+                        className="w-full bg-white border border-amber-300 rounded-xl px-2.5 py-2 text-slate-800 text-xs font-mono font-bold focus:outline-none"
                       />
                     </div>
                   </div>
@@ -384,7 +436,7 @@ export function EventsCalendar({ t }) {
               <button
                 type="submit"
                 disabled={rsvpSuccess}
-                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider hover:from-amber-600 hover:to-amber-700 transition-all mt-4 shadow-md active:scale-98"
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider hover:from-amber-600 hover:to-amber-700 transition-all mt-4 shadow-md active:scale-98 disabled:opacity-50"
               >
                 {rsvpSuccess ? 'Procesando Registro...' : 'Confirmar Mi Registro Oficial'}
               </button>

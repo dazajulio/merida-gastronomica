@@ -168,11 +168,13 @@ export function Footer({ setActiveTab, t }) {
             <div className="space-y-2 text-xs text-slate-300">
               <p className="flex items-start gap-2">
                 <MapPin className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
-                <span>Av. 4 entre Calles 19 y 20, Centro Histórico, Mérida, Venezuela</span>
+                <span>En espera de confirmación</span>
               </p>
               <p className="flex items-center gap-2">
                 <Phone className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span>+58 (274) 252-8810</span>
+                <a href="tel:04126408957" className="hover:text-amber-300 transition-colors">
+                  0412-6408957
+                </a>
               </p>
               <p className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-amber-400 shrink-0" />
