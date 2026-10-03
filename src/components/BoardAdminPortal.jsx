@@ -2711,12 +2711,26 @@ export function BoardAdminPortal({ t, onNavigate }) {
                       )}
                     </div>
 
-                    <h4 className="font-serif font-black text-lg text-slate-900">
-                      {member.name}
-                    </h4>
-                    <p className="text-xs font-bold text-amber-800 mt-0.5 font-sans">
-                      {member.role}
-                    </p>
+                    <div className="flex items-center gap-3.5 mb-3">
+                      <div className="relative shrink-0">
+                        <img 
+                          src={member.avatar} 
+                          alt={member.name}
+                          className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-300 shadow-sm"
+                        />
+                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-500 rounded-full border-2 border-white flex items-center justify-center text-white text-[9px] font-bold">
+                          ✓
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-serif font-black text-base text-slate-900 truncate">
+                          {member.name}
+                        </h4>
+                        <p className="text-xs font-bold text-amber-800 font-sans truncate">
+                          {member.role}
+                        </p>
+                      </div>
+                    </div>
 
                     <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-600 font-sans">
                       {member.instagram && (

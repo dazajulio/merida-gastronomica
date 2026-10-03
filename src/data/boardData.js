@@ -16,7 +16,7 @@ export const BOARD_MEMBERS_DATA = [
     passwordHash: "Dafaca10*",
     hasPasswordSet: true,
     isAdminLevel: true,
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400",
+    avatar: "/images/Presidente Julio Alberto Daza Celis.png",
     phone: "+58 414 8817137",
     order: 1
   },
@@ -32,7 +32,7 @@ export const BOARD_MEMBERS_DATA = [
     passwordHash: "comercializadoraocmerida1201",
     hasPasswordSet: true,
     isAdminLevel: false,
-    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400",
+    avatar: "/images/Primera Vicepresidente Maryuri Carolina Carmona Campos.png",
     order: 2
   },
   {
@@ -47,7 +47,7 @@ export const BOARD_MEMBERS_DATA = [
     passwordHash: "marialauramolinab0601",
     hasPasswordSet: true,
     isAdminLevel: false,
-    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=400",
+    avatar: "/images/Segunda Vicepresidente María Laura Molina Barillas.png",
     order: 3
   },
   {
@@ -62,7 +62,7 @@ export const BOARD_MEMBERS_DATA = [
     passwordHash: "cataconmari1979",
     hasPasswordSet: true,
     isAdminLevel: false,
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=400",
+    avatar: "/images/Director Operativo Marisabel Prieto Pérez.png",
     order: 4
   },
   {
@@ -77,7 +77,7 @@ export const BOARD_MEMBERS_DATA = [
     passwordHash: "edreyesda1608",
     hasPasswordSet: true,
     isAdminLevel: false,
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=400",
+    avatar: "/images/Tesorero Edixon Xavier Reyes Dávila.png",
     order: 5
   },
   {
@@ -92,7 +92,7 @@ export const BOARD_MEMBERS_DATA = [
     passwordHash: "margiovi1611",
     hasPasswordSet: true,
     isAdminLevel: true,
-    avatar: "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?auto=format&fit=crop&q=80&w=400",
+    avatar: "/images/Director Ejecutivo Mary Giovanna Vera.png",
     phone: "+58 414 0000000",
     order: 6
   },
@@ -107,7 +107,7 @@ export const BOARD_MEMBERS_DATA = [
     email: "amthorromero@camaragastronomicamerida.org",
     hasPasswordSet: false,
     isAdminLevel: false,
-    avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=400",
+    avatar: "/images/Coordinación de Proveeduría Amthor Romero.png",
     order: 7
   },
   {
@@ -121,7 +121,7 @@ export const BOARD_MEMBERS_DATA = [
     email: "joseangulo@camaragastronomicamerida.org",
     hasPasswordSet: false,
     isAdminLevel: false,
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=400",
+    avatar: "/images/Coordinación de Relaciones Institucionales José Gregorio Angulo.png",
     order: 8
   },
   {
@@ -135,7 +135,7 @@ export const BOARD_MEMBERS_DATA = [
     email: "andreinaramirez@camaragastronomicamerida.org",
     hasPasswordSet: false,
     isAdminLevel: false,
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400",
+    avatar: "/images/Coordinación de Cacao y Café Andreina Ramírez.png",
     order: 9
   },
   {
@@ -149,7 +149,7 @@ export const BOARD_MEMBERS_DATA = [
     email: "yohanmolina@camaragastronomicamerida.org",
     hasPasswordSet: false,
     isAdminLevel: false,
-    avatar: "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?auto=format&fit=crop&q=80&w=400",
+    avatar: "/images/Coordinación de Capacitación y Formación Yohan Alirio Molina.png",
     order: 10
   }
 ];
