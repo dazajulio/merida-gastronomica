@@ -189,49 +189,67 @@ export function GuildBenefitsSection({ setActiveTab, initialView = 'all' }) {
           </div>
 
           {/* High Executive Board: 6 members */}
-          <div className="mb-10">
-            <div className="flex items-center gap-2 mb-5 pb-2.5 border-b border-amber-500/20">
+          <div className="mb-12">
+            <div className="flex items-center gap-2 mb-6 pb-2.5 border-b border-amber-500/20">
               <ShieldCheck className="w-5 h-5 text-amber-600" />
               <h3 className="font-serif text-base sm:text-lg font-bold text-slate-900 uppercase tracking-wider">
                 Alta Dirección & Comité Ejecutivo
               </h3>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
               {BOARD_MEMBERS_DATA.slice(0, 6).map((member) => (
                 <div
                   key={member.id}
-                  className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm hover:shadow-lg hover:border-amber-400 transition-all flex items-center gap-4 group"
+                  className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-md hover:shadow-2xl hover:border-amber-400 transition-all duration-300 group flex flex-col"
                 >
-                  <div className="relative shrink-0">
+                  {/* Portrait Photo Container */}
+                  <div className="relative w-full aspect-[4/4.5] bg-gradient-to-b from-slate-100 to-slate-200 overflow-hidden">
                     <img
                       src={member.avatar}
                       alt={member.name}
-                      className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-300 shadow-sm group-hover:scale-105 transition-transform"
+                      className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
                     />
-                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-amber-500 rounded-full border-2 border-white flex items-center justify-center text-white text-[10px] font-bold">
-                      ✓
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity pointer-events-none" />
+                    
+                    {/* Verified Badge */}
+                    <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-md border border-amber-400/40 text-amber-300 text-[10px] font-bold flex items-center gap-1 shadow-lg">
+                      <ShieldCheck className="w-3 h-3 text-amber-400" />
+                      <span>Oficial</span>
+                    </div>
+
+                    {/* Role Overlay Pill on Image */}
+                    <div className="absolute bottom-3 left-3 right-3">
+                      <span className="inline-block text-[10px] uppercase font-black tracking-widest text-slate-950 bg-amber-400/95 backdrop-blur-md px-3 py-1 rounded-xl shadow-md border border-amber-300">
+                        {member.role}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[10px] uppercase font-extrabold text-amber-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 block truncate w-fit">
-                      {member.role}
-                    </span>
-                    <h4 className="font-serif font-bold text-slate-900 text-sm mt-1 truncate group-hover:text-amber-700 transition-colors">
-                      {member.name}
-                    </h4>
+                  {/* Card Content */}
+                  <div className="p-5 sm:p-6 flex flex-col justify-between flex-1 bg-white">
+                    <div>
+                      <h4 className="font-serif font-black text-slate-900 text-lg sm:text-xl leading-snug group-hover:text-amber-700 transition-colors">
+                        {member.name}
+                      </h4>
+                      <p className="text-xs font-semibold text-slate-500 mt-1">
+                        Cámara Gastronómica del Estado Mérida
+                      </p>
+                    </div>
+
                     {member.instagram && (
-                      <a
-                        href={member.instagramUrl || `https://www.instagram.com/${member.instagram.replace('@', '')}/`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs text-amber-700 hover:text-amber-900 font-semibold mt-1 transition-colors"
-                      >
-                        <Instagram className="w-3.5 h-3.5 text-amber-600 group-hover:scale-110 transition-transform" />
-                        <span>{member.instagram}</span>
-                        <ExternalLink className="w-2.5 h-2.5 opacity-60" />
-                      </a>
+                      <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
+                        <a
+                          href={member.instagramUrl || `https://www.instagram.com/${member.instagram.replace('@', '')}/`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-amber-700 hover:text-amber-900 font-bold transition-colors group/link"
+                        >
+                          <Instagram className="w-4 h-4 text-amber-600 group-hover/link:scale-110 transition-transform" />
+                          <span>{member.instagram}</span>
+                        </a>
+                        <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 transition-colors" />
+                      </div>
                     )}
                   </div>
                 </div>
@@ -253,38 +271,53 @@ export function GuildBenefitsSection({ setActiveTab, initialView = 'all' }) {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {BOARD_MEMBERS_DATA.slice(6).map((member) => (
                 <div
                   key={member.id}
-                  className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-amber-400 transition-all flex items-center gap-3.5"
+                  className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-md hover:shadow-xl hover:border-amber-400 transition-all duration-300 group flex flex-col"
                 >
-                  <div className="relative shrink-0">
+                  {/* Portrait Photo Container */}
+                  <div className="relative w-full aspect-[4/4.5] bg-gradient-to-b from-slate-100 to-slate-200 overflow-hidden">
                     <img
                       src={member.avatar}
                       alt={member.name}
-                      className="w-13 h-13 rounded-xl object-cover border-2 border-slate-200 shadow-xs"
-                      style={{ width: '52px', height: '52px' }}
+                      className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
                     />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity pointer-events-none" />
+
+                    {/* Role Overlay Pill on Image */}
+                    <div className="absolute bottom-2.5 left-2.5 right-2.5">
+                      <span className="inline-block text-[9px] uppercase font-extrabold tracking-wider text-slate-900 bg-amber-300/95 backdrop-blur-md px-2.5 py-0.5 rounded-lg shadow-sm border border-amber-200 truncate max-w-full">
+                        {member.role}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[9px] uppercase font-extrabold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded block truncate">
-                      {member.role}
-                    </span>
-                    <h4 className="font-serif font-bold text-slate-900 text-xs mt-1 truncate">
-                      {member.name}
-                    </h4>
+                  {/* Card Content */}
+                  <div className="p-4 sm:p-5 flex flex-col justify-between flex-1 bg-white">
+                    <div>
+                      <h4 className="font-serif font-black text-slate-900 text-sm sm:text-base leading-snug group-hover:text-amber-700 transition-colors">
+                        {member.name}
+                      </h4>
+                      <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
+                        Coordinación Oficial
+                      </p>
+                    </div>
+
                     {member.instagram && (
-                      <a
-                        href={member.instagramUrl || `https://www.instagram.com/${member.instagram.replace('@', '')}/`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-amber-700 hover:text-amber-900 font-semibold mt-0.5 transition-colors group"
-                      >
-                        <Instagram className="w-3 h-3 text-amber-600 group-hover:scale-110 transition-transform" />
-                        <span className="truncate">{member.instagram}</span>
-                      </a>
+                      <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">
+                        <a
+                          href={member.instagramUrl || `https://www.instagram.com/${member.instagram.replace('@', '')}/`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-[11px] text-amber-700 hover:text-amber-900 font-bold transition-colors group/link truncate"
+                        >
+                          <Instagram className="w-3.5 h-3.5 text-amber-600 group-hover/link:scale-110 transition-transform shrink-0" />
+                          <span className="truncate">{member.instagram}</span>
+                        </a>
+                        <ExternalLink className="w-3 h-3 text-slate-400 group-hover:text-amber-600 transition-colors shrink-0" />
+                      </div>
                     )}
                   </div>
                 </div>
