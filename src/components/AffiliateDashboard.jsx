@@ -45,11 +45,18 @@ import {
   Save,
   Trash2,
   Plus,
-  Edit3
+  Edit3,
+  Sprout,
+  Factory,
+  UploadCloud,
+  Image as ImageIcon,
+  Loader2,
+  Maximize2
 } from 'lucide-react';
 import { AFFILIATES_DATA } from '../data/affiliatesData';
 import { supabase } from '../lib/supabaseClient';
 import { sendAffiliateWelcomeEmail, sendCourseRegistrationEmail } from '../lib/emailService';
+import { optimizeImage, uploadAffiliateImageToStorage, formatBytes } from '../lib/imageOptimizer';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -115,6 +122,8 @@ export const GASTRONOMIC_CATEGORIES = [
   "Marcas personales",
   "Panaderías",
   "Pastelerías",
+  "Procesadoras de alimentos",
+  "Productores",
   "Profesional de Servicio en Mesa/Barra",
   "Profesional del Cafe. Barista/Roaster",
   "Profesional Universitario en Gastronomia",
@@ -129,7 +138,7 @@ export const GASTRONOMIC_CATEGORIES = [
   "Tascas"
 ];
 
-// 3 Categorías Oficiales de Negocio Gastronómico y Tarifas de Afiliación (Incluye 1er mes)
+// 5 Categorías Oficiales de Negocio Gastronómico y Tarifas de Afiliación (Incluye 1er mes)
 export const BUSINESS_TIERS = [
   {
     id: 'grandes_empresas',
@@ -152,6 +161,28 @@ export const BUSINESS_TIERS = [
     hasCondition: false,
     labelTotal: 'Cuota Inscripción + Primer Mes (Empresas): $30 USD',
     note: 'Incluye el primer mes completo. Mensualidad ordinaria posterior: $10 USD/mes.'
+  },
+  {
+    id: 'productores',
+    name: 'Productores',
+    subtitle: 'Productores agropecuarios, café de especialidad, cacao y materia prima andina',
+    inscriptionUsd: 30,
+    monthlyUsd: 10,
+    icon: Sprout,
+    hasCondition: false,
+    labelTotal: 'Cuota Inscripción + Primer Mes (Productores): $30 USD',
+    note: 'Incluye el primer mes completo. Mensualidad ordinaria posterior: $10 USD/mes.'
+  },
+  {
+    id: 'procesadoras_alimentos',
+    name: 'Procesadoras de Alimentos',
+    subtitle: 'Plantas procesadoras, lácteos, embutidos y manufactura alimentaria',
+    inscriptionUsd: 35,
+    monthlyUsd: 15,
+    icon: Factory,
+    hasCondition: false,
+    labelTotal: 'Cuota Inscripción + Primer Mes (Procesadoras de Alimentos): $35 USD',
+    note: 'Incluye el primer mes completo. Mensualidad ordinaria posterior: $15 USD/mes.'
   },
   {
     id: 'emprendimiento',
@@ -627,7 +658,22 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
   const [businessProfile, setBusinessProfile] = useState(() => {
     try {
       const saved = localStorage.getItem('cgem_my_business_profile');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (!parsed.gallery || !Array.isArray(parsed.gallery) || parsed.gallery.length === 0) {
+          parsed.gallery = [
+            "/images/kaffia/kaffia-fachada-hd.jpg",
+            "/images/kaffia/kaffia-salon-banquete.jpg",
+            "/images/kaffia/kaffia-plato-gourmet.jpg",
+            "/images/kaffia/kaffia-entrante-autor.jpg",
+            "/images/kaffia/kaffia-cena-vino.jpg"
+          ];
+        }
+        if (!parsed.coverImage) {
+          parsed.coverImage = parsed.gallery[0] || "/images/kaffia/kaffia-fachada-hd.jpg";
+        }
+        return parsed;
+      }
     } catch (e) {}
     return {
       id: "rest-kaffia",
@@ -651,6 +697,14 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
       facebookUrl: "https://www.facebook.com/kaffiacaffe/",
       isCertifiedByCamara: true,
       certificateNumber: "CGM-2026-001",
+      coverImage: "/images/kaffia/kaffia-fachada-hd.jpg",
+      gallery: [
+        "/images/kaffia/kaffia-fachada-hd.jpg",
+        "/images/kaffia/kaffia-salon-banquete.jpg",
+        "/images/kaffia/kaffia-plato-gourmet.jpg",
+        "/images/kaffia/kaffia-entrante-autor.jpg",
+        "/images/kaffia/kaffia-cena-vino.jpg"
+      ],
       signatureDishes: [
         {
           name: "Medallones de Res en Salsa de Champiñones con Timbal de Aguacate",
@@ -694,8 +748,126 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
   const [businessSaveSuccess, setBusinessSaveSuccess] = useState(false);
   const [isSavingBusiness, setIsSavingBusiness] = useState(false);
 
+  // Estados para la galería de 5 fotos y conversor de imágenes
+  const fileInputRef = useRef(null);
+  const [isOptimizingPhotos, setIsOptimizingPhotos] = useState(false);
+  const [photoOptimizationStats, setPhotoOptimizationStats] = useState(null);
+  const [previewPhotoModal, setPreviewPhotoModal] = useState(null);
+
+  const handlePhotoFilesSelected = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const currentGallery = businessProfile.gallery || [];
+    const availableSlots = 5 - currentGallery.length;
+
+    if (availableSlots <= 0) {
+      alert('Ha alcanzado el límite máximo de 5 fotos para su ficha web. Elimine una foto existente para subir una nueva.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    const filesToProcess = files.slice(0, availableSlots);
+    if (files.length > availableSlots) {
+      alert(`Se procesarán ${availableSlots} fotos para no superar el límite máximo de 5 fotos permitidas.`);
+    }
+
+    setIsOptimizingPhotos(true);
+    setPhotoOptimizationStats({ message: `Optimizando y convirtiendo ${filesToProcess.length} foto(s)...`, items: [] });
+
+    try {
+      const processedPhotos = [];
+      const statsList = [];
+
+      for (let i = 0; i < filesToProcess.length; i++) {
+        const file = filesToProcess[i];
+        
+        // Conversión y optimización client-side inteligente
+        const optResult = await optimizeImage(file, {
+          maxWidth: 1280,
+          maxHeight: 960,
+          quality: 0.80,
+          preferredFormat: 'image/webp'
+        });
+
+        statsList.push({
+          name: file.name,
+          originalSize: optResult.originalSizeFormatted,
+          compressedSize: optResult.compressedSizeFormatted,
+          reduction: optResult.compressionRatio
+        });
+
+        // Subida a Supabase Storage con fallback automático a Base64
+        const uploadRes = await uploadAffiliateImageToStorage(
+          optResult.blob,
+          activeUser.id || 'CGM-2026-001',
+          currentGallery.length + i,
+          optResult.dataUrl
+        );
+
+        processedPhotos.push(uploadRes.url || optResult.dataUrl);
+      }
+
+      const newGallery = [...currentGallery, ...processedPhotos].slice(0, 5);
+      const newCover = businessProfile.coverImage || newGallery[0];
+
+      setBusinessProfile(prev => ({
+        ...prev,
+        gallery: newGallery,
+        coverImage: newCover
+      }));
+
+      setPhotoOptimizationStats({
+        message: `¡${filesToProcess.length} foto(s) optimizada(s) con éxito! Se redujo el peso en promedio más del 90%.`,
+        items: statsList
+      });
+
+      setTimeout(() => {
+        setPhotoOptimizationStats(null);
+      }, 7000);
+
+    } catch (err) {
+      console.error('Error al optimizar fotos:', err);
+      alert('Ocurrió un error al procesar las imágenes: ' + (err.message || 'Error desconocido'));
+    } finally {
+      setIsOptimizingPhotos(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemovePhoto = (indexToRemove) => {
+    setBusinessProfile(prev => {
+      const currentGallery = prev.gallery || [];
+      const newGallery = currentGallery.filter((_, idx) => idx !== indexToRemove);
+      let newCover = prev.coverImage;
+      if (prev.coverImage === currentGallery[indexToRemove]) {
+        newCover = newGallery[0] || '';
+      }
+      return {
+        ...prev,
+        gallery: newGallery,
+        coverImage: newCover
+      };
+    });
+  };
+
+  const handleSetCoverPhoto = (index) => {
+    setBusinessProfile(prev => {
+      const currentGallery = prev.gallery || [];
+      const selected = currentGallery[index];
+      if (!selected) return prev;
+      const rest = currentGallery.filter((_, idx) => idx !== index);
+      const reordered = [selected, ...rest];
+      return {
+        ...prev,
+        gallery: reordered,
+        coverImage: selected
+      };
+    });
+  };
+
   const handleSaveBusinessProfile = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     setIsSavingBusiness(true);
     try {
       localStorage.setItem('cgem_my_business_profile', JSON.stringify(businessProfile));
@@ -715,6 +887,8 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
           telefono: businessProfile.phone,
           direccion_completa: businessProfile.location,
           instagram: businessProfile.instagram,
+          foto_portada: businessProfile.coverImage || (businessProfile.gallery && businessProfile.gallery[0]) || '',
+          fotos_galeria: businessProfile.gallery || [],
           observaciones: `Especialidad: ${businessProfile.tagline}. Horarios: ${businessProfile.openingHours}`
         }).eq('codigo_afiliado', activeUser.id || 'CGM-2026-001').catch(() => {});
       }
@@ -1460,7 +1634,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Tipo de Negocio Gastronómico *
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                   {BUSINESS_TIERS.map((type) => {
                     const Icon = type.icon;
                     const isSel = regData.businessType === type.id || regData.businessType === type.name;
@@ -2300,11 +2474,211 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               </div>
             </div>
 
-            {/* Bloque 2: Ubicación, Horarios & Contacto */}
+            {/* Bloque 2: Galería Fotográfica Oficial (Máximo 5 Fotos & Conversor Inteligente) */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
+                    <ImageIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-serif text-lg font-bold text-slate-900">2. Galería Fotográfica Oficial (Máximo 5 Fotos)</h4>
+                    <p className="text-xs text-slate-500">Fotografías de alta calidad de la fachada, salón, platos estrella y ambiente.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-bold px-3 py-1.5 rounded-full border ${
+                    (businessProfile.gallery?.length || 0) >= 5 
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : 'bg-slate-100 text-slate-700 border-slate-200'
+                  }`}>
+                    📸 {businessProfile.gallery?.length || 0} / 5 Fotos Oficiales
+                  </span>
+                </div>
+              </div>
+
+              {/* Barra de Adjuntar Archivo desde el Explorador de la PC con Conversor */}
+              <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-50/70 via-slate-50 to-amber-50/40 border border-amber-200/80 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <UploadCloud className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span className="text-xs font-bold text-slate-900">Adjuntar Fotografías desde su Computador</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 leading-relaxed max-w-2xl">
+                      Seleccione una o varias imágenes de su PC (JPG, PNG, WEBP). <strong>Conversor Automático Integrado:</strong> Redimensiona y comprime las imágenes a formato WebP ligero (&lt;100 KB) con nitidez HD para máxima velocidad y evitar sobrecargar el servidor y la base de datos.
+                    </p>
+                  </div>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png, image/jpeg, image/webp, image/jpg"
+                    multiple
+                    disabled={isOptimizingPhotos || (businessProfile.gallery?.length || 0) >= 5}
+                    onChange={handlePhotoFilesSelected}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    disabled={isOptimizingPhotos || (businessProfile.gallery?.length || 0) >= 5}
+                    onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                    className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm shrink-0 ${
+                      (businessProfile.gallery?.length || 0) >= 5
+                        ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300'
+                        : isOptimizingPhotos
+                          ? 'bg-amber-400 text-slate-900 cursor-wait'
+                          : 'bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-800 hover:border-amber-400'
+                    }`}
+                  >
+                    {isOptimizingPhotos ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                        <span>Optimizando Imágenes...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4 text-amber-400" />
+                        <span>{(businessProfile.gallery?.length || 0) >= 5 ? 'Límite de 5 Fotos Alcanzado' : 'Examinar Archivos en PC'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Banner de Estadísticas de Optimización / Compresión */}
+                {photoOptimizationStats && (
+                  <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs animate-fadeIn space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-emerald-900">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>{photoOptimizationStats.message}</span>
+                    </div>
+                    {photoOptimizationStats.items && photoOptimizationStats.items.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        {photoOptimizationStats.items.map((stat, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-[11px] bg-white/80 px-2.5 py-1.5 rounded-lg border border-emerald-200">
+                            <span className="truncate max-w-[140px] text-slate-700 font-medium">{stat.name}</span>
+                            <span className="font-mono font-bold text-emerald-800">
+                              {stat.originalSize} ➔ <span className="text-emerald-900 font-extrabold">{stat.compressedSize}</span> ({stat.reduction} menos)
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Grid de las 5 Fotos (Slots) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+                {[0, 1, 2, 3, 4].map((slotIdx) => {
+                  const photoUrl = businessProfile.gallery && businessProfile.gallery[slotIdx];
+                  const isCover = photoUrl && (businessProfile.coverImage === photoUrl || (slotIdx === 0 && !businessProfile.coverImage));
+
+                  if (photoUrl) {
+                    return (
+                      <div
+                        key={slotIdx}
+                        className={`group relative rounded-2xl overflow-hidden border-2 bg-slate-100 flex flex-col justify-between transition-all duration-300 shadow-sm hover:shadow-md ${
+                          isCover ? 'border-amber-500 ring-2 ring-amber-400/30' : 'border-slate-200 hover:border-amber-300'
+                        }`}
+                      >
+                        <div className="relative h-36 w-full overflow-hidden bg-slate-900/10">
+                          <img
+                            src={photoUrl}
+                            alt={`Foto ${slotIdx + 1}`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-black/20" />
+
+                          {/* Badge de Portada o Slot */}
+                          <div className="absolute top-2 left-2 right-2 flex items-center justify-between gap-1">
+                            {isCover ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 shadow-sm">
+                                ★ Portada
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-xs">
+                                Foto #{slotIdx + 1}
+                              </span>
+                            )}
+
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-900/80 text-emerald-300 backdrop-blur-xs">
+                              WebP HD
+                            </span>
+                          </div>
+
+                          {/* Botones de acción overlay */}
+                          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewPhotoModal(photoUrl)}
+                              className="p-1.5 rounded-lg bg-black/70 hover:bg-black text-white text-[10px] flex items-center gap-1 backdrop-blur-xs transition-colors"
+                              title="Ver en grande"
+                            >
+                              <Maximize2 className="w-3 h-3 text-amber-300" />
+                            </button>
+
+                            {!isCover && (
+                              <button
+                                type="button"
+                                onClick={() => handleSetCoverPhoto(slotIdx)}
+                                className="px-2 py-1 rounded-lg bg-amber-500/90 hover:bg-amber-500 text-slate-950 text-[10px] font-bold transition-all shadow-sm"
+                                title="Establecer como foto de portada principal"
+                              >
+                                Hacer Portada
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePhoto(slotIdx)}
+                              className="p-1.5 rounded-lg bg-rose-600/90 hover:bg-rose-700 text-white transition-colors"
+                              title="Eliminar fotografía"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="p-2.5 bg-white border-t border-slate-100 flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-slate-700 truncate">
+                            {isCover ? 'Foto Principal' : `Galería #${slotIdx + 1}`}
+                          </span>
+                          <span className="text-[10px] text-slate-400">Optimizada</span>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Slot vacío
+                  return (
+                    <div
+                      key={slotIdx}
+                      onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                      className="h-44 rounded-2xl border-2 border-dashed border-slate-300 hover:border-amber-400 bg-slate-50/60 hover:bg-amber-50/40 p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-all group"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-white border border-slate-200 group-hover:border-amber-400 group-hover:scale-110 flex items-center justify-center text-slate-400 group-hover:text-amber-600 transition-all shadow-sm mb-2">
+                        <Plus className="w-5 h-5" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-700 group-hover:text-amber-900">
+                        Espacio #{slotIdx + 1}
+                      </span>
+                      <span className="text-[10px] text-slate-400 group-hover:text-amber-700 mt-0.5">
+                        Clic para adjuntar foto
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Bloque 3: Ubicación, Horarios & Contacto */}
             <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                 <MapPin className="w-5 h-5 text-amber-600" />
-                <h4 className="font-serif text-lg font-bold text-slate-900">2. Ubicación, Horarios & Canales Oficiales</h4>
+                <h4 className="font-serif text-lg font-bold text-slate-900">3. Ubicación, Horarios & Canales Oficiales</h4>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2374,11 +2748,11 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               </div>
             </div>
 
-            {/* Bloque 3: Chef Ejecutivo & Equipo */}
+            {/* Bloque 4: Chef Ejecutivo & Equipo */}
             <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                 <ChefHat className="w-5 h-5 text-amber-600" />
-                <h4 className="font-serif text-lg font-bold text-slate-900">3. Chef Ejecutivo, Barista & Equipo Culinario</h4>
+                <h4 className="font-serif text-lg font-bold text-slate-900">4. Chef Ejecutivo, Barista & Equipo Culinario</h4>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2404,12 +2778,12 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               </div>
             </div>
 
-            {/* Bloque 4: Platos Insignia del Menú */}
+            {/* Bloque 5: Platos Insignia del Menú */}
             <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-amber-600" />
-                  <h4 className="font-serif text-lg font-bold text-slate-900">4. Platos Insignia del Menú</h4>
+                  <h4 className="font-serif text-lg font-bold text-slate-900">5. Platos Insignia del Menú</h4>
                 </div>
 
                 <button
@@ -2480,12 +2854,12 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               </div>
             </div>
 
-            {/* Bloque 5: Otros Destacados & Comodidades */}
+            {/* Bloque 6: Otros Destacados & Comodidades */}
             <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
                   <CheckSquare className="w-5 h-5 text-amber-600" />
-                  <h4 className="font-serif text-lg font-bold text-slate-900">5. Otros Destacados de la Carta & Comodidades</h4>
+                  <h4 className="font-serif text-lg font-bold text-slate-900">6. Otros Destacados de la Carta & Comodidades</h4>
                 </div>
 
                 <button
@@ -2555,6 +2929,34 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               </button>
             </div>
           </form>
+
+          {/* Modal de Previsualización de Foto Grande */}
+          {previewPhotoModal && (
+            <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+              <div className="relative max-w-4xl max-h-[90vh] bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col">
+                <div className="p-4 bg-slate-950/80 flex items-center justify-between border-b border-slate-800">
+                  <div className="flex items-center gap-2 text-white text-xs font-bold">
+                    <ImageIcon className="w-4 h-4 text-amber-400" />
+                    <span>Vista Previa de Fotografía WebP Optimizada</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewPhotoModal(null)}
+                    className="p-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="p-4 flex items-center justify-center bg-black overflow-auto">
+                  <img
+                    src={previewPhotoModal}
+                    alt="Previsualización"
+                    className="max-h-[75vh] w-auto max-w-full rounded-xl object-contain shadow-md"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
       )}
