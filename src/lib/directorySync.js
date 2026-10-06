@@ -171,6 +171,11 @@ export async function fetchLiveRestaurants() {
 
   // Convertir y agregar miembros del directorio
   directoryMembers.forEach(m => {
+    // Control Editorial: Si el administrador lo marcó explícitamente como oculto (visible_en_guia === false), NO se publica en la guía
+    if (m.visible_en_guia === false) {
+      return;
+    }
+
     // Si es Kaffia, actualizar el existente
     if (m.codigo_afiliado === 'CGM-2026-001' || (m.nombre_establecimiento && m.nombre_establecimiento.toLowerCase().includes('kaffia'))) {
       const existing = baseMap.get('rest-kaffia');

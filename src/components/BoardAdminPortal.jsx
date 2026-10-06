@@ -1122,6 +1122,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       sitio_web: '',
       numero_empleados: 5,
       estado_solvencia: 'Solvente (Activo)',
+      visible_en_guia: true,
       monto_inscripcion: 30,
       monto_cuota_mensual: 10,
       observaciones: ''
@@ -1145,6 +1146,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       sitio_web: member.sitio_web || '',
       numero_empleados: member.numero_empleados || 1,
       estado_solvencia: member.estado_solvencia || 'Solvente (Activo)',
+      visible_en_guia: member.visible_en_guia !== false,
       monto_inscripcion: member.monto_inscripcion || 30,
       monto_cuota_mensual: member.monto_cuota_mensual || 10,
       observaciones: member.observaciones || ''
@@ -1275,6 +1277,43 @@ export function BoardAdminPortal({ t, onNavigate }) {
     setTimeout(() => setActionSuccessMessage(''), 6000);
   };
 
+  // Conmutador de Visibilidad en Guía Oficial & Mapa (Ocultar / Mostrar)
+  const handleToggleMemberVisibility = async (member) => {
+    if (!canAccessDirectory) return;
+    const currentVis = member.visible_en_guia !== false;
+    const nextVis = !currentVis;
+    const actionText = nextVis ? 'PUBLICAR en la Guía Oficial y Mapa 3D' : 'OCULTAR de la Guía Oficial y Mapa 3D (para evitar fichas incompletas)';
+    
+    if (!window.confirm(`¿Desea ${actionText} a "${member.nombre_establecimiento}" (${member.codigo_afiliado})?`)) return;
+
+    const updatedData = {
+      visible_en_guia: nextVis,
+      updated_at: new Date().toISOString()
+    };
+
+    try {
+      if (supabase) {
+        await supabase
+          .from('directorio_agremiados')
+          .update(updatedData)
+          .eq('id', member.id);
+      }
+    } catch (err) {
+      console.warn('Supabase toggle visibility notice:', err);
+    }
+
+    const updatedList = directoryMembers.map(m => m.id === member.id ? { ...m, ...updatedData } : m);
+    setDirectoryMembers(updatedList);
+    localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('cgm_business_updated'));
+    setActionSuccessMessage(
+      nextVis 
+        ? `✓ "${member.nombre_establecimiento}" ahora es VISIBLE públicamente en la Guía Oficial y Mapa 3D.`
+        : `🔒 "${member.nombre_establecimiento}" ha sido OCULTADO de la Guía Oficial y Mapa 3D (modo borrador/revisión).`
+    );
+    setTimeout(() => setActionSuccessMessage(''), 5000);
+  };
+
   // Export Directory to CSV
   const handleExportCSV = () => {
     const headers = "Codigo,Establecimiento,Categoria,Representante,RIF_Cedula,Telefono,Email,Municipio,Direccion,Empleados,Solvencia,Cuota_USD\n";
@@ -1318,6 +1357,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
       (member.categoria_negocio && member.categoria_negocio.toLowerCase().includes(directoryCategoryFilter.toLowerCase()));
 
     const matchStatus = directoryStatusFilter === 'all' || 
+      (directoryStatusFilter === 'visible' && member.visible_en_guia !== false) ||
+      (directoryStatusFilter === 'oculto' && member.visible_en_guia === false) ||
       (member.estado_solvencia && member.estado_solvencia.toLowerCase().includes(directoryStatusFilter.toLowerCase()));
 
     return matchSearch && matchCategory && matchStatus;
@@ -1935,6 +1976,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     <option value="Revisión">En Revisión</option>
                     <option value="Pendiente">Pendiente de Pago</option>
                     <option value="Inactivo">Inactivo</option>
+                    <option value="visible">👁️ Solo Visibles en Web</option>
+                    <option value="oculto">🔒 Solo Ocultos en Web (Borrador)</option>
                   </select>
                 </div>
 
@@ -1972,6 +2015,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 {filteredDirectoryMembers.map((member) => {
                   const isSolvente = (member.estado_solvencia || '').toLowerCase().includes('solvente') || (member.estado_solvencia || '').toLowerCase().includes('activo');
                   const isRevision = (member.estado_solvencia || '').toLowerCase().includes('revisión') || (member.estado_solvencia || '').toLowerCase().includes('pendiente');
+                  const isVisibleOnWeb = member.visible_en_guia !== false;
 
                   return (
                     <div 
@@ -1998,6 +2042,19 @@ export function BoardAdminPortal({ t, onNavigate }) {
                           }`}>
                             {member.estado_solvencia}
                           </span>
+
+                          {/* Badge de Visibilidad Web */}
+                          {isVisibleOnWeb ? (
+                            <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-300 flex items-center gap-1 font-sans" title="Publicado y visible en la Guía Oficial y Mapa 3D">
+                              <Eye className="w-3 h-3 text-teal-600" />
+                              <span>Visible en Guía</span>
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 flex items-center gap-1 font-sans" title="Oculto del público (Ficha incompleta o en borrador)">
+                              <EyeOff className="w-3 h-3 text-amber-700" />
+                              <span>Oculto en Web (Borrador)</span>
+                            </span>
+                          )}
                         </div>
 
                         <div>
@@ -2073,6 +2130,29 @@ export function BoardAdminPortal({ t, onNavigate }) {
                               <span>Validar Pago y Activar</span>
                             </button>
                           )}
+
+                          {/* Botón 1-clic Conmutar Visibilidad Web (Ocultar / Publicar) */}
+                          <button
+                            onClick={() => handleToggleMemberVisibility(member)}
+                            className={`p-2.5 rounded-xl transition-all text-xs font-bold flex items-center gap-1.5 shrink-0 ${
+                              isVisibleOnWeb
+                                ? 'bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-200'
+                                : 'bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 shadow-xs'
+                            }`}
+                            title={isVisibleOnWeb ? "Ocultar de la Guía Oficial y Mapa 3D (para que no aparezca incompleta)" : "Publicar y hacer visible en la Guía Oficial y Mapa 3D"}
+                          >
+                            {isVisibleOnWeb ? (
+                              <>
+                                <EyeOff className="w-3.5 h-3.5 text-amber-600" />
+                                <span className="hidden sm:inline">Ocultar de Web</span>
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="w-3.5 h-3.5 text-teal-600" />
+                                <span>Publicar en Web</span>
+                              </>
+                            )}
+                          </button>
 
                           {/* WhatsApp 1-clic */}
                           {member.telefono && (
@@ -3544,6 +3624,51 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   placeholder="Detalles sobre acuerdos de pago, asesorías de formalización o notas de la Junta Directiva..."
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white leading-relaxed"
                 />
+              </div>
+
+              {/* Interruptor de Visibilidad en Guía Oficial & Mapa */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-teal-50 via-slate-50 to-emerald-50 border border-teal-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+                      Visibilidad en la Guía Oficial & Mapa 3D
+                    </span>
+                    {memberFormData.visible_en_guia !== false ? (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-teal-100 text-teal-900 border border-teal-300">
+                        PUBLICADO (VISIBLE)
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
+                        OCULTO (MODO BORRADOR)
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Desactiva esta opción si el establecimiento aún no tiene fotos o información completa para evitar fichas incompletas en la web pública.
+                  </p>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={() => setMemberFormData({ ...memberFormData, visible_en_guia: !memberFormData.visible_en_guia })}
+                  className={`py-2 px-4 rounded-xl text-xs font-bold flex items-center gap-2 border transition-all shrink-0 ${
+                    memberFormData.visible_en_guia !== false
+                      ? 'bg-teal-600 text-white border-teal-700 shadow-sm'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                  }`}
+                >
+                  {memberFormData.visible_en_guia !== false ? (
+                    <>
+                      <Eye className="w-4 h-4 text-teal-200" />
+                      <span>Visible en Web</span>
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff className="w-4 h-4 text-amber-600" />
+                      <span>Oculto en Web</span>
+                    </>
+                  )}
+                </button>
               </div>
 
               <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
