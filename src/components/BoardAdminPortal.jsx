@@ -1242,6 +1242,35 @@ export function BoardAdminPortal({ t, onNavigate }) {
     }
   };
 
+  // Validación y Aprobación Rápida de Pago en 1-Clic
+  const handleQuickApproveMember = async (member) => {
+    if (!canAccessDirectory) return;
+    const confirmMsg = `¿Desea aprobar y validar positivamente el pago de inscripción para "${member.nombre_establecimiento}" (${member.codigo_afiliado}) y activarlo como Miembro Solvente Oficial?`;
+    if (!window.confirm(confirmMsg)) return;
+
+    const updatedData = {
+      estado_solvencia: 'Solvente (Activo)',
+      updated_at: new Date().toISOString()
+    };
+
+    try {
+      if (supabase) {
+        await supabase
+          .from('directorio_agremiados')
+          .update(updatedData)
+          .eq('id', member.id);
+      }
+    } catch (err) {
+      console.warn('Supabase approve notice:', err);
+    }
+
+    const updatedList = directoryMembers.map(m => m.id === member.id ? { ...m, ...updatedData } : m);
+    setDirectoryMembers(updatedList);
+    localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
+    setActionSuccessMessage(`✓ ¡Pago validado! "${member.nombre_establecimiento}" (${member.codigo_afiliado}) ha sido activado como Miembro Solvente (Activo).`);
+    setTimeout(() => setActionSuccessMessage(''), 6000);
+  };
+
   // Export Directory to CSV
   const handleExportCSV = () => {
     const headers = "Codigo,Establecimiento,Categoria,Representante,RIF_Cedula,Telefono,Email,Municipio,Direccion,Empleados,Solvencia,Cuota_USD\n";
@@ -2028,15 +2057,31 @@ export function BoardAdminPortal({ t, onNavigate }) {
                         </div>
 
                         {/* Action buttons */}
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {/* Botón 1-clic Validar y Aprobar Pago */}
+                          {!isSolvente && (
+                            <button
+                              onClick={() => handleQuickApproveMember(member)}
+                              className="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all active:scale-95 shrink-0"
+                              title="Aprobar pago y activar como Miembro Solvente"
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span>Validar Pago y Activar</span>
+                            </button>
+                          )}
+
                           {/* WhatsApp 1-clic */}
                           {member.telefono && (
                             <a
-                              href={`https://api.whatsapp.com/send?phone=${member.telefono.replace(/[^0-9]/g, '')}&text=Estimado(a)%20${encodeURIComponent(member.representante_legal)}%20de%20${encodeURIComponent(member.nombre_establecimiento)}%2C%20le%20escribimos%20desde%20la%20C%C3%A1mara%20Gastron%C3%B3mica%20del%20Estado%20M%C3%A9rida.`}
+                              href={`https://api.whatsapp.com/send?phone=${member.telefono.replace(/[^0-9]/g, '')}&text=${encodeURIComponent(
+                                isSolvente 
+                                  ? `Estimado(a) ${member.representante_legal} de ${member.nombre_establecimiento}, le saludamos de la Cámara Gastronómica del Estado Mérida. Le confirmamos que su membresía oficial (${member.codigo_afiliado}) se encuentra Activa y Solvente.`
+                                  : `Estimado(a) ${member.representante_legal} de ${member.nombre_establecimiento}, le saludamos de la Junta Directiva de la Cámara Gastronómica del Estado Mérida en relación a su solicitud de afiliación ${member.codigo_afiliado}.`
+                              )}`}
                               target="_blank"
                               rel="noreferrer"
                               className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors"
-                              title="Enviar WhatsApp directo"
+                              title="Enviar WhatsApp institucional"
                             >
                               <MessageCircle className="w-4 h-4" />
                             </a>
