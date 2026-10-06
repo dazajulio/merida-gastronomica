@@ -197,3 +197,40 @@ ON CONFLICT (codigo_afiliado) DO UPDATE SET
     fotos_galeria = EXCLUDED.fotos_galeria,
     observaciones = EXCLUDED.observaciones,
     updated_at = NOW();
+
+-- 7. Tabla de Solicitudes de Afiliación Web (para registros públicos pendientes)
+CREATE TABLE IF NOT EXISTS public.solicitudes_afiliacion (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    codigo_afiliado TEXT,
+    nombre_comercial TEXT NOT NULL,
+    tipo_negocio TEXT NOT NULL,
+    titular_propietario TEXT NOT NULL,
+    rif TEXT,
+    telefono TEXT NOT NULL,
+    correo TEXT NOT NULL,
+    direccion TEXT,
+    ciudad_poblacion TEXT,
+    municipio TEXT DEFAULT 'Libertador',
+    instagram TEXT,
+    banco_pago_movil TEXT,
+    referencia_pago_movil TEXT,
+    telefono_pagador TEXT,
+    monto_bs NUMERIC(15,2),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.solicitudes_afiliacion ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Permitir lectura publica de solicitudes" ON public.solicitudes_afiliacion;
+CREATE POLICY "Permitir lectura publica de solicitudes" 
+ON public.solicitudes_afiliacion FOR SELECT TO public, anon, authenticated USING (true);
+
+DROP POLICY IF EXISTS "Permitir insercion publica de solicitudes" ON public.solicitudes_afiliacion;
+CREATE POLICY "Permitir insercion publica de solicitudes" 
+ON public.solicitudes_afiliacion FOR INSERT TO public, anon, authenticated WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Permitir actualizacion de solicitudes" ON public.solicitudes_afiliacion;
+CREATE POLICY "Permitir actualizacion de solicitudes" 
+ON public.solicitudes_afiliacion FOR UPDATE TO public, anon, authenticated USING (true);
+
