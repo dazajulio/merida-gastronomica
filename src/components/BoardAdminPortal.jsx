@@ -1123,6 +1123,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       numero_empleados: 5,
       estado_solvencia: 'Solvente (Activo)',
       visible_en_guia: true,
+      destacado_portada: false,
       monto_inscripcion: 30,
       monto_cuota_mensual: 10,
       observaciones: ''
@@ -1147,6 +1148,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       numero_empleados: member.numero_empleados || 1,
       estado_solvencia: member.estado_solvencia || 'Solvente (Activo)',
       visible_en_guia: member.visible_en_guia !== false,
+      destacado_portada: member.destacado_portada === true,
       monto_inscripcion: member.monto_inscripcion || 30,
       monto_cuota_mensual: member.monto_cuota_mensual || 10,
       observaciones: member.observaciones || ''
@@ -1314,6 +1316,43 @@ export function BoardAdminPortal({ t, onNavigate }) {
     setTimeout(() => setActionSuccessMessage(''), 5000);
   };
 
+  // Conmutador de Destacado en Portada (⭐ Carrusel Principal)
+  const handleToggleMemberFeatured = async (member) => {
+    if (!canAccessDirectory) return;
+    const currentFeatured = member.destacado_portada === true;
+    const nextFeatured = !currentFeatured;
+    const actionText = nextFeatured ? 'DESTACAR EN PORTADA (Carrusel de Joyas Culinarias)' : 'QUITAR de Destacados de Portada';
+    
+    if (!window.confirm(`¿Desea ${actionText} a "${member.nombre_establecimiento}" (${member.codigo_afiliado})?`)) return;
+
+    const updatedData = {
+      destacado_portada: nextFeatured,
+      updated_at: new Date().toISOString()
+    };
+
+    try {
+      if (supabase) {
+        await supabase
+          .from('directorio_agremiados')
+          .update(updatedData)
+          .eq('id', member.id);
+      }
+    } catch (err) {
+      console.warn('Supabase toggle featured notice:', err);
+    }
+
+    const updatedList = directoryMembers.map(m => m.id === member.id ? { ...m, ...updatedData } : m);
+    setDirectoryMembers(updatedList);
+    localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('cgm_business_updated'));
+    setActionSuccessMessage(
+      nextFeatured 
+        ? `⭐ "${member.nombre_establecimiento}" ahora es DESTACADO OFICIAL en el carrusel de la portada.`
+        : `✓ "${member.nombre_establecimiento}" retirado de destacados de portada (permanece en la guía oficial).`
+    );
+    setTimeout(() => setActionSuccessMessage(''), 5000);
+  };
+
   // Export Directory to CSV
   const handleExportCSV = () => {
     const headers = "Codigo,Establecimiento,Categoria,Representante,RIF_Cedula,Telefono,Email,Municipio,Direccion,Empleados,Solvencia,Cuota_USD\n";
@@ -1359,6 +1398,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
     const matchStatus = directoryStatusFilter === 'all' || 
       (directoryStatusFilter === 'visible' && member.visible_en_guia !== false) ||
       (directoryStatusFilter === 'oculto' && member.visible_en_guia === false) ||
+      (directoryStatusFilter === 'destacado' && member.destacado_portada === true) ||
       (member.estado_solvencia && member.estado_solvencia.toLowerCase().includes(directoryStatusFilter.toLowerCase()));
 
     return matchSearch && matchCategory && matchStatus;
@@ -1978,6 +2018,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     <option value="Inactivo">Inactivo</option>
                     <option value="visible">👁️ Solo Visibles en Web</option>
                     <option value="oculto">🔒 Solo Ocultos en Web (Borrador)</option>
+                    <option value="destacado">⭐ Solo Destacados en Portada</option>
                   </select>
                 </div>
 
@@ -2016,6 +2057,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   const isSolvente = (member.estado_solvencia || '').toLowerCase().includes('solvente') || (member.estado_solvencia || '').toLowerCase().includes('activo');
                   const isRevision = (member.estado_solvencia || '').toLowerCase().includes('revisión') || (member.estado_solvencia || '').toLowerCase().includes('pendiente');
                   const isVisibleOnWeb = member.visible_en_guia !== false;
+                  const isFeatured = member.destacado_portada === true;
 
                   return (
                     <div 
@@ -2053,6 +2095,14 @@ export function BoardAdminPortal({ t, onNavigate }) {
                             <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 flex items-center gap-1 font-sans" title="Oculto del público (Ficha incompleta o en borrador)">
                               <EyeOff className="w-3 h-3 text-amber-700" />
                               <span>Oculto en Web (Borrador)</span>
+                            </span>
+                          )}
+
+                          {/* Badge de Destacado en Portada */}
+                          {isFeatured && (
+                            <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 border border-amber-400 flex items-center gap-1 font-sans shadow-xs" title="Fijado como selección destacada en la portada principal">
+                              <Star className="w-3 h-3 fill-slate-950 text-slate-950" />
+                              <span>Destacado Portada</span>
                             </span>
                           )}
                         </div>
@@ -2130,6 +2180,20 @@ export function BoardAdminPortal({ t, onNavigate }) {
                               <span>Validar Pago y Activar</span>
                             </button>
                           )}
+
+                          {/* Botón 1-clic Destacar en Portada (⭐) */}
+                          <button
+                            onClick={() => handleToggleMemberFeatured(member)}
+                            className={`p-2.5 rounded-xl transition-all text-xs font-bold flex items-center gap-1.5 shrink-0 ${
+                              isFeatured
+                                ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 font-black shadow-xs'
+                                : 'bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-200'
+                            }`}
+                            title={isFeatured ? "Quitar de la selección de joyas destacadas de la portada" : "Fijar como destacado en el carrusel de la portada principal"}
+                          >
+                            <Star className={`w-3.5 h-3.5 ${isFeatured ? 'fill-slate-950 text-slate-950' : 'text-amber-600'}`} />
+                            <span className="hidden sm:inline">{isFeatured ? 'Destacado' : 'Destacar'}</span>
+                          </button>
 
                           {/* Botón 1-clic Conmutar Visibilidad Web (Ocultar / Publicar) */}
                           <button
@@ -3668,6 +3732,43 @@ export function BoardAdminPortal({ t, onNavigate }) {
                       <span>Oculto en Web</span>
                     </>
                   )}
+                </button>
+              </div>
+
+              {/* Interruptor de Destacado en Portada (⭐ Carrusel Principal) */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 via-slate-50 to-orange-50 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                      <Star className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
+                      Destacado Oficial en Portada (Carrusel)
+                    </span>
+                    {memberFormData.destacado_portada ? (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-500 text-slate-950 border border-amber-400">
+                        ⭐ DESTACADO
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-slate-200 text-slate-700 border border-slate-300">
+                        NORMAL
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Al activar esta casilla, el establecimiento aparecerá como protagonista prioritario en el carrusel de <em>"Joyas Culinarias de la Cordillera"</em> en la página principal.
+                  </p>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={() => setMemberFormData({ ...memberFormData, destacado_portada: !memberFormData.destacado_portada })}
+                  className={`py-2 px-4 rounded-xl text-xs font-bold flex items-center gap-2 border transition-all shrink-0 ${
+                    memberFormData.destacado_portada
+                      ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-600 shadow-sm font-black'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                  }`}
+                >
+                  <Star className={`w-4 h-4 ${memberFormData.destacado_portada ? 'fill-slate-950 text-slate-950' : 'text-amber-600'}`} />
+                  <span>{memberFormData.destacado_portada ? '⭐ Destacado en Portada' : 'Fijar en Portada'}</span>
                 </button>
               </div>
 

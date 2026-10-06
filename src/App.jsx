@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { RestaurantGuide } from './components/RestaurantGuide';
+import { FeaturedRestaurantsCarousel } from './components/FeaturedRestaurantsCarousel';
 import { RestaurantModal } from './components/RestaurantModal';
 import { LidarMap } from './components/LidarMap';
 import { EventsCalendar } from './components/EventsCalendar';
@@ -318,38 +319,15 @@ export function App() {
               onQuickSearch={handleQuickSearch} 
             />
 
-            {/* Featured Section 1: Gastronomic Highlights */}
-            <div className="border-t border-slate-200 bg-white py-16">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-10 gap-4">
-                  <div>
-                    <span className="text-xs uppercase font-extrabold text-amber-800 flex items-center gap-1.5 mb-2">
-                      <Sparkles className="w-4 h-4 text-amber-600" />
-                      Joyas Culinarias de la Cordillera
-                    </span>
-                    <h2 className="font-serif text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tight">
-                      Restaurantes Destacados & Cocina de Autor
-                    </h2>
-                  </div>
-                  <button
-                    onClick={() => navigateTo('guide')}
-                    className="py-2.5 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all"
-                  >
-                    <span>Ver Directorio Completo</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <RestaurantGuide 
-                  restaurants={RESTAURANTS_DATA.slice(0, 3)} 
-                  onSelectRestaurant={setSelectedRestaurant}
-                  onBookDirect={handleBookDirect}
-                  onViewOnMap={handleViewOnMap}
-                  t={t}
-                  initialSearch=""
-                />
-              </div>
-            </div>
+            {/* Featured Section 1: Gastronomic Highlights Carousel */}
+            <FeaturedRestaurantsCarousel 
+              restaurants={restaurants} 
+              onSelectRestaurant={setSelectedRestaurant}
+              onBookDirect={handleBookDirect}
+              onViewOnMap={handleViewOnMap}
+              onExploreAll={() => navigateTo('guide')}
+              t={t}
+            />
 
             {/* Featured Section 2: Sello Mérida Gastronómica Spotlight */}
             <div className="border-t border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 py-16 text-white">

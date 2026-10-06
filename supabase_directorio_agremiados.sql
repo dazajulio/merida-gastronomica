@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS public.directorio_agremiados (
     foto_portada TEXT,
     fotos_galeria JSONB DEFAULT '[]'::jsonb,
     visible_en_guia BOOLEAN DEFAULT true,
+    destacado_portada BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS public.directorio_agremiados (
 ALTER TABLE public.directorio_agremiados ADD COLUMN IF NOT EXISTS foto_portada TEXT;
 ALTER TABLE public.directorio_agremiados ADD COLUMN IF NOT EXISTS fotos_galeria JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.directorio_agremiados ADD COLUMN IF NOT EXISTS visible_en_guia BOOLEAN DEFAULT true;
+ALTER TABLE public.directorio_agremiados ADD COLUMN IF NOT EXISTS destacado_portada BOOLEAN DEFAULT false;
 
 -- 2. Crear índices de búsqueda rápida
 CREATE INDEX IF NOT EXISTS idx_directorio_codigo ON public.directorio_agremiados(codigo_afiliado);
