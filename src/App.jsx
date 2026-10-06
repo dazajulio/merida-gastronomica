@@ -21,6 +21,7 @@ import { Footer } from './components/Footer';
 
 import { RESTAURANTS_DATA } from './data/restaurantsData';
 import { translations } from './data/translations';
+import { fetchLiveRestaurants, convertAgremiadoToRestaurant } from './lib/directorySync';
 import { 
   Sparkles, 
   ArrowRight, 
@@ -66,13 +67,26 @@ export function App() {
   const [focusRestaurantId, setFocusRestaurantId] = useState(null);
   const [guideSearchTerm, setGuideSearchTerm] = useState('');
 
-  // Live Synchronized Restaurants State (Includes custom edits from MI NEGOCIO)
+  // Live Synchronized Restaurants State (Includes Supabase Directory Agremiados & Custom Edits)
   const [restaurants, setRestaurants] = useState(() => {
     try {
       const saved = localStorage.getItem('cgem_custom_restaurants');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      const localDir = localStorage.getItem('cgem_directorio_agremiados');
+      if (localDir) {
+        const dirList = JSON.parse(localDir);
+        if (Array.isArray(dirList) && dirList.length > 0) {
+          const map = new Map();
+          RESTAURANTS_DATA.forEach(r => map.set(r.id, r));
+          dirList.forEach(m => {
+            const conv = convertAgremiadoToRestaurant(m);
+            map.set(conv.id, conv);
+          });
+          return Array.from(map.values());
+        }
       }
       const myProfile = localStorage.getItem('cgem_my_business_profile');
       if (myProfile) {
@@ -88,27 +102,37 @@ export function App() {
   });
 
   useEffect(() => {
-    const handleBusinessUpdate = () => {
+    let isMounted = true;
+
+    const syncDirectoryRestaurants = async () => {
       try {
-        const myProfile = localStorage.getItem('cgem_my_business_profile');
-        if (myProfile) {
-          const myObj = JSON.parse(myProfile);
-          setRestaurants(prev => {
-            const exists = prev.some(r => r.id === myObj.id);
-            if (exists) {
-              return prev.map(r => r.id === myObj.id ? { ...r, ...myObj } : r);
-            }
-            return [myObj, ...prev];
-          });
+        const liveList = await fetchLiveRestaurants();
+        if (isMounted && Array.isArray(liveList) && liveList.length > 0) {
+          setRestaurants(liveList);
         }
-      } catch (e) {}
+      } catch (err) {
+        console.warn('Error syncing directory restaurants:', err);
+      }
+    };
+
+    // Sincronizar inmediatamente al montar
+    syncDirectoryRestaurants();
+
+    const handleBusinessUpdate = () => {
+      syncDirectoryRestaurants();
     };
 
     window.addEventListener('cgm_business_updated', handleBusinessUpdate);
     window.addEventListener('storage', handleBusinessUpdate);
+
+    // Polling ligero para mantener sincronizados los nuevos registros aprobados
+    const interval = setInterval(syncDirectoryRestaurants, 30000);
+
     return () => {
+      isMounted = false;
       window.removeEventListener('cgm_business_updated', handleBusinessUpdate);
       window.removeEventListener('storage', handleBusinessUpdate);
+      clearInterval(interval);
     };
   }, []);
 

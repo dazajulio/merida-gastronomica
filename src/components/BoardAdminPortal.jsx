@@ -1184,6 +1184,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       const updatedList = directoryMembers.map(m => m.id === editingMember.id ? { ...m, ...memberDataToSave } : m);
       setDirectoryMembers(updatedList);
       localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('cgm_business_updated'));
       setActionSuccessMessage(`Agremiado "${memberFormData.nombre_establecimiento}" (${code}) actualizado con éxito.`);
     } else {
       // 1. Create record
@@ -1215,6 +1216,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       const updatedList = [createdRecord, ...directoryMembers];
       setDirectoryMembers(updatedList);
       localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('cgm_business_updated'));
       setActionSuccessMessage(`Nuevo agremiado "${memberFormData.nombre_establecimiento}" incorporado al Directorio con código ${code}.`);
     }
 
@@ -1237,6 +1239,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       const updated = directoryMembers.filter(m => m.id !== memberId);
       setDirectoryMembers(updated);
       localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updated));
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('cgm_business_updated'));
       setActionSuccessMessage(`Agremiado "${name}" eliminado del Directorio.`);
       setTimeout(() => setActionSuccessMessage(''), 4000);
     }
@@ -1267,6 +1270,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
     const updatedList = directoryMembers.map(m => m.id === member.id ? { ...m, ...updatedData } : m);
     setDirectoryMembers(updatedList);
     localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('cgm_business_updated'));
     setActionSuccessMessage(`✓ ¡Pago validado! "${member.nombre_establecimiento}" (${member.codigo_afiliado}) ha sido activado como Miembro Solvente (Activo).`);
     setTimeout(() => setActionSuccessMessage(''), 6000);
   };

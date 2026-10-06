@@ -10,9 +10,10 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 import { RestaurantCard } from './RestaurantCard';
+import { GASTRONOMIC_CATEGORIES } from './AffiliateDashboard';
 
 export function RestaurantGuide({ 
-  restaurants, 
+  restaurants = [], 
   onSelectRestaurant, 
   onBookDirect, 
   onViewOnMap,
@@ -34,35 +35,68 @@ export function RestaurantGuide({
     { id: 'panamericano', name: 'Eje Panamericano & Sur del Lago' },
   ];
 
-  const categories = [
-    'all',
-    'Alta Cocina Andina',
-    'Tradición de Montaña',
-    'Café de Especialidad',
-    'Chocolatería de Origen',
-    'Fusión & Carnes',
-    'Gastronomía Ancestral'
-  ];
+  // Extraer todas las categorías oficiales y las existentes en los restaurantes registrados
+  const dynamicCategories = useMemo(() => {
+    const set = new Set();
+    
+    // Categorías oficiales
+    if (Array.isArray(GASTRONOMIC_CATEGORIES)) {
+      GASTRONOMIC_CATEGORIES.forEach(c => {
+        if (c && typeof c === 'string' && c.trim()) set.add(c.trim());
+      });
+    }
+
+    // Categorías de los restaurantes activos
+    if (Array.isArray(restaurants)) {
+      restaurants.forEach(r => {
+        if (r && r.category && typeof r.category === 'string' && r.category.trim()) {
+          set.add(r.category.trim());
+        }
+      });
+    }
+
+    const sorted = Array.from(set).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+    return ['all', ...sorted];
+  }, [restaurants]);
 
   const filteredRestaurants = useMemo(() => {
-    return restaurants.filter((rest) => {
-      const matchSearch = searchTerm === '' || 
-        rest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        rest.chef.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        rest.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        rest.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        rest.signatureDishes.some(d => d.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    const list = Array.isArray(restaurants) ? restaurants : [];
+    const search = (searchTerm || '').trim().toLowerCase();
+    const selCategory = (selectedCategory || 'all').toLowerCase().trim();
+
+    return list.filter((rest) => {
+      if (!rest) return false;
+
+      const rName = (rest.name || '').toLowerCase();
+      const rChef = (rest.chef || '').toLowerCase();
+      const rLocation = (rest.location || '').toLowerCase();
+      const rCategory = (rest.category || '').toLowerCase();
+      const rTagline = (rest.tagline || '').toLowerCase();
+      const dishes = Array.isArray(rest.signatureDishes) ? rest.signatureDishes : [];
+
+      const matchSearch = search === '' || 
+        rName.includes(search) ||
+        rChef.includes(search) ||
+        rLocation.includes(search) ||
+        rCategory.includes(search) ||
+        rTagline.includes(search) ||
+        dishes.some(d => d && (d.name || '').toLowerCase().includes(search));
 
       const matchEje = selectedEje === 'all' || rest.eje === selectedEje;
-      const matchCategory = selectedCategory === 'all' || rest.category === selectedCategory;
+      
+      const matchCategory = selCategory === 'all' || 
+        rCategory === selCategory ||
+        rCategory.includes(selCategory) ||
+        selCategory.includes(rCategory);
+
       const matchCertified = !onlyCertified || rest.isCertifiedByCamara;
 
       return matchSearch && matchEje && matchCategory && matchCertified;
     }).sort((a, b) => {
-      if (sortBy === 'rating') return b.rating - a.rating;
-      if (sortBy === 'altitude-desc') return b.altitude - a.altitude;
-      if (sortBy === 'altitude-asc') return a.altitude - b.altitude;
-      if (sortBy === 'reviews') return b.reviewsCount - a.reviewsCount;
+      if (sortBy === 'rating') return (b.rating || 5) - (a.rating || 5);
+      if (sortBy === 'altitude-desc') return (b.altitude || 1600) - (a.altitude || 1600);
+      if (sortBy === 'altitude-asc') return (a.altitude || 1600) - (b.altitude || 1600);
+      if (sortBy === 'reviews') return (b.reviewsCount || 0) - (a.reviewsCount || 0);
       return 0;
     });
   }, [restaurants, searchTerm, selectedEje, selectedCategory, onlyCertified, sortBy]);
@@ -126,14 +160,14 @@ export function RestaurantGuide({
 
           {/* Category Filter */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Tipo de Experiencia</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Tipo de Experiencia / Categoría</label>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-amber-500 focus:bg-white"
             >
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat === 'all' ? 'Todas las Categorías' : cat}</option>
+              {dynamicCategories.map(cat => (
+                <option key={cat} value={cat}>{cat === 'all' ? 'Todas las Categorías Oficiales' : cat}</option>
               ))}
             </select>
           </div>
