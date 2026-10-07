@@ -138,7 +138,7 @@ export const GASTRONOMIC_CATEGORIES = [
   "Tascas"
 ];
 
-// 5 Categorías Oficiales de Negocio Gastronómico y Tarifas de Afiliación (Incluye 1er mes)
+// 3 Categorías Oficiales de Negocio Gastronómico y Tarifas de Afiliación (Incluye 1er mes)
 export const BUSINESS_TIERS = [
   {
     id: 'grandes_empresas',
@@ -161,28 +161,6 @@ export const BUSINESS_TIERS = [
     hasCondition: false,
     labelTotal: 'Cuota Inscripción + Primer Mes (Empresas): $30 USD',
     note: 'Incluye el primer mes completo. Mensualidad ordinaria posterior: $10 USD/mes.'
-  },
-  {
-    id: 'productores',
-    name: 'Productores',
-    subtitle: 'Productores agropecuarios, café de especialidad, cacao y materia prima andina',
-    inscriptionUsd: 30,
-    monthlyUsd: 10,
-    icon: Sprout,
-    hasCondition: false,
-    labelTotal: 'Cuota Inscripción + Primer Mes (Productores): $30 USD',
-    note: 'Incluye el primer mes completo. Mensualidad ordinaria posterior: $10 USD/mes.'
-  },
-  {
-    id: 'procesadoras_alimentos',
-    name: 'Procesadoras de Alimentos',
-    subtitle: 'Plantas procesadoras, lácteos, embutidos y manufactura alimentaria',
-    inscriptionUsd: 35,
-    monthlyUsd: 15,
-    icon: Factory,
-    hasCondition: false,
-    labelTotal: 'Cuota Inscripción + Primer Mes (Procesadoras de Alimentos): $35 USD',
-    note: 'Incluye el primer mes completo. Mensualidad ordinaria posterior: $15 USD/mes.'
   },
   {
     id: 'emprendimiento',
