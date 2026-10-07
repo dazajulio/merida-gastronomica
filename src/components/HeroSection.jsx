@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck } from 'lucide-react';
 
 export function HeroSection() {
   const [scrollY, setScrollY] = useState(0);
@@ -14,7 +13,7 @@ export function HeroSection() {
   }, []);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center pt-28 pb-20 overflow-hidden bg-slate-950">
+    <section className="relative min-h-screen flex items-center justify-center pt-20 pb-16 overflow-hidden bg-slate-950">
       
       {/* High-Resolution Hero Background with Smooth Parallax Scroll */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
@@ -37,18 +36,8 @@ export function HeroSection() {
         <div className="absolute inset-0 bg-black/10" />
       </div>
 
-      {/* Main Hero Editorial Content */}
-      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 w-full text-center text-white flex flex-col items-center justify-center">
-        
-        {/* Prestige Institutional Badge (Translucent & Soft) */}
-        <div className="inline-flex items-center gap-2 px-4 sm:px-5 py-1.5 sm:py-2 rounded-full bg-black/40 backdrop-blur-md border border-white/25 mb-6 sm:mb-8 shadow-xl animate-fadeIn">
-          <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
-          <span className="text-[10px] sm:text-xs font-bold tracking-[0.18em] sm:tracking-[0.2em] uppercase text-white font-sans">
-            CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA
-          </span>
-        </div>
-
-        {/* Clean, Majestic & Balanced Typography */}
+      {/* Main Hero Editorial Content - Perfectly Centered */}
+      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 w-full text-center text-white flex flex-col items-center justify-center my-auto">
         <div className="max-w-3xl mx-auto">
           {/* Manuscrita / Script Elegante sin negrita (tamaño moderado y equilibrado) */}
           <span className="block font-script font-normal text-3xl sm:text-5xl md:text-6xl text-amber-100/95 tracking-normal normal-case capitalize leading-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]">
@@ -60,7 +49,6 @@ export function HeroSection() {
             NUESTRO LEGADO AL MUNDO
           </h1>
         </div>
-
       </div>
     </section>
   );
