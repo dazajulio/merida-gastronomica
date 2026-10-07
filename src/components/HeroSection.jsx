@@ -48,17 +48,16 @@ export function HeroSection() {
           </span>
         </div>
 
-        {/* Clean, Majestic & Balanced Typography */}
-        <div className="max-w-3xl mx-auto">
-          {/* Manuscrita / Script Elegante sin negrita (tamaño moderado y equilibrado) */}
-          <span className="block font-script font-normal text-3xl sm:text-5xl md:text-6xl text-amber-100/95 tracking-normal normal-case capitalize leading-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]">
-            La Cocina Andina,
-          </span>
-
-          {/* Subtítulo Principal Armonioso */}
-          <h1 className="font-serif text-xl sm:text-3xl md:text-4xl font-bold tracking-[0.15em] sm:tracking-[0.18em] text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-amber-200 uppercase drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)] mt-1 sm:mt-2 leading-snug">
-            NUESTRO LEGADO AL MUNDO
+        {/* Unified, Minimalist & Elegant Brand Title (No Bold, Sobrio, Alta Gama) */}
+        <div className="max-w-4xl mx-auto">
+          <h1 className="font-sans font-light text-4xl sm:text-6xl md:text-7xl lg:text-8xl tracking-[0.2em] sm:tracking-[0.25em] md:tracking-[0.28em] text-white uppercase drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] leading-tight select-none">
+            MÉRIDA GASTRONÓMICA
           </h1>
+
+          {/* Subtítulo / Slogan Sobrio */}
+          <p className="mt-4 sm:mt-6 text-xs sm:text-sm md:text-base font-light tracking-[0.2em] sm:tracking-[0.25em] text-amber-200/90 uppercase drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]">
+            La Cocina Andina · Nuestro Legado al Mundo
+          </p>
         </div>
 
       </div>
