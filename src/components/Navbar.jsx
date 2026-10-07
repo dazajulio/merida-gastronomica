@@ -111,12 +111,12 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
               </div>
               
               <div className="flex flex-col">
-                <span className={`font-sans tracking-[0.14em] font-medium text-sm sm:text-base uppercase leading-none transition-colors ${
+                <span className={`font-playfair tracking-[0.03em] font-semibold text-base sm:text-[17px] uppercase leading-tight transition-colors ${
                   isTransparent ? 'text-white drop-shadow-md' : 'text-slate-900 group-hover:text-amber-700'
                 }`}>
-                  MÉRIDA GASTRONÓMICA
+                  Mérida Gastronómica
                 </span>
-                <p className={`text-[9px] uppercase tracking-wider font-normal flex items-center gap-1 mt-1 transition-colors ${
+                <p className={`text-[9.5px] uppercase tracking-[0.06em] font-medium flex items-center gap-1 mt-0.5 transition-colors ${
                   isTransparent ? 'text-slate-200/90 drop-shadow-sm' : 'text-slate-500'
                 }`}>
                   Cámara Gastronómica del Estado Mérida

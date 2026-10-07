@@ -32,6 +32,12 @@ export default {
         }
       },
       fontFamily: {
+        // High-end Gourmet & Culinary Brand Typography (Playfair Display / Cinzel / Cormorant Garamond)
+        brand: ['"Playfair Display"', '"Cinzel"', '"Cormorant Garamond"', 'Georgia', 'serif'],
+        gourmet: ['"Playfair Display"', '"Cormorant Garamond"', 'serif'],
+        cinzel: ['"Cinzel"', 'serif'],
+        cormorant: ['"Cormorant Garamond"', 'serif'],
+        playfair: ['"Playfair Display"', 'serif'],
         // Extra Condensed / Tall Display font for headings and high impact titles
         serif: ['"Barlow Condensed"', '"Oswald"', '"Outfit"', 'sans-serif'],
         condensed: ['"Barlow Condensed"', '"Oswald"', 'sans-serif'],
