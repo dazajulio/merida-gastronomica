@@ -10,7 +10,11 @@ import {
   CreditCard,
   Building2,
   Send,
-  AlertCircle
+  AlertCircle,
+  Maximize2,
+  Tag,
+  Info,
+  ChevronRight
 } from 'lucide-react';
 import { EVENTS_DATA } from '../data/eventsData';
 
@@ -18,16 +22,20 @@ export function EventsCalendar({ t }) {
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [rsvpModalEvent, setRsvpModalEvent] = useState(null);
   const [rsvpSuccess, setRsvpSuccess] = useState(false);
+  const [flyerPreviewEvent, setFlyerPreviewEvent] = useState(null);
+
+  // Selected Price Tier inside RSVP Modal
+  const [selectedTier, setSelectedTier] = useState(null);
 
   // Registration Form State
-  const [attendeeType, setAttendeeType] = useState('afiliado'); // 'afiliado' | 'publico'
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [affiliateCode, setAffiliateCode] = useState('');
   const [paymentRef, setPaymentRef] = useState('');
-  const [paymentBank, setPaymentBank] = useState('Provincial');
+  const [paymentBank, setPaymentBank] = useState('0108 - Banco Provincial');
   const [paymentPhone, setPaymentPhone] = useState('');
+  const [institutionOrRole, setInstitutionOrRole] = useState('');
 
   // Live synced events
   const [eventsList, setEventsList] = useState(() => {
@@ -68,8 +76,23 @@ export function EventsCalendar({ t }) {
 
   const handleOpenRsvp = (event) => {
     setRsvpModalEvent(event);
-    const isFree = event.accessType === 'free' || (!event.priceGeneralUSD && !event.priceUSD && event.ticketPrice?.toLowerCase().includes('libre'));
-    setAttendeeType(isFree ? 'libre' : 'afiliado');
+    
+    // Determine initial tier
+    if (Array.isArray(event.priceTiers) && event.priceTiers.length > 0) {
+      // Default to first tier or paid tier
+      setSelectedTier(event.priceTiers[0]);
+    } else {
+      // Legacy fallback
+      const isFree = event.accessType === 'free' || (!event.priceGeneralUSD && !event.priceUSD && event.ticketPrice?.toLowerCase().includes('libre'));
+      setSelectedTier({
+        id: isFree ? 'tier-legacy-free' : 'tier-legacy-paid',
+        name: isFree ? 'Entrada Libre' : 'Público General',
+        priceUSD: isFree ? 0 : (event.priceGeneralUSD || event.priceUSD || 10),
+        isFree: isFree,
+        note: isFree ? 'Acceso 100% gratuito' : 'Entrada general con acreditación'
+      });
+    }
+
     setFullName('');
     setEmail('');
     setPhone('');
@@ -77,6 +100,7 @@ export function EventsCalendar({ t }) {
     setPaymentRef('');
     setPaymentBank('0108 - Banco Provincial');
     setPaymentPhone('');
+    setInstitutionOrRole('');
     setRsvpSuccess(false);
   };
 
@@ -84,6 +108,10 @@ export function EventsCalendar({ t }) {
     e.preventDefault();
     setRsvpSuccess(true);
     
+    const isFreeTier = selectedTier ? !!selectedTier.isFree : (rsvpModalEvent.accessType === 'free');
+    const tierName = selectedTier ? selectedTier.name : 'General';
+    const tierPrice = selectedTier ? (selectedTier.isFree ? 0 : selectedTier.priceUSD) : 0;
+
     // Save registration record to localStorage
     try {
       const savedRsvps = localStorage.getItem('cgem_event_rsvps');
@@ -92,15 +120,19 @@ export function EventsCalendar({ t }) {
         id: `rsvp-${Date.now()}`,
         eventId: rsvpModalEvent.id,
         eventTitle: rsvpModalEvent.title,
-        attendeeType,
+        tierId: selectedTier?.id || 'tier-general',
+        tierName,
+        tierPriceUSD: tierPrice,
+        isFree: isFreeTier,
         fullName,
         email,
         phone,
-        affiliateCode: attendeeType === 'afiliado' ? affiliateCode : '',
-        paymentRef: attendeeType === 'publico' ? paymentRef : '',
-        paymentBank: attendeeType === 'publico' ? paymentBank : '',
+        affiliateCode: isFreeTier && tierName.toLowerCase().includes('miembro') ? affiliateCode : '',
+        institutionOrRole,
+        paymentRef: !isFreeTier ? paymentRef : '',
+        paymentBank: !isFreeTier ? paymentBank : '',
         registeredAt: new Date().toISOString(),
-        status: attendeeType === 'afiliado' || attendeeType === 'libre' ? 'confirmado' : 'pendiente_conciliacion'
+        status: isFreeTier ? 'confirmado' : 'pendiente_conciliacion'
       };
       localStorage.setItem('cgem_event_rsvps', JSON.stringify([newRsvp, ...list]));
     } catch (err) {}
@@ -108,12 +140,15 @@ export function EventsCalendar({ t }) {
     setTimeout(() => {
       setRsvpSuccess(false);
       setRsvpModalEvent(null);
-      if (attendeeType === 'afiliado') {
-        alert(`¡Inscripción Confirmada! Como Miembro Solvente (${affiliateCode || 'CGM'}), su acreditación digital gratuita para "${rsvpModalEvent.title}" ha sido reservada con éxito. Se ha enviado un comprobante a ${email}.`);
-      } else if (attendeeType === 'libre') {
-        alert(`¡Acreditación Exitosa! Su entrada libre para "${rsvpModalEvent.title}" ha sido registrada con éxito. Se ha enviado su pase a ${email}.`);
+      
+      if (isFreeTier) {
+        if (tierName.toLowerCase().includes('miembro')) {
+          alert(`¡Inscripción Confirmada! Como Miembro Solvente (${affiliateCode || 'CGM'}), su acreditación digital gratuita para "${rsvpModalEvent.title}" [Tarifa: ${tierName}] ha sido reservada con éxito. Se ha enviado un comprobante a ${email}.`);
+        } else {
+          alert(`¡Acreditación Exitosa! Su entrada libre para "${rsvpModalEvent.title}" [Tarifa: ${tierName}] ha sido registrada con éxito. Se ha enviado su pase a ${email}.`);
+        }
       } else {
-        alert(`¡Registro en Proceso! Hemos recibido su reporte de Pago Móvil (Ref. ${paymentRef}) para "${rsvpModalEvent.title}". Recibirá su acreditación digital formal en ${email} tras la conciliación bancaria.`);
+        alert(`¡Registro en Proceso! Hemos recibido su reporte de Pago Móvil (Ref. ${paymentRef} por $${tierPrice} USD) para "${rsvpModalEvent.title}" [Tarifa: ${tierName}]. Recibirá su acreditación digital formal en ${email} tras la conciliación bancaria.`);
       }
     }, 1000);
   };
@@ -144,7 +179,7 @@ export function EventsCalendar({ t }) {
               onClick={() => setSelectedMonth(m)}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 selectedMonth === m
-                  ? 'bg-amber-500 text-white shadow-md scale-105'
+                  ? 'bg-amber-500 text-slate-950 font-extrabold shadow-md scale-105'
                   : 'bg-white text-slate-700 border border-slate-200 hover:border-amber-400 hover:text-amber-700'
               }`}
             >
@@ -173,40 +208,55 @@ export function EventsCalendar({ t }) {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
           {filteredEvents.map((event) => (
             <div 
               key={event.id}
               className="group rounded-3xl bg-white border border-slate-200 overflow-hidden hover:border-amber-400 hover:shadow-card-hover transition-all duration-300 flex flex-col justify-between"
             >
-              {/* Event Image */}
-              <div className="relative h-52 w-full overflow-hidden bg-slate-100">
+              {/* Event Image / 9:16 Flyer Poster */}
+              <div className="relative w-full h-64 sm:h-72 overflow-hidden bg-slate-900 flex items-center justify-center">
                 <img 
                   src={event.image} 
                   alt={event.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-95"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-black/20" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-black/30 pointer-events-none" />
                 
                 {/* Badges */}
-                <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+                <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
                   <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500 text-slate-950 shadow-sm font-sans">
                     {event.month}
                   </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white/90 text-slate-900 shadow-sm font-sans">
-                    {event.badge}
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white/95 text-slate-900 shadow-sm font-sans">
+                    {event.badge || 'Oficial CGM'}
                   </span>
                 </div>
 
-                <div className="absolute bottom-3 left-3">
+                <div className="absolute bottom-3 left-3 flex items-center gap-2">
                   <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-600 text-white shadow-sm font-sans">
                     {event.category}
                   </span>
+                  {event.imageAspect === '9:16' && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-900/80 text-amber-400 border border-amber-400/30">
+                      Flyer 9:16
+                    </span>
+                  )}
                 </div>
+
+                {/* Lightbox Zoom Button for Flyer */}
+                <button
+                  type="button"
+                  onClick={() => setFlyerPreviewEvent(event)}
+                  title="Ver flyer completo en alta resolución"
+                  className="absolute bottom-3 right-3 p-2 rounded-xl bg-black/60 hover:bg-black/90 text-white border border-white/20 backdrop-blur-xs transition-all shadow-md active:scale-95"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </button>
               </div>
 
               {/* Event Content */}
-              <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
+              <div className="p-6 flex-1 flex flex-col justify-between space-y-4 font-sans">
                 <div>
                   <div className="flex items-center gap-2 text-xs text-amber-800 font-bold mb-1">
                     <Clock className="w-3.5 h-3.5 text-amber-600" />
@@ -226,30 +276,56 @@ export function EventsCalendar({ t }) {
                     {event.description}
                   </p>
 
-                  {/* Highlights */}
-                  {Array.isArray(event.highlights) && event.highlights.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5">
-                      <span className="text-[10px] uppercase font-bold text-slate-500">Destacados:</span>
-                      {event.highlights.slice(0, 2).map((hl, idx) => (
-                        <div key={idx} className="text-xs text-slate-700 flex items-center gap-1.5">
-                          <Sparkles className="w-3 h-3 text-amber-600 shrink-0" />
-                          <span className="truncate">{hl}</span>
-                        </div>
-                      ))}
+                  {/* Multi-Tier Pricing Preview Pills */}
+                  {Array.isArray(event.priceTiers) && event.priceTiers.length > 0 ? (
+                    <div className="mt-4 pt-3 border-t border-slate-100">
+                      <div className="flex items-center gap-1 text-[10px] font-bold uppercase text-slate-500 mb-2">
+                        <Tag className="w-3 h-3 text-amber-600" />
+                        <span>Tarifas disponibles:</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {event.priceTiers.map((tier, idx) => (
+                          <span 
+                            key={tier.id || idx}
+                            className={`px-2 py-0.5 rounded-lg text-[11px] font-bold border ${
+                              tier.isFree 
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                                : 'bg-amber-50 text-amber-900 border-amber-200'
+                            }`}
+                          >
+                            {tier.name}: {tier.isFree ? 'Gratis' : `$${tier.priceUSD} USD`}
+                          </span>
+                        ))}
+                      </div>
                     </div>
+                  ) : (
+                    /* Legacy Highlights */
+                    Array.isArray(event.highlights) && event.highlights.length > 0 && (
+                      <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5">
+                        <span className="text-[10px] uppercase font-bold text-slate-500">Destacados:</span>
+                        {event.highlights.slice(0, 2).map((hl, idx) => (
+                          <div key={idx} className="text-xs text-slate-700 flex items-center gap-1.5">
+                            <Sparkles className="w-3 h-3 text-amber-600 shrink-0" />
+                            <span className="truncate">{hl}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )
                   )}
                 </div>
 
                 {/* Card Footer */}
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3 font-sans">
-                  <div>
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
                     <span className="text-[10px] font-semibold text-slate-500 block">Acceso:</span>
-                    <span className="text-xs font-bold text-emerald-700">{event.ticketPrice}</span>
+                    <span className="text-xs font-bold text-emerald-700 truncate block">
+                      {event.ticketPrice || (event.accessType === 'free' ? 'Entrada Libre' : 'Entrada con Tarifa')}
+                    </span>
                   </div>
 
                   <button
                     onClick={() => handleOpenRsvp(event)}
-                    className="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
+                    className="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all active:scale-95 shrink-0"
                   >
                     <Ticket className="w-3.5 h-3.5 text-slate-950" />
                     <span>Inscribirse</span>
@@ -263,10 +339,12 @@ export function EventsCalendar({ t }) {
         </div>
       )}
 
-      {/* RSVP Modal with Solvent Member Free vs Pago Móvil Provincial */}
+      {/* =========================================================================
+          MODAL: RSVP / OFFICIAL PUBLIC REGISTRATION WITH TIER SELECTOR
+          ========================================================================= */}
       {rsvpModalEvent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
-          <div className="relative w-full max-w-lg bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 space-y-5 text-slate-800 max-h-[90vh] overflow-y-auto font-sans">
+          <div className="relative w-full max-w-xl bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 space-y-5 text-slate-800 max-h-[92vh] overflow-y-auto font-sans">
             
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2 text-amber-700">
@@ -286,31 +364,47 @@ export function EventsCalendar({ t }) {
               <p className="text-xs text-amber-800 font-bold mt-1">{rsvpModalEvent.date} — {rsvpModalEvent.location}</p>
             </div>
 
-            {/* Selector if event is not 100% free */}
-            {rsvpModalEvent.accessType !== 'free' && !rsvpModalEvent.ticketPrice?.toLowerCase().includes('totalmente libre') && (
-              <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => setAttendeeType('afiliado')}
-                  className={`py-2 px-3 rounded-xl transition-all ${
-                    attendeeType === 'afiliado'
-                      ? 'bg-emerald-600 text-white shadow-sm font-extrabold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  ⭐ Miembro Solvente (Gratis)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAttendeeType('publico')}
-                  className={`py-2 px-3 rounded-xl transition-all ${
-                    attendeeType === 'publico'
-                      ? 'bg-amber-500 text-slate-950 shadow-sm font-extrabold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  🎟️ Público (${rsvpModalEvent.priceGeneralUSD || rsvpModalEvent.priceUSD || 10} USD)
-                </button>
+            {/* Price Tier Selector (Dynamic Multiple Tiers) */}
+            {Array.isArray(rsvpModalEvent.priceTiers) && rsvpModalEvent.priceTiers.length > 0 && (
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Seleccione su Categoría / Tarifa de Entrada:
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {rsvpModalEvent.priceTiers.map((tier) => {
+                    const isSelected = selectedTier?.id === tier.id || selectedTier?.name === tier.name;
+                    return (
+                      <button
+                        key={tier.id}
+                        type="button"
+                        onClick={() => setSelectedTier(tier)}
+                        className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1.5 ${
+                          isSelected
+                            ? 'bg-amber-500/15 border-amber-500 ring-2 ring-amber-500/30 shadow-xs'
+                            : 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-bold text-xs text-slate-900 leading-snug">
+                            {tier.name}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${
+                            tier.isFree 
+                              ? 'bg-emerald-600 text-white' 
+                              : 'bg-amber-500 text-slate-950'
+                          }`}>
+                            {tier.isFree ? 'GRATIS' : `$${tier.priceUSD} USD`}
+                          </span>
+                        </div>
+                        {tier.note && (
+                          <p className="text-[11px] text-slate-500 line-clamp-1">
+                            {tier.note}
+                          </p>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -352,42 +446,41 @@ export function EventsCalendar({ t }) {
                 </div>
               </div>
 
-              {attendeeType === 'libre' && (
-                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs flex items-center gap-2 font-bold">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Entrada 100% Libre y Gratuita para todo público</span>
-                </div>
-              )}
-
-              {attendeeType === 'afiliado' && (
+              {/* Free Tier Confirmation or Member Code */}
+              {selectedTier?.isFree ? (
                 <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2">
                   <div className="flex items-center gap-2 text-emerald-900 font-bold">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Beneficio de Miembro Solvente: Acceso Sin Costo</span>
+                    <span>Tarifa Gratuita Seleccionada: {selectedTier.name}</span>
                   </div>
-                  <div>
-                    <label className="block text-emerald-950 font-bold mb-1">Código de Afiliado CGM *</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={affiliateCode}
-                      onChange={(e) => setAffiliateCode(e.target.value)}
-                      placeholder="Ej. CGM-2026-001" 
-                      className="w-full bg-white border border-emerald-300 rounded-xl px-3 py-2 text-slate-800 uppercase font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
+                  {selectedTier.name.toLowerCase().includes('miembro') ? (
+                    <div>
+                      <label className="block text-emerald-950 font-bold mb-1">Código de Afiliado CGM *</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={affiliateCode}
+                        onChange={(e) => setAffiliateCode(e.target.value)}
+                        placeholder="Ej. CGM-2026-001" 
+                        className="w-full bg-white border border-emerald-300 rounded-xl px-3 py-2 text-slate-800 uppercase font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-emerald-800">
+                      Su acceso ha sido configurado sin costo. Recibirá su acreditación digital directamente en su correo.
+                    </p>
+                  )}
                 </div>
-              )}
-
-              {attendeeType === 'publico' && (
+              ) : (
+                /* Paid Tier Details & Pago Móvil Banco Provincial */
                 <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 space-y-3">
                   <div className="flex items-center justify-between gap-2 text-amber-950 font-bold">
                     <div className="flex items-center gap-2">
                       <CreditCard className="w-4 h-4 text-amber-600" />
-                      <span>Datos de Pago Móvil Oficial Banco Provincial</span>
+                      <span>Pago Móvil Oficial Banco Provincial</span>
                     </div>
-                    <span className="text-xs bg-amber-200 text-amber-900 px-2.5 py-0.5 rounded-md font-extrabold">
-                      ${rsvpModalEvent.priceGeneralUSD || rsvpModalEvent.priceUSD || 10} USD
+                    <span className="text-xs bg-amber-300 text-amber-950 px-2.5 py-0.5 rounded-md font-extrabold">
+                      ${selectedTier?.priceUSD || rsvpModalEvent.priceGeneralUSD || 10} USD
                     </span>
                   </div>
 
@@ -403,6 +496,10 @@ export function EventsCalendar({ t }) {
                     <div className="flex justify-between">
                       <span className="text-slate-500">Teléfono:</span>
                       <strong>0414-8817137</strong>
+                    </div>
+                    <div className="flex justify-between text-amber-900 font-sans font-bold pt-1 border-t border-slate-100">
+                      <span>Tarifa a Pagar:</span>
+                      <span>{selectedTier?.name || 'General'} (${selectedTier?.priceUSD || 10} USD a tasa BCV)</span>
                     </div>
                   </div>
 
@@ -438,9 +535,58 @@ export function EventsCalendar({ t }) {
                 disabled={rsvpSuccess}
                 className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider hover:from-amber-600 hover:to-amber-700 transition-all mt-4 shadow-md active:scale-98 disabled:opacity-50"
               >
-                {rsvpSuccess ? 'Procesando Registro...' : 'Confirmar Mi Registro Oficial'}
+                {rsvpSuccess ? 'Procesando Registro...' : `Confirmar Registro (${selectedTier?.name || 'Entrada'} ${selectedTier?.isFree ? '• Gratis' : `• $${selectedTier?.priceUSD || 10} USD`})`}
               </button>
             </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL: FULL 9:16 FLYER LIGHTBOX PREVIEW
+          ========================================================================= */}
+      {flyerPreviewEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn font-sans">
+          <div className="relative max-w-sm w-full bg-slate-900 rounded-3xl border border-amber-500/40 p-4 shadow-2xl flex flex-col items-center">
+            
+            <button 
+              onClick={() => setFlyerPreviewEvent(null)}
+              className="absolute -top-3 -right-3 p-2 rounded-full bg-amber-500 text-slate-950 hover:bg-amber-400 font-bold shadow-lg transition-transform active:scale-95 z-10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="w-full rounded-2xl overflow-hidden aspect-[9/16] bg-black shadow-inner relative">
+              <img 
+                src={flyerPreviewEvent.image} 
+                alt={flyerPreviewEvent.title} 
+                className="w-full h-full object-contain"
+              />
+            </div>
+
+            <div className="w-full mt-3 text-center space-y-1">
+              <h4 className="font-serif font-bold text-white text-base truncate">
+                {flyerPreviewEvent.title}
+              </h4>
+              <p className="text-xs text-amber-400 font-medium">
+                {flyerPreviewEvent.date} — {flyerPreviewEvent.location}
+              </p>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const evt = flyerPreviewEvent;
+                    setFlyerPreviewEvent(null);
+                    handleOpenRsvp(evt);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
+                >
+                  <Ticket className="w-4 h-4" />
+                  <span>Inscribirse en este Evento</span>
+                </button>
+              </div>
+            </div>
 
           </div>
         </div>

@@ -50,13 +50,17 @@ import {
   Ticket,
   Image as ImageIcon,
   Star,
-  CreditCard
+  CreditCard,
+  UploadCloud,
+  Loader2,
+  PlusCircle
 } from 'lucide-react';
 import { BOARD_MEMBERS_DATA, INITIAL_BOARD_AGENDA_DATA } from '../data/boardData';
 import { LEGAL_DATA } from '../data/legalData';
 import { INITIAL_DIRECTORY_DATA } from '../data/initialDirectoryData';
 import { sendBoardAttendanceEmail } from '../lib/emailService';
 import { supabase } from '../lib/supabaseClient';
+import { optimizeImage, formatBytes } from '../lib/imageOptimizer';
 
 export function BoardAdminPortal({ t, onNavigate }) {
   // Authentication State
@@ -383,8 +387,16 @@ export function BoardAdminPortal({ t, onNavigate }) {
     } catch (e) {}
   }, [officialEvents]);
 
+  const DEFAULT_PRICE_TIERS = [
+    { id: 'tier-cgm', name: 'Miembros / Agremiados CGM', priceUSD: 0, isFree: true, note: 'Acceso gratuito para miembros solventes' },
+    { id: 'tier-est', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: 'Tarifa preferencial para estudiantes' },
+    { id: 'tier-gen', name: 'Público General', priceUSD: 10, isFree: false, note: 'Acceso general al evento' }
+  ];
+
   const [isPublicEventModalOpen, setIsPublicEventModalOpen] = useState(false);
   const [editingPublicEvent, setEditingPublicEvent] = useState(null);
+  const [isOptimizingEventImage, setIsOptimizingEventImage] = useState(false);
+  const [eventImageUploadStats, setEventImageUploadStats] = useState(null);
   const [publicEventFormData, setPublicEventFormData] = useState({
     title: '',
     date: new Date().toISOString().split('T')[0],
@@ -392,17 +404,17 @@ export function BoardAdminPortal({ t, onNavigate }) {
     location: 'Centro Histórico / Mérida',
     category: 'Festival Gastronómico',
     badge: 'Evento Oficial 2026',
-    accessType: 'member_free_paid_general', // 'free' | 'member_free_paid_general' | 'paid'
-    priceGeneralUSD: 10,
-    priceMemberUSD: 0,
-    ticketPrice: 'Gratuito Miembros / $10 USD General',
+    accessType: 'paid', // 'free' | 'paid'
+    priceTiers: DEFAULT_PRICE_TIERS,
+    ticketPrice: 'General: $10 USD • Estudiantes: $5 USD • Miembros: Gratis',
     isPagoMovilEnabled: true,
     pagoMovilBank: '0108 - Banco Provincial',
     pagoMovilCi: 'V-12517086',
     pagoMovilPhone: '0414-8817137',
     description: '',
     highlights: ['Catas guiadas y degustaciones', 'Masterclasses con chefs invitados'],
-    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80'
+    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80',
+    imageAspect: '9:16'
   });
 
   // =========================================================================
@@ -797,6 +809,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
   // =========================================================================
   const openNewPublicEventModal = () => {
     setEditingPublicEvent(null);
+    setEventImageUploadStats(null);
     setPublicEventFormData({
       title: '',
       date: new Date().toISOString().split('T')[0],
@@ -804,23 +817,46 @@ export function BoardAdminPortal({ t, onNavigate }) {
       location: 'Centro Histórico / Mérida',
       category: 'Festival Gastronómico',
       badge: 'Evento Oficial 2026',
-      accessType: 'member_free_paid_general',
-      priceGeneralUSD: 10,
-      priceMemberUSD: 0,
-      ticketPrice: 'Gratuito Miembros / $10 USD General',
+      accessType: 'paid',
+      priceTiers: [
+        { id: 'tier-cgm', name: 'Miembros / Agremiados CGM', priceUSD: 0, isFree: true, note: 'Acceso gratuito para miembros solventes' },
+        { id: 'tier-est', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: 'Tarifa preferencial para estudiantes' },
+        { id: 'tier-gen', name: 'Público General', priceUSD: 10, isFree: false, note: 'Acceso general al evento' }
+      ],
+      ticketPrice: 'General: $10 USD • Estudiantes: $5 USD • Miembros: Gratis',
       isPagoMovilEnabled: true,
       pagoMovilBank: '0108 - Banco Provincial',
       pagoMovilCi: 'V-12517086',
       pagoMovilPhone: '0414-8817137',
       description: '',
       highlights: ['Catas guiadas y degustaciones', 'Masterclasses con chefs invitados'],
-      image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80'
+      image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80',
+      imageAspect: '9:16'
     });
     setIsPublicEventModalOpen(true);
   };
 
   const openEditPublicEventModal = (event) => {
     setEditingPublicEvent(event);
+    setEventImageUploadStats(null);
+
+    // Ensure priceTiers array exists from previous legacy format
+    let existingTiers = event.priceTiers;
+    if (!Array.isArray(existingTiers) || existingTiers.length === 0) {
+      if (event.accessType === 'free' || event.ticketPrice?.toLowerCase().includes('libre')) {
+        existingTiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Acceso gratuito' }];
+      } else if (event.accessType === 'member_free_paid_general') {
+        existingTiers = [
+          { id: 'tier-cgm', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito' },
+          { id: 'tier-gen', name: 'Público General', priceUSD: parseFloat(event.priceGeneralUSD) || parseFloat(event.priceUSD) || 10, isFree: false, note: 'Entrada General' }
+        ];
+      } else {
+        existingTiers = [
+          { id: 'tier-gen', name: 'Público General', priceUSD: parseFloat(event.priceGeneralUSD) || parseFloat(event.priceUSD) || 10, isFree: false, note: 'Entrada General' }
+        ];
+      }
+    }
+
     setPublicEventFormData({
       title: event.title || '',
       date: event.date || '',
@@ -828,37 +864,146 @@ export function BoardAdminPortal({ t, onNavigate }) {
       location: event.location || '',
       category: event.category || 'Festival Gastronómico',
       badge: event.badge || 'Evento Oficial 2026',
-      accessType: event.accessType || (event.ticketPrice?.toLowerCase().includes('gratis') && !event.ticketPrice?.includes('$') ? 'free' : 'member_free_paid_general'),
-      priceGeneralUSD: event.priceGeneralUSD !== undefined ? event.priceGeneralUSD : (event.priceUSD || 10),
-      priceMemberUSD: event.priceMemberUSD !== undefined ? event.priceMemberUSD : 0,
-      ticketPrice: event.ticketPrice || 'Gratuito Miembros / $10 USD General',
+      accessType: event.accessType === 'free' ? 'free' : 'paid',
+      priceTiers: existingTiers,
+      ticketPrice: event.ticketPrice || 'General: $10 USD • Estudiantes: $5 USD • Miembros: Gratis',
       isPagoMovilEnabled: event.isPagoMovilEnabled !== false,
       pagoMovilBank: event.pagoMovilBank || '0108 - Banco Provincial',
       pagoMovilCi: event.pagoMovilCi || 'V-12517086',
       pagoMovilPhone: event.pagoMovilPhone || '0414-8817137',
       description: event.description || '',
       highlights: Array.isArray(event.highlights) ? event.highlights : ['Catas guiadas y degustaciones', 'Masterclasses con chefs'],
-      image: event.image || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80'
+      image: event.image || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80',
+      imageAspect: event.imageAspect || '9:16'
     });
     setIsPublicEventModalOpen(true);
   };
 
+  // Convert and optimize 9:16 banner from PC
+  const handleEventImageFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsOptimizingEventImage(true);
+      // Optimizer for 9:16 Instagram flyer format (standard 720x1280 max resolution)
+      const result = await optimizeImage(file, {
+        maxWidth: 720,
+        maxHeight: 1280,
+        quality: 0.82,
+        preferredFormat: 'image/webp'
+      });
+
+      setPublicEventFormData(prev => ({
+        ...prev,
+        image: result.dataUrl,
+        imageAspect: '9:16'
+      }));
+
+      setEventImageUploadStats({
+        originalSize: result.originalSizeFormatted,
+        compressedSize: result.compressedSizeFormatted,
+        compressionRatio: result.compressionRatio,
+        fileName: result.fileName
+      });
+    } catch (err) {
+      console.warn('Error al procesar imagen de flyer:', err);
+      alert('Error al optimizar la imagen. Por favor seleccione un archivo JPG, PNG o WebP válido.');
+    } finally {
+      setIsOptimizingEventImage(false);
+    }
+  };
+
+  const handleAddPriceTier = () => {
+    const newTier = {
+      id: `tier-${Date.now()}`,
+      name: 'Nueva Tarifa (ej. VIP / Estudiantes)',
+      priceUSD: 5,
+      isFree: false,
+      note: ''
+    };
+    const currentTiers = Array.isArray(publicEventFormData.priceTiers) ? publicEventFormData.priceTiers : [];
+    setPublicEventFormData({ ...publicEventFormData, priceTiers: [...currentTiers, newTier] });
+  };
+
+  const handleRemovePriceTier = (tierId) => {
+    const currentTiers = Array.isArray(publicEventFormData.priceTiers) ? publicEventFormData.priceTiers : [];
+    const updated = currentTiers.filter(t => t.id !== tierId);
+    setPublicEventFormData({ ...publicEventFormData, priceTiers: updated });
+  };
+
+  const handleUpdatePriceTier = (tierId, field, value) => {
+    const currentTiers = Array.isArray(publicEventFormData.priceTiers) ? publicEventFormData.priceTiers : [];
+    const updated = currentTiers.map(t => {
+      if (t.id === tierId) {
+        const updatedTier = { ...t, [field]: value };
+        if (field === 'isFree' && value === true) {
+          updatedTier.priceUSD = 0;
+        }
+        return updatedTier;
+      }
+      return t;
+    });
+    setPublicEventFormData({ ...publicEventFormData, priceTiers: updated });
+  };
+
+  const handleApplyTierPreset = (presetType) => {
+    if (presetType === 'general_only') {
+      setPublicEventFormData({
+        ...publicEventFormData,
+        accessType: 'paid',
+        priceTiers: [
+          { id: 'tier-1', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' }
+        ]
+      });
+    } else if (presetType === 'members_and_general') {
+      setPublicEventFormData({
+        ...publicEventFormData,
+        accessType: 'paid',
+        priceTiers: [
+          { id: 'tier-1', name: 'Miembros / Agremiados CGM', priceUSD: 0, isFree: true, note: 'Gratis con Código de Afiliado' },
+          { id: 'tier-2', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' }
+        ]
+      });
+    } else if (presetType === 'complete_festival') {
+      setPublicEventFormData({
+        ...publicEventFormData,
+        accessType: 'paid',
+        priceTiers: [
+          { id: 'tier-1', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito' },
+          { id: 'tier-2', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: 'Tarifa preferencial para estudiantes' },
+          { id: 'tier-3', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' },
+          { id: 'tier-4', name: 'Pase VIP / Masterclass', priceUSD: 25, isFree: false, note: 'Acceso a todas las catas + acreditación' }
+        ]
+      });
+    }
+  };
+
   const handleSavePublicEvent = (e) => {
     e.preventDefault();
-    // Auto-generate ticketPrice text if needed
-    let generatedTicketText = publicEventFormData.ticketPrice;
+    
+    // Auto-generate summary ticketPrice from tiers
+    let generatedTicketText = '';
+    const tiers = Array.isArray(publicEventFormData.priceTiers) ? publicEventFormData.priceTiers : [];
+    
     if (publicEventFormData.accessType === 'free') {
       generatedTicketText = 'Entrada Totalmente Libre / Gratuito';
-    } else if (publicEventFormData.accessType === 'member_free_paid_general') {
-      generatedTicketText = `Gratuito Miembros / $${publicEventFormData.priceGeneralUSD || 10} USD General`;
-    } else if (publicEventFormData.accessType === 'paid') {
-      generatedTicketText = `$${publicEventFormData.priceGeneralUSD || 10} USD Entrada General`;
+    } else if (tiers.length > 0) {
+      generatedTicketText = tiers
+        .map(t => `${t.name}: ${t.isFree || t.priceUSD === 0 ? 'Gratis' : `$${t.priceUSD} USD`}`)
+        .join(' • ');
+    } else {
+      generatedTicketText = `$10 USD Entrada General`;
     }
 
     const payload = {
       ...publicEventFormData,
       ticketPrice: generatedTicketText,
-      priceUSD: parseFloat(publicEventFormData.priceGeneralUSD) || 0
+      priceTiers: publicEventFormData.accessType === 'free' 
+        ? [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Acceso 100% gratuito' }]
+        : tiers,
+      priceUSD: publicEventFormData.accessType === 'free' ? 0 : (tiers.find(t => !t.isFree)?.priceUSD || 10),
+      priceGeneralUSD: tiers.find(t => !t.isFree)?.priceUSD || 10,
+      priceMemberUSD: tiers.find(t => t.isFree)?.priceUSD || 0
     };
 
     if (editingPublicEvent) {
@@ -876,6 +1021,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
     }
     setIsPublicEventModalOpen(false);
     setEditingPublicEvent(null);
+    setEventImageUploadStats(null);
     setTimeout(() => setActionSuccessMessage(''), 4000);
   };
 
@@ -2961,12 +3107,13 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   >
                     <div>
                       {event.image && (
-                        <div className="relative h-44 w-full overflow-hidden bg-slate-100">
+                        <div className="relative aspect-[16/11] max-h-64 w-full overflow-hidden bg-slate-900 group">
                           <img 
                             src={event.image} 
                             alt={event.title} 
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                           />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/30" />
                           <div className="absolute top-3 left-3">
                             <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-amber-500 text-slate-950 shadow-sm">
                               {event.month}
@@ -2974,17 +3121,18 @@ export function BoardAdminPortal({ t, onNavigate }) {
                           </div>
                           <div className="absolute top-3 right-3">
                             <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/90 text-slate-900 shadow-sm">
-                              {event.badge}
+                              {event.badge || 'Flyer 9:16'}
+                            </span>
+                          </div>
+                          <div className="absolute bottom-2.5 left-3">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-600 text-white shadow-xs">
+                              {event.category}
                             </span>
                           </div>
                         </div>
                       )}
 
                       <div className="p-5 space-y-3">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                          {event.category}
-                        </span>
-
                         <h3 className="font-serif font-black text-lg text-slate-900 leading-snug">
                           {event.title}
                         </h3>
@@ -3000,13 +3148,33 @@ export function BoardAdminPortal({ t, onNavigate }) {
                           </div>
                         </div>
 
-                        <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed">
+                        <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
                           {event.description}
                         </p>
 
-                        <div className="pt-2">
-                          <span className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Acceso:</span>
-                          <span className="text-xs font-bold text-emerald-700">{event.ticketPrice}</span>
+                        {/* Price Tiers Badges */}
+                        <div className="pt-2 space-y-1">
+                          <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                            Estructura de Tarifas:
+                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {Array.isArray(event.priceTiers) && event.priceTiers.length > 0 ? (
+                              event.priceTiers.map((t, idx) => (
+                                <span 
+                                  key={idx}
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                                    t.isFree || t.priceUSD === 0
+                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                      : 'bg-amber-50 text-amber-900 border-amber-200'
+                                  }`}
+                                >
+                                  {t.name}: <strong>{t.isFree || t.priceUSD === 0 ? 'Gratis' : `$${t.priceUSD}`}</strong>
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs font-bold text-emerald-700">{event.ticketPrice}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -4513,118 +4681,180 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 </div>
               </div>
 
-              {/* Access Type & Pricing Controls */}
-              <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-3">
-                <label className="block font-bold text-slate-800 uppercase tracking-wider text-xs">
-                  Modalidad de Acceso & Venta de Entradas *
-                </label>
+              {/* Access Type & Multi-Tier Pricing Controls */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/70 border border-amber-200/90 space-y-4 font-sans">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <label className="block font-bold text-slate-900 uppercase tracking-wider text-xs">
+                      1. Tarifas & Modalidades de Entrada *
+                    </label>
+                    <p className="text-[11px] text-slate-600">
+                      Configure múltiples precios para público general, estudiantes, miembros agremiados o VIP.
+                    </p>
+                  </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPublicEventFormData({
-                      ...publicEventFormData,
-                      accessType: 'member_free_paid_general',
-                      priceMemberUSD: 0,
-                      isPagoMovilEnabled: true,
-                      ticketPrice: `Gratuito Miembros / $${publicEventFormData.priceGeneralUSD || 10} USD General`
-                    })}
-                    className={`p-2.5 rounded-xl border text-left transition-all text-xs font-sans ${
-                      publicEventFormData.accessType === 'member_free_paid_general'
-                        ? 'bg-amber-500 text-slate-950 font-bold border-amber-600 shadow-xs'
-                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className="block font-extrabold">⭐ Mixto (Recomendado)</span>
-                    <span className="text-[10px] opacity-90 block mt-0.5">Gratis Miembros / Pago General</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPublicEventFormData({
-                      ...publicEventFormData,
-                      accessType: 'paid',
-                      isPagoMovilEnabled: true,
-                      ticketPrice: `$${publicEventFormData.priceGeneralUSD || 10} USD Entrada General`
-                    })}
-                    className={`p-2.5 rounded-xl border text-left transition-all text-xs font-sans ${
-                      publicEventFormData.accessType === 'paid'
-                        ? 'bg-amber-500 text-slate-950 font-bold border-amber-600 shadow-xs'
-                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className="block font-extrabold">🎟️ Entrada Paga</span>
-                    <span className="text-[10px] opacity-90 block mt-0.5">Pago General con Pago Móvil</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPublicEventFormData({
-                      ...publicEventFormData,
-                      accessType: 'free',
-                      priceGeneralUSD: 0,
-                      priceMemberUSD: 0,
-                      isPagoMovilEnabled: false,
-                      ticketPrice: 'Entrada Totalmente Libre / Gratuito'
-                    })}
-                    className={`p-2.5 rounded-xl border text-left transition-all text-xs font-sans ${
-                      publicEventFormData.accessType === 'free'
-                        ? 'bg-amber-500 text-slate-950 font-bold border-amber-600 shadow-xs'
-                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className="block font-extrabold">🆓 Entrada Libre</span>
-                    <span className="text-[10px] opacity-90 block mt-0.5">Acceso 100% Gratuito</span>
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setPublicEventFormData({
+                        ...publicEventFormData,
+                        accessType: 'free',
+                        priceTiers: [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Acceso 100% gratuito' }],
+                        ticketPrice: 'Entrada Totalmente Libre / Gratuito'
+                      })}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                        publicEventFormData.accessType === 'free'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      🆓 Evento Gratuito
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPublicEventFormData({
+                        ...publicEventFormData,
+                        accessType: 'paid',
+                        priceTiers: Array.isArray(publicEventFormData.priceTiers) && publicEventFormData.priceTiers.length > 0 ? publicEventFormData.priceTiers : DEFAULT_PRICE_TIERS
+                      })}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                        publicEventFormData.accessType === 'paid'
+                          ? 'bg-amber-500 text-slate-950 shadow-sm font-extrabold'
+                          : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      🎟️ Entrada Paga / Tarifas
+                    </button>
+                  </div>
                 </div>
 
-                {publicEventFormData.accessType !== 'free' && (
-                  <div className="pt-2 space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block font-bold text-slate-700 mb-1 text-[11px]">
-                          Precio Público General (USD) *
-                        </label>
-                        <input
-                          type="number"
-                          min={1}
-                          required
-                          value={publicEventFormData.priceGeneralUSD || ''}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0;
-                            setPublicEventFormData({
-                              ...publicEventFormData,
-                              priceGeneralUSD: val,
-                              ticketPrice: publicEventFormData.accessType === 'member_free_paid_general'
-                                ? `Gratuito Miembros / $${val} USD General`
-                                : `$${val} USD Entrada General`
-                            });
-                          }}
-                          placeholder="ej: 10"
-                          className="w-full px-3 py-2.5 rounded-xl bg-white border border-amber-300 text-slate-900 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block font-bold text-slate-700 mb-1 text-[11px]">
-                          Texto Visible en Entrada
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={publicEventFormData.ticketPrice}
-                          onChange={(e) => setPublicEventFormData({ ...publicEventFormData, ticketPrice: e.target.value })}
-                          placeholder="ej: Gratuito Miembros / $10 USD General"
-                          className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-amber-500"
-                        />
-                      </div>
+                {publicEventFormData.accessType === 'free' ? (
+                  <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs font-bold flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Este evento se publicará como Acceso Libre sin costo para todo el público.</span>
+                  </div>
+                ) : (
+                  <div className="space-y-3 pt-1">
+                    {/* Presets Bar */}
+                    <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl bg-white border border-amber-200 text-[11px]">
+                      <span className="font-bold text-amber-900 mr-1 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-amber-600" />
+                        Plantillas rápidas:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyTierPreset('general_only')}
+                        className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-700 font-semibold"
+                      >
+                        Solo General ($10)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyTierPreset('members_and_general')}
+                        className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-700 font-semibold"
+                      >
+                        Miembros (Gratis) + General ($10)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyTierPreset('complete_festival')}
+                        className="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-950 font-bold border border-amber-400/40"
+                      >
+                        Completo: Miembros + Estudiantes + General + VIP
+                      </button>
                     </div>
+
+                    {/* Price Tiers List */}
+                    <div className="space-y-2">
+                      {(publicEventFormData.priceTiers || []).map((tier, index) => (
+                        <div 
+                          key={tier.id || index}
+                          className="p-3 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center gap-2.5 justify-between"
+                        >
+                          <div className="flex-1 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                            {/* Tier Name */}
+                            <div className="sm:col-span-6">
+                              <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                                Nombre de Tarifa #{index + 1} *
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={tier.name}
+                                onChange={(e) => handleUpdatePriceTier(tier.id, 'name', e.target.value)}
+                                placeholder="ej: Estudiantes con carnet / Preventa"
+                                className="w-full px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500"
+                              />
+                            </div>
+
+                            {/* Price USD */}
+                            <div className="sm:col-span-3">
+                              <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                                Precio (USD)
+                              </label>
+                              <div className="relative">
+                                <span className="absolute left-2.5 top-1.5 text-xs font-bold text-slate-400">$</span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step="0.5"
+                                  disabled={tier.isFree}
+                                  value={tier.isFree ? 0 : (tier.priceUSD !== undefined ? tier.priceUSD : 10)}
+                                  onChange={(e) => handleUpdatePriceTier(tier.id, 'priceUSD', parseFloat(e.target.value) || 0)}
+                                  placeholder="0"
+                                  className={`w-full pl-6 pr-2 py-1.5 rounded-lg border text-xs font-bold focus:outline-none ${
+                                    tier.isFree 
+                                      ? 'bg-slate-100 text-slate-400 border-slate-200' 
+                                      : 'bg-white text-emerald-800 border-emerald-300 focus:border-emerald-500 font-mono text-sm'
+                                  }`}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Is Free Checkbox */}
+                            <div className="sm:col-span-3 flex items-center pt-2 sm:pt-4">
+                              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
+                                <input
+                                  type="checkbox"
+                                  checked={!!tier.isFree}
+                                  onChange={(e) => handleUpdatePriceTier(tier.id, 'isFree', e.target.checked)}
+                                  className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500"
+                                />
+                                <span>Gratis / $0</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          {/* Delete Button */}
+                          {(publicEventFormData.priceTiers || []).length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePriceTier(tier.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors self-end sm:self-center"
+                              title="Eliminar esta tarifa"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Add Tier Button */}
+                    <button
+                      type="button"
+                      onClick={handleAddPriceTier}
+                      className="w-full py-2.5 rounded-xl border-2 border-dashed border-amber-300 hover:border-amber-400 bg-amber-50/50 hover:bg-amber-100/60 text-amber-900 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      <PlusCircle className="w-4 h-4 text-amber-700" />
+                      <span>Agregar Otra Tarifa / Precio</span>
+                    </button>
 
                     {/* Pago Movil Details Banner */}
                     <div className="p-3 rounded-xl bg-white border border-amber-300 text-xs space-y-1.5 font-mono text-slate-800">
                       <div className="flex items-center gap-2 font-bold text-amber-900 font-sans">
                         <CreditCard className="w-4 h-4 text-amber-600" />
-                        <span>Pago Móvil Oficial Habilitado para este Evento:</span>
+                        <span>Datos Oficiales de Pago Móvil para Recaudación:</span>
                       </div>
                       <div className="text-[11px] grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
                         <div>Banco: <strong>0108 Provincial</strong></div>
@@ -4636,7 +4866,136 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* 2. Banner & Flyer 9:16 Upload Section */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 font-sans">
+                <div>
+                  <label className="block font-bold text-slate-900 uppercase tracking-wider text-xs">
+                    2. Imagen del Flyer o Banner (Formato 9:16 Instagram) *
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    Cargue el afiche oficial desde su computador. El conversor optimizará automáticamente la imagen al formato vertical 9:16 en WebP ultra liviano para no saturar la base de datos.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                  
+                  {/* File Upload Drop Area */}
+                  <div className="md:col-span-7 space-y-3">
+                    <label className={`border-2 border-dashed rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                      isOptimizingEventImage
+                        ? 'bg-amber-50 border-amber-400'
+                        : 'bg-white border-slate-300 hover:border-amber-400 hover:bg-amber-50/20'
+                    }`}>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        disabled={isOptimizingEventImage}
+                        onChange={handleEventImageFileUpload}
+                        className="hidden" 
+                      />
+                      
+                      {isOptimizingEventImage ? (
+                        <div className="py-4 flex flex-col items-center gap-2">
+                          <Loader2 className="w-8 h-8 text-amber-600 animate-spin" />
+                          <span className="font-bold text-xs text-amber-900">Optimizando y ajustando a 9:16...</span>
+                          <span className="text-[10px] text-slate-500">Convirtiendo a WebP de alta fidelidad...</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shadow-xs">
+                            <UploadCloud className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-slate-900 block">
+                              Haga clic o arrastre el Flyer aquí
+                            </span>
+                            <span className="text-[10px] text-slate-500 block mt-0.5">
+                              Soporta JPG, PNG, WebP (Ideal formato 9:16 tipo Post / Story)
+                            </span>
+                          </div>
+                          <span className="mt-1 px-3 py-1 rounded-full bg-slate-100 hover:bg-amber-200 text-slate-700 font-bold text-[11px] transition-colors">
+                            Seleccionar desde PC
+                          </span>
+                        </div>
+                      )}
+                    </label>
+
+                    {/* Compression Stats Badge */}
+                    {eventImageUploadStats && (
+                      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs flex items-start gap-2.5 animate-fadeIn">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-bold block">¡Flyer optimizado con éxito!</span>
+                          <p className="text-[11px] text-emerald-800">
+                            Reducido de <strong>{eventImageUploadStats.originalSize}</strong> a <strong>{eventImageUploadStats.compressedSize}</strong> ({eventImageUploadStats.compressionRatio} de ahorro).
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Fallback Manual URL Input */}
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
+                        O ingrese una URL directa de imagen:
+                      </label>
+                      <input
+                        type="url"
+                        value={publicEventFormData.image}
+                        onChange={(e) => {
+                          setPublicEventFormData({ ...publicEventFormData, image: e.target.value });
+                          setEventImageUploadStats(null);
+                        }}
+                        placeholder="https://..."
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-amber-500 font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 9:16 Flyer Preview Card */}
+                  <div className="md:col-span-5 flex flex-col items-center justify-center">
+                    <div className="text-center mb-1.5">
+                      <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                        Vista Previa (Formato Flyer 9:16)
+                      </span>
+                    </div>
+
+                    <div className="relative w-36 sm:w-44 aspect-[9/16] rounded-2xl overflow-hidden shadow-lg border-2 border-amber-300 bg-slate-900 group">
+                      {publicEventFormData.image ? (
+                        <img 
+                          src={publicEventFormData.image} 
+                          alt="Flyer Preview" 
+                          className="w-full h-full object-cover object-center"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 p-3 text-center">
+                          <ImageIcon className="w-8 h-8 opacity-40 mb-1" />
+                          <span className="text-[10px] font-bold">Sin imagen</span>
+                        </div>
+                      )}
+
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none" />
+                      
+                      <div className="absolute top-2 left-2 right-2">
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-amber-500 text-slate-950 shadow-xs block truncate text-center">
+                          {publicEventFormData.month || '2026'}
+                        </span>
+                      </div>
+
+                      <div className="absolute bottom-2 left-2 right-2 text-white">
+                        <span className="text-[10px] font-black line-clamp-2 leading-tight">
+                          {publicEventFormData.title || 'Título del Evento'}
+                        </span>
+                        <span className="text-[8px] text-amber-300 block truncate mt-0.5">
+                          {publicEventFormData.date || 'Fecha'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Sede / Locación *
@@ -4647,19 +5006,6 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     value={publicEventFormData.location}
                     onChange={(e) => setPublicEventFormData({ ...publicEventFormData, location: e.target.value })}
                     placeholder="ej: Centro de Convenciones Mucumbarila, Mérida"
-                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Imagen de Banner (URL)
-                  </label>
-                  <input
-                    type="url"
-                    value={publicEventFormData.image}
-                    onChange={(e) => setPublicEventFormData({ ...publicEventFormData, image: e.target.value })}
-                    placeholder="https://images.unsplash.com/..."
                     className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-amber-500 focus:bg-white"
                   />
                 </div>
