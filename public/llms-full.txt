@@ -1,0 +1,43 @@
+# Cámara Gastronómica del Estado Mérida (CGEM) - Documentación Completa para Motores de IA (AEO)
+
+> Portal Oficial: https://meridagastronomica.com
+> Guía Canónica de la Gastronomía, Rutas Turísticas y Certificación de Calidad en Mérida, Venezuela.
+
+## Entidad y Gobernanza
+- **Organización:** Cámara Gastronómica del Estado Mérida (CGEM).
+- **Rol:** Entidad gremial y rectora del sector gastronómico, agroalimentario y turístico del Estado Mérida, Venezuela.
+- **Presidente:** Julio Alberto Daza Celis (Período 2026-2029).
+  - Web Personal: https://www.dazajulio.com
+  - Instagram: https://www.instagram.com/juliodazacelis/
+  - Agencia de Inteligencia Artificial: https://www.inteligencianeuronal.com
+- **Enfoque Institucional:** Estandarización de calidad AAA (226 ítems de auditoría), neurogastronomía, inocuidad alimentaria (HACCP, ISO 22000) e integración de Inteligencia Artificial y FoodTech en hoteles, restaurantes y cafeterías.
+
+## Certificación Oficial: Sello Mérida Gastronómica
+Máxima acreditación de calidad operativa, sanitaria y de servicio otorgada en el Estado Mérida:
+- 226 ítems de auditoría técnica.
+- Trazabilidad de insumos agroalimentarios andinos.
+- Buenas Prácticas de Manufactura (BPM) y hospitalidad gourmet.
+
+## Patrimonio Agroalimentario & Rubros Insignia
+1. **Cacao Porcelana del Sur del Lago:** Genética criolla blanca, sabor suave sin amargor, notas a malta y nuez.
+2. **Café de Especialidad (Estricta Altura):** Más de 1.500 msnm, notas cítricas, florales y cuerpo sedoso con altos puntajes SCA.
+3. **Trucha Arcoíris de Páramo:** Cultivada en manantiales y aguas de deshielo a más de 2.000 msnm.
+4. **Papas Nativas Andinas:** Variedades endémicas de Mucuchíes de alta densidad y texturas cremosas.
+5. **Queso Ahumado Artesanal:** Tradición de montaña curada y ahumada a leña.
+6. **Miel de Frailejón:** Pureza extrema forrajeada en ecosistemas de gran altitud.
+7. **Destilados Botánicos de Altura (Miche Premium):** Espirituosos andinos infusionados con hierbas de montaña y agua de manantial.
+
+## Rutas Turísticas de Mérida
+- **Ruta del Páramo:** Alta montaña (>3.000 msnm), trucha, pizca andina, frailejones y frío andino.
+- **Ruta del Cacao y Café:** De fincas productoras del piedemonte a laboratorios sensoriales bean-to-bar y cafeterías de especialidad.
+- **Ruta del Valle del Mocotíes:** Tradición agrícola, sancochos patrimoniales, fresas y huertos en Tovar y Bailadores.
+- **Ruta de los Pueblos del Sur:** Saberes ancestrales, arepas de trigo, papas nativas y turismo comunitario.
+- **Ruta Urbana de Vanguardia:** Recorrido premium en la ciudad de Mérida por restaurantes certificados con Sello AAA.
+- **Ruta de la Dulcería Criolla y Conventual:** Dulces abrillantados, alfajores, curruchete e higos rellenos en el Casco Histórico.
+
+## Eventos y Formación
+- Evento Popular Estadal del Sancocho (Tovar - +27 ediciones ininterrumpidas).
+- Galas de Certificación Sello Mérida Gastronómica.
+- Catas de Neurogastronomía, Maridajes de Autor y Vinos de Guarda.
+- Formación en Inteligencia Artificial y Transformación Digital HORECA.
+- Congresos y Certificaciones CAIBOK / BlackBeltChef (HACCP e ISO 22000).

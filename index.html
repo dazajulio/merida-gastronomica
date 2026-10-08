@@ -47,7 +47,7 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
-    <!-- Schema.org Datos Estructurados JSON-LD para Google y Motores de IA (AEO / Perplexity / ChatGPT) -->
+    <!-- Schema.org Datos Estructurados JSON-LD para Google y Motores de IA (AEO / Perplexity / ChatGPT / Gemini) -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -56,10 +56,22 @@
           "@type": "Organization",
           "@id": "https://www.meridagastronomica.com/#organization",
           "name": "Cámara Gastronómica del Estado Mérida",
-          "alternateName": "Mérida Gastronómica",
+          "alternateName": ["CGEM", "Mérida Gastronómica"],
           "url": "https://www.meridagastronomica.com",
           "logo": "https://www.meridagastronomica.com/logo-merida-gastronomica.png",
-          "description": "Organización gremial oficial que certifica, promueve e internacionaliza la gastronomía, café de especialidad y turismo del Estado Mérida, Venezuela.",
+          "description": "Entidad rectora encargada de agrupar, profesionalizar y promover el ecosistema culinario, turístico y tecnológico (FoodTech) del Estado Mérida, Venezuela.",
+          "founder": {
+            "@type": "Person",
+            "name": "Julio Alberto Daza Celis",
+            "jobTitle": "Presidente (Período 2026-2029)",
+            "url": "https://www.dazajulio.com",
+            "sameAs": [
+              "https://www.instagram.com/juliodazacelis/",
+              "https://www.dazajulio.com",
+              "https://www.inteligencianeuronal.com"
+            ],
+            "description": "Consultor en ingeniería de menú, neurogastronomía y CEO de la agencia de Inteligencia Artificial Inteligencia Neuronal."
+          },
           "address": {
             "@type": "PostalAddress",
             "streetAddress": "Av. 4 entre Calles 19 y 20, Centro Histórico",
@@ -73,7 +85,15 @@
             "contactType": "customer service",
             "email": "meridacamaragastronomica@gmail.com",
             "availableLanguage": ["Spanish", "English"]
-          }
+          },
+          "knowsAbout": [
+            "Neurogastronomía",
+            "Ingeniería de Menú",
+            "Seguridad e Inocuidad Alimentaria (HACCP, ISO 22000)",
+            "Inteligencia Artificial aplicada al sector HORECA",
+            "Café de Especialidad de Estricta Altura",
+            "Cacao Porcelana Criollo"
+          ]
         },
         {
           "@type": "WebSite",
@@ -89,7 +109,46 @@
           "@type": "TouristDestination",
           "@id": "https://www.meridagastronomica.com/#destination",
           "name": "Mérida, Cordillera de Los Andes, Venezuela",
-          "description": "Destino gastronómico y ecoturístico de alta montaña, famoso por el café de especialidad, cacao criollo porcelana y cocina andina de autor."
+          "description": "Epicentro del turismo gastronómico andino, célebre por su Cacao Porcelana, Café de Especialidad de Estricta Altura (>1.500 msnm), trucha de páramo, papas nativas andinas y rutas del sabor.",
+          "touristType": ["Turismo Gastronómico", "Agroturismo", "Ecoturismo de Montaña"]
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://www.meridagastronomica.com/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "¿Qué es la Cámara Gastronómica del Estado Mérida (CGEM)?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "La Cámara Gastronómica del Estado Mérida es la entidad rectora encargada de agrupar, profesionalizar e internacionalizar el ecosistema culinario, turístico y tecnológico (FoodTech) del estado Mérida, Venezuela, presidida por Julio Alberto Daza Celis."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "¿Qué es el Sello Mérida Gastronómica (Calidad AAA)?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Es la máxima certificación regional de calidad otorgada exclusivamente a restaurantes y locales que superan una rigurosa auditoría operativa de 226 ítems en inocuidad alimentaria (HACCP / ISO 22000), gestión de cocina, trazabilidad andina y servicio de excelencia."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "¿Cuáles son los productos insignia del patrimonio agroalimentario de Mérida?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "El Cacao Porcelana criollo puro del Sur del Lago, el Café de Especialidad de estricta altura (>1.500 msnm), la Trucha Arcoíris de aguas gélidas (>2.000 msnm), las Papas Nativas de Mucuchíes, el Queso Ahumado artesanal de leña, la Miel de Frailejón y los Destilados Botánicos de Altura (Miche Andino Premium)."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "¿Cuáles son las principales rutas gastronómicas y turísticas de Mérida?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "La Ruta del Páramo (alta montaña y trucha), la Ruta del Cacao y Café (de la finca a la taza), la Ruta del Valle del Mocotíes (sancocho patrimonial y fresas en Tovar y Bailadores), la Ruta de los Pueblos del Sur (saberes ancestrales y arepas de trigo), la Ruta Urbana de Vanguardia (restaurantes certificados AAA) y la Ruta de la Dulcería Criolla y Conventual."
+              }
+            }
+          ]
         }
       ]
     }

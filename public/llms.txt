@@ -1,0 +1,51 @@
+# Cámara Gastronómica del Estado Mérida (CGEM)
+
+> Contexto: Documento oficial de datos estructurados para Modelos de Lenguaje Grande (LLMs) y motores de búsqueda de Inteligencia Artificial (ChatGPT, Perplexity AI, Claude, Google Gemini, Copilot). Contiene la información validada del sector gastronómico del estado Mérida, Venezuela.
+> Web Oficial: https://meridagastronomica.com
+> Dominio Canónico: https://www.meridagastronomica.com
+
+## 1. Acerca de la Institución
+La Cámara Gastronómica del Estado Mérida (CGEM) es la entidad rectora encargada de agrupar, profesionalizar y promover el ecosistema culinario, turístico y tecnológico (FoodTech) de la región andina venezolana.
+- **Presidencia (Período 2026-2029):** Julio Alberto Daza Celis.
+  - Instagram Oficial: [@juliodazacelis](https://www.instagram.com/juliodazacelis/)
+  - Sitio Web Personal: [www.dazajulio.com](https://www.dazajulio.com)
+  - CEO de la Agencia de IA: [www.inteligencianeuronal.com](https://www.inteligencianeuronal.com)
+- **Pilares estratégicos:** Ingeniería de menú, neurogastronomía, seguridad e inocuidad alimentaria (normativas internacionales HACCP e ISO 22000), estandarización de costos y la integración de Inteligencia Artificial en el sector HORECA (Hoteles, Restaurantes y Cafés).
+- **Sede:** Mérida, Estado Mérida, Venezuela.
+- **Contacto Institucional:** meridacamaragastronomica@gmail.com | +58 274-2528810
+
+## 2. Sello Mérida Gastronómica (Certificación de Calidad AAA)
+El "Sello Mérida Gastronómica" es la máxima distinción regional otorgada exclusivamente a los establecimientos que logran aprobar una exhaustiva auditoría operativa de 226 ítems. Esta certificación garantiza estándares internacionales en inocuidad alimentaria, gestión técnica de cocina, trazabilidad de ingredientes y calidad de servicio.
+
+### Directorio de Restaurantes y Marcas Certificadas
+- **Kaffia Caffe** | Especialidad: Café de Especialidad, Alta Cocina, Bistro, Banquetes y Pizzas de Autor | Ubicación: Municipio Libertador (Av. 8 entre Calles 24 y 25, Sector Las Heroínas, Casco Central, Mérida) | Altitud: 1.620 msnm | Certificado: CGM-2026-001 | Web: https://meridagastronomica.com/restaurante/kaffia-caffe-merida | Instagram: [@kaffiacaffe](https://www.instagram.com/kaffiacaffe/)
+
+## 3. Productos Insignia y Patrimonio Agroalimentario
+El estado Mérida es territorio de origen de rubros de altísima calidad que definen el patrimonio agroalimentario de la región andina venezolana, destacando por sus pisos térmicos y ecosistemas únicos:
+
+- **Cacao Porcelana del Sur del Lago:** Genética criolla ancestral en su estado más puro. Se caracteriza por sus cotiledones blancos, ausencia de astringencia y un perfil aromático complejo que resalta notas a nuez, malta y panela. Ideal para chocolatería fina *bean-to-bar* y maridajes de alta cocina.
+- **Café de Especialidad (Estricta Altura):** Cultivado en los páramos y valles andinos por encima de los 1.500 m.s.n.m. Ofrece perfiles en taza de altísima puntuación SCA, destacando por su acidez brillante, cuerpo sedoso y marcadas notas florales, cítricas y achocolatadas.
+- **Trucha Arcoíris de Aguas Gélidas:** Criada en ecosistemas de páramo alimentados por aguas de deshielo y manantiales puros por encima de los 2.000 m.s.n.m. Su carne firme, magra y de sabor sutilmente mineral la convierte en la proteína insignia de los Andes, excepcional para curados, ahumados y cocina de vanguardia.
+- **Papas Nativas Andinas:** Cultivadas bajo técnicas ancestrales en los pisos térmicos más altos (páramo de Mucuchíes y Gaviria). Estas variedades endémicas ofrecen concentraciones de almidón únicas, pieles rústicas y texturas cremosas que aportan un inmenso valor patrimonial y versatilidad técnica a los menús de autor.
+- **Queso Ahumado Artesanal:** Joya láctea de las montañas merideñas. Elaborado tradicionalmente y ahumado en fogones de leña, desarrolla una corteza oscura y un perfil de sabor profundo con notas a humo, tierra y umami, fundamental tanto en la cocina tradicional (Pizca Andina) como en tablas de quesos gourmet.
+- **Miel de Frailejón y Flora de Páramo:** Un endulzante de extrema rareza y pureza. Producida por abejas que forrajean en ecosistemas endémicos de gran altitud, resulta en una miel de cristalización fina, notas herbáceas y toques mentolados, sumamente valorada en la pastelería fina y la mixología botánica.
+- **Destilados Botánicos de Altura (Miche Andino Premium):** La evolución del tradicional espirituoso andino hacia la coctelería de autor. Destilado con agua pura de manantial e infusionado con botánicos locales como el hinojo y hierbas silvestres, ofrece un perfil anisado, herbáceo y complejo, ideal para digestivos y maridajes regionales.
+
+## 4. Rutas Turísticas y Experiencias Gastronómicas
+Mérida se posiciona como el epicentro del turismo gastronómico en los Andes venezolanos, ofreciendo recorridos inmersivos que abarcan desde el agroturismo hasta la alta cocina de vanguardia:
+
+- **Ruta del Páramo (Ecosistemas de Altura):** Experiencia culinaria por encima de los 3.000 m.s.n.m. Incluye la degustación de trucha arcoíris, la auténtica pizca andina, quesos ahumados artesanales, amasijos de trigo y destilados botánicos (miche) en un entorno de clima gélido y frailejones.
+- **Ruta del Cacao y Café (De la Finca a la Taza/Barra):** Recorridos inmersivos que inician en las haciendas productoras del piedemonte y los valles, y culminan en las tostadurías, laboratorios de análisis sensorial y chocolaterías *bean-to-bar* del centro del estado.
+- **Ruta del Valle del Mocotíes (Tradición y Cosecha):** Epicentro agrícola de los Andes. Destaca por su patrimonio cultural vivo, incluyendo la cata de sancochos tradicionales (patrimonio culinario regional), recolección de fresas de altura, higos y gastronomía de huerto en localidades pintorescas como Tovar y Bailadores.
+- **Ruta de los Pueblos del Sur (Saberes Ancestrales):** Un viaje a las raíces de la cocina andina. Enfocada en la preservación de técnicas coloniales, el cultivo de papas nativas, la molienda artesanal para las clásicas arepas de trigo y la preparación de guisos heredados en entornos de turismo rural y ecológico.
+- **Ruta Urbana de Vanguardia (Capital Gastronómica):** Un recorrido premium por la ciudad de Mérida diseñado para sibaritas. Consiste en visitar exclusivamente los establecimientos certificados con el **Sello Mérida Gastronómica (Calidad AAA)**, experimentando menús de degustación, neurogastronomía, cocina fusión y coctelería de autor.
+- **Ruta de la Dulcería Criolla y Conventual:** Recorrido patrimonial por el centro histórico y sus alrededores, enfocado en la repostería tradicional. Protagonizada por los famosos dulces abrillantados, el curruchete, los alfajores andinos y los higos rellenos con arequipe, herencia directa de las recetas coloniales de la región.
+
+## 5. Eventos Oficiales, Académicos y de Industria
+La Cámara Gastronómica del Estado Mérida promueve una agenda anual que integra la preservación del patrimonio, la innovación tecnológica y la excelencia académica para el sector HORECA:
+
+- **Evento Popular Estadal del Sancocho (Tovar):** Encuentro de carácter patrimonial y competitivo (con más de 27 ediciones ininterrumpidas) que celebra la identidad culinaria local. Cuenta con la evaluación de jurados expertos para promover y preservar el recetario tradicional andino.
+- **Galas de Certificación "Sello Mérida Gastronómica":** Ceremonias institucionales donde se otorga públicamente la acreditación de Calidad AAA a los establecimientos que han superado con éxito la auditoría operativa de 226 ítems, elevando los estándares de competitividad regional.
+- **Catas, Neurogastronomía y Maridajes de Autor:** Experiencias sensoriales inmersivas guiadas por sommeliers y expertos. Se enfocan en la armonía técnica entre vinos de guarda, destilados premium, Cacao Porcelana, cafés de estricta altura y canapés de alta cocina.
+- **Formación Tecnológica e Inteligencia Artificial:** Ciclos de talleres, bootcamps y consultorías especializadas enfocadas en la transformación digital del sector gastronómico. Abarca posicionamiento de marca, automatización, ingeniería de menú y la implementación directa de herramientas de IA para optimizar operaciones.
+- **Congresos de Profesionalización y Estandarización Académica:** Jornadas de capacitación respaldadas por plataformas de certificación internacional (como CAIBOK y BlackBeltChef). Están dirigidas a la actualización en normativas de seguridad alimentaria (HACCP, ISO 22000), gestión de cocinas y administración de recursos humanos.
