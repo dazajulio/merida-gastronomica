@@ -97,6 +97,40 @@ const MAP_STYLES = [
   }
 ];
 
+// Helper to disperse overlapping coordinates in a subtle golden spiral pattern
+const getDispersedRestaurants = (restList) => {
+  const coordGroups = {};
+  return (restList || []).map((rest) => {
+    if (!rest) return null;
+    const base = getLiveRestaurantCoords(rest);
+    if (!base || typeof base.lat !== 'number' || typeof base.lng !== 'number') return null;
+
+    // Group by coordinates with 3 decimal precision (~100m)
+    const key = `${base.lat.toFixed(3)}_${base.lng.toFixed(3)}`;
+    const count = coordGroups[key] || 0;
+    coordGroups[key] = count + 1;
+
+    if (count === 0) {
+      return { ...rest, mapCoords: base };
+    }
+
+    // Offset in golden spiral (~35-65m radius per ring)
+    const angle = count * 2.39996; // Golden angle
+    const radius = 0.00038 * Math.sqrt(count); // in degrees
+    const latOffset = base.lat + radius * Math.cos(angle);
+    const lngOffset = base.lng + (radius * Math.sin(angle)) / Math.cos(base.lat * Math.PI / 180);
+
+    return {
+      ...rest,
+      mapCoords: {
+        lat: latOffset,
+        lng: lngOffset,
+        alt: base.alt || rest.altitude || 1620
+      }
+    };
+  }).filter(Boolean);
+};
+
 export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaurants = RESTAURANTS_DATA }) {
   const [activeRouteId, setActiveRouteId] = useState('eje-metropolitano');
   const [selectedCheckpoint, setSelectedCheckpoint] = useState(null);
@@ -107,6 +141,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+  const restaurantEntriesRef = useRef({});
 
   const currentRoute = LIDAR_ROUTES.find(r => r.id === activeRouteId) || LIDAR_ROUTES[0];
 
@@ -196,147 +231,177 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
       console.warn('Polyline layer notice:', err);
     }
 
-    // 2. Clear old markers
+    // 2. Clear old markers and close open popups
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
+    restaurantEntriesRef.current = {};
 
-    // 3. MANDATORY: ALWAYS RENDER ALL REGISTERED RESTAURANTS IN PERMANENT 3D CARDS (LIVE SYNCED)
-    (restaurants || RESTAURANTS_DATA || []).forEach((restData) => {
-      if (!restData) return;
-      const liveCoords = getLiveRestaurantCoords(restData);
-      if (!liveCoords || typeof liveCoords.lng !== 'number' || typeof liveCoords.lat !== 'number' || isNaN(liveCoords.lng) || isNaN(liveCoords.lat)) return;
+    // 3. RENDER COMPACT YELP-STYLE RESTAURANT PINS WITH ON-DEMAND INTERACTIVE POPUPS
+    const dispersedRestaurants = getDispersedRestaurants(restaurants || RESTAURANTS_DATA);
+
+    dispersedRestaurants.forEach((restData) => {
+      const liveCoords = restData.mapCoords || getLiveRestaurantCoords(restData);
+      if (!liveCoords || typeof liveCoords.lng !== 'number' || typeof liveCoords.lat !== 'number') return;
       const restLng = liveCoords.lng;
       const restLat = liveCoords.lat;
       const restAlt = liveCoords.alt || restData.altitude || 1620;
 
+      // Create Sleek Compact Pin DOM element
       const el = document.createElement('div');
-      el.className = 'custom-mapbox-marker group cursor-pointer';
-      el.style.zIndex = '30';
+      el.className = 'cgm-restaurant-pin group cursor-pointer';
       el.style.position = 'relative';
+      el.style.zIndex = '30';
+      el.style.userSelect = 'none';
 
       el.innerHTML = `
-        <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; filter: drop-shadow(0 14px 28px rgba(0,0,0,0.55)); pointer-events: auto;">
+        <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.2s cubic-bezier(0.16,1,0.3,1); filter: drop-shadow(0 6px 14px rgba(0,0,0,0.4));">
           
-          <!-- Permanent Floating Preview Card (ALWAYS VISIBLE) -->
-          <div id="card-pin-${restData.id}" style="
-            width: 260px;
-            background: #ffffff;
-            border-radius: 16px;
-            overflow: hidden;
-            border: 2.5px solid #f59e0b;
-            box-shadow: 0 12px 32px rgba(0,0,0,0.4);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+          <!-- Compact Pill Badge -->
+          <div class="group-hover:scale-110 group-hover:border-amber-400 group-hover:bg-slate-900" style="
+            display: flex;
+            align-items: center;
+            gap: 5.5px;
+            background: #0f172a;
+            color: #ffffff;
+            padding: 3.5px 8px 3.5px 5px;
+            border-radius: 9999px;
+            border: 1.5px solid #f59e0b;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+            transition: all 0.2s ease;
+            white-space: nowrap;
           ">
-            <!-- Cover Image & Badges -->
-            <div style="position: relative; width: 100%; height: 110px; background: #0f172a; overflow: hidden;">
-              <img src="${restData.coverImage || '/images/default-cover.jpg'}" alt="${restData.name || 'Restaurante'}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
-              <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(15,23,42,0.9) 0%, rgba(15,23,42,0.2) 60%, transparent 100%);"></div>
-              
-              <span style="position: absolute; top: 7px; left: 7px; background: #d97706; color: #ffffff; font-size: 9px; font-weight: 800; padding: 2.5px 8px; border-radius: 9999px; letter-spacing: 0.4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
-                ★ AGREMIADO OFICIAL
-              </span>
-
-              <span style="position: absolute; top: 7px; right: 7px; background: rgba(15,23,42,0.85); color: #38bdf8; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px; border: 1px solid rgba(56,189,248,0.3);">
-                ${restAlt} msnm
-              </span>
-
-              <div style="position: absolute; bottom: 6px; left: 8px; right: 8px; display: flex; align-items: center; justify-content: space-between;">
-                <span style="font-size: 11px; color: #fbbf24; font-weight: 800;">★ ${restData.rating || '5.0'} <span style="font-size: 10px; color: #e2e8f0; font-weight: 500;">(${restData.reviewsCount || 1})</span></span>
-                <span style="font-size: 10px; font-weight: 700; color: #ffffff; background: rgba(0,0,0,0.65); padding: 1px 6px; border-radius: 4px;">${restData.priceTier || '$$'}</span>
-              </div>
-            </div>
-
-            <!-- Content Body -->
-            <div style="padding: 9px 11px 11px 11px; background: #ffffff;">
-              <h4 style="font-size: 14px; font-weight: 800; color: #0f172a; margin: 0 0 2px 0; line-height: 1.25;">
-                ${restData.name}
-              </h4>
-              <p style="font-size: 10px; color: #64748b; margin: 0 0 8px 0; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                📍 ${restData.location || 'Mérida, Venezuela'}
-              </p>
-
-              <!-- Button to open full modal -->
-              <button 
-                id="btn-direct-modal-${restData.id}" 
-                type="button"
-                style="
-                  width: 100%;
-                  background: linear-gradient(135deg, #d97706, #b45309);
-                  color: #ffffff;
-                  border: none;
-                  padding: 8px 10px;
-                  border-radius: 10px;
-                  font-size: 11px;
-                  font-weight: 800;
-                  cursor: pointer;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  gap: 5px;
-                  box-shadow: 0 4px 12px rgba(217,119,6,0.35);
-                "
-              >
-                <span>Ver Ficha Completa & Reservar</span>
-                <span>→</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Pointer Arrow Stem -->
-          <div style="width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 10px solid #f59e0b; margin-top: -1px;"></div>
-
-          <!-- Radar Pin Center -->
-          <div style="position: relative; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; margin-top: 2px;">
-            <div class="animate-radar-ring" style="
-              position: absolute;
-              inset: -6px;
-              border-radius: 50%;
-              background: rgba(217, 119, 6, 0.55);
-              pointer-events: none;
-            "></div>
-            <div class="animate-radar-ring" style="
-              position: absolute;
-              inset: -14px;
-              border-radius: 50%;
-              background: rgba(245, 158, 11, 0.3);
-              pointer-events: none;
-              animation-delay: 0.8s;
-            "></div>
-
+            <!-- Mini Icon -->
             <div style="
-              position: relative;
-              z-index: 2;
+              width: 20px;
+              height: 20px;
+              border-radius: 50%;
+              background: linear-gradient(135deg, #f59e0b, #d97706);
               display: flex;
               align-items: center;
               justify-content: center;
-              width: 32px;
-              height: 32px;
-              border-radius: 50%;
-              background: linear-gradient(135deg, #f59e0b, #d97706, #9a3412);
+              font-size: 10.5px;
               color: white;
-              font-weight: 800;
-              font-size: 14px;
-              border: 2.5px solid #ffffff;
-              box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            ">
-              ☕
-            </div>
+              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+              flex-shrink: 0;
+            ">☕</div>
+
+            <!-- Name -->
+            <span style="font-size: 11px; font-weight: 700; color: #f8fafc; max-width: 120px; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.2px;">
+              ${restData.name}
+            </span>
+
+            <!-- Altitude tag -->
+            <span style="font-size: 9px; font-weight: 800; color: #fbbf24; background: rgba(245,158,11,0.22); padding: 1px 4.5px; border-radius: 4px; border: 1px solid rgba(251,191,36,0.3);">
+              ${restAlt}m
+            </span>
           </div>
 
+          <!-- Needle Arrow -->
+          <div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #f59e0b; margin-top: -1px;"></div>
+          
+          <!-- Anchor Dot -->
+          <div style="width: 5px; height: 5px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,0.9); margin-top: 1px;"></div>
         </div>
       `;
 
-      el.addEventListener('click', (e) => {
-        if (onSelectRestaurantById) {
-          onSelectRestaurantById(restData.id);
-        }
+      // Create Rich Popup for On-Demand Unfolding
+      const popupHTML = `
+        <div style="width: 270px; font-family: inherit; overflow: hidden; background: #ffffff; border-radius: 18px;">
+          <!-- Cover Image & Badges -->
+          <div style="position: relative; width: 100%; height: 115px; background: #0f172a; overflow: hidden;">
+            <img src="${restData.coverImage || '/images/default-cover.jpg'}" alt="${restData.name}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+            <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(15,23,42,0.92) 0%, rgba(15,23,42,0.25) 60%, transparent 100%);"></div>
+            
+            <span style="position: absolute; top: 7px; left: 7px; background: #d97706; color: #ffffff; font-size: 9px; font-weight: 800; padding: 2.5px 8px; border-radius: 9999px; letter-spacing: 0.4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
+              ★ AGREMIADO OFICIAL
+            </span>
+
+            <span style="position: absolute; top: 7px; right: 38px; background: rgba(15,23,42,0.85); color: #38bdf8; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px; border: 1px solid rgba(56,189,248,0.3);">
+              ${restAlt} msnm
+            </span>
+
+            <div style="position: absolute; bottom: 6px; left: 8px; right: 8px; display: flex; align-items: center; justify-content: space-between;">
+              <span style="font-size: 11px; color: #fbbf24; font-weight: 800;">★ ${restData.rating || '5.0'} <span style="font-size: 10px; color: #e2e8f0; font-weight: 500;">(${restData.reviewsCount || 1})</span></span>
+              <span style="font-size: 10px; font-weight: 700; color: #ffffff; background: rgba(0,0,0,0.65); padding: 1px 6px; border-radius: 4px;">${restData.priceTier || '$$'}</span>
+            </div>
+          </div>
+
+          <!-- Content Body -->
+          <div style="padding: 10px 12px 12px 12px; background: #ffffff;">
+            <h4 style="font-size: 14px; font-weight: 800; color: #0f172a; margin: 0 0 2px 0; line-height: 1.25;">
+              ${restData.name}
+            </h4>
+            <p style="font-size: 10.5px; color: #64748b; margin: 0 0 10px 0; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              📍 ${restData.location || 'Mérida, Venezuela'}
+            </p>
+
+            <button 
+              id="btn-popup-${restData.id}" 
+              type="button"
+              style="
+                width: 100%;
+                background: linear-gradient(135deg, #d97706, #b45309);
+                color: #ffffff;
+                border: none;
+                padding: 8px 10px;
+                border-radius: 10px;
+                font-size: 11px;
+                font-weight: 800;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 5px;
+                box-shadow: 0 4px 12px rgba(217,119,6,0.35);
+              "
+            >
+              <span>Ver Ficha Completa & Reservar</span>
+              <span>→</span>
+            </button>
+          </div>
+        </div>
+      `;
+
+      const popup = new mapboxgl.Popup({
+        offset: 14,
+        closeButton: true,
+        closeOnClick: true,
+        maxWidth: '290px',
+        className: 'cgm-custom-popup'
+      }).setHTML(popupHTML);
+
+      popup.on('open', () => {
+        setTimeout(() => {
+          const btn = document.getElementById(`btn-popup-${restData.id}`);
+          if (btn) {
+            btn.onclick = (e) => {
+              e.stopPropagation();
+              if (onSelectRestaurantById) {
+                onSelectRestaurantById(restData.id);
+              }
+            };
+          }
+        }, 50);
       });
 
       const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat([restLng, restLat])
+        .setPopup(popup)
         .addTo(map);
 
+      el.addEventListener('click', () => {
+        map.easeTo({
+          center: [restLng, restLat],
+          duration: 600
+        });
+      });
+
       markersRef.current.push(marker);
+
+      // Register for sidebar / external focus lookup
+      if (restData.id) restaurantEntriesRef.current[restData.id] = { marker, popup, coords: { lng: restLng, lat: restLat } };
+      if (restData.certificateNumber) restaurantEntriesRef.current[restData.certificateNumber] = { marker, popup, coords: { lng: restLng, lat: restLat } };
+      if (restData.slug) restaurantEntriesRef.current[restData.slug] = { marker, popup, coords: { lng: restLng, lat: restLat } };
     });
 
     // 4. RENDER TOURIST ATTRACTION CHECKPOINTS (Points of interest along current route)
@@ -344,13 +409,13 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
       .filter(cp => cp && cp.type !== 'restaurant' && typeof cp.lng === 'number' && typeof cp.lat === 'number')
       .forEach((cp, idx) => {
         const el = document.createElement('div');
-        el.className = 'custom-mapbox-attraction-marker cursor-pointer';
+        el.className = 'custom-mapbox-attraction-marker cursor-pointer group';
         el.style.zIndex = '20';
         el.innerHTML = `
-          <div style="position: relative; display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.4));">
-            <div style="
-              width: 28px;
-              height: 28px;
+          <div style="position: relative; display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.4)); transition: transform 0.2s ease;">
+            <div class="group-hover:scale-110" style="
+              width: 26px;
+              height: 26px;
               border-radius: 50%;
               background: linear-gradient(135deg, #0284c7, #0369a1);
               color: white;
@@ -361,14 +426,33 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
               justify-content: center;
               border: 2px solid #ffffff;
               box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+              transition: transform 0.2s ease;
             ">
               ${idx + 1}
             </div>
-            <span style="font-size: 9px; font-weight: 700; color: #0f172a; background: rgba(255,255,255,0.95); padding: 1.5px 5px; border-radius: 4px; margin-top: 3px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.25);">
+            <span style="font-size: 9px; font-weight: 700; color: #0f172a; background: rgba(255,255,255,0.95); padding: 1px 5px; border-radius: 4px; margin-top: 2px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.25);">
               ${(cp.name || '').split('(')[0]}
             </span>
           </div>
         `;
+
+        const attractionPopup = new mapboxgl.Popup({
+          offset: 12,
+          closeButton: true,
+          closeOnClick: true,
+          maxWidth: '240px'
+        }).setHTML(`
+          <div style="padding: 10px 12px; font-family: inherit;">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+              <span style="background: #0284c7; color: white; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;">${idx + 1}</span>
+              <h4 style="font-size: 13px; font-weight: 800; color: #0f172a; margin: 0;">${cp.name}</h4>
+            </div>
+            <p style="font-size: 11px; color: #64748b; margin: 0 0 6px 0;">📍 Atractivo Turístico & Paisajístico</p>
+            <span style="display: inline-block; font-size: 10px; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">
+              Altitud: ${cp.alt} msnm
+            </span>
+          </div>
+        `);
 
         el.addEventListener('click', () => {
           setSelectedCheckpoint(cp);
@@ -376,50 +460,46 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
 
         const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
           .setLngLat([cp.lng, cp.lat])
+          .setPopup(attractionPopup)
           .addTo(map);
 
         markersRef.current.push(marker);
       });
 
-    // 5. CAMERA POSITIONING (USING LIVE CALIBRATED COORDINATES)
+    // 5. CAMERA POSITIONING & AUTO-FOCUS
     if (autoFocusRefId) {
-      const targetRest = (restaurants || RESTAURANTS_DATA || []).find(r => r && (r.id === autoFocusRefId || r.certificateNumber === autoFocusRefId || r.slug === autoFocusRefId));
-      const targetCoords = targetRest ? getLiveRestaurantCoords(targetRest) : null;
-      const targetCp = (targetCoords && typeof targetCoords.lng === 'number' && typeof targetCoords.lat === 'number') 
-        ? { lng: targetCoords.lng, lat: targetCoords.lat }
-        : (route?.checkpoints || []).find(cp => cp && cp.refId === autoFocusRefId && typeof cp.lng === 'number' && typeof cp.lat === 'number');
-
-      if (targetCp && typeof targetCp.lng === 'number' && typeof targetCp.lat === 'number') {
+      const entry = restaurantEntriesRef.current[autoFocusRefId];
+      if (entry && entry.coords) {
         map.flyTo({
-          center: [targetCp.lng, targetCp.lat],
-          zoom: 17.2,
-          pitch: 58,
+          center: [entry.coords.lng, entry.coords.lat],
+          zoom: 16.8,
+          pitch: 52,
           bearing: -15,
-          duration: 2000,
+          duration: 1800,
           essential: true
         });
         setTimeout(() => {
+          if (entry.popup && !entry.popup.isOpen()) {
+            entry.popup.addTo(map);
+          }
           const mapBoxEl = document.getElementById('mapa-lidar-box');
           if (mapBoxEl) {
             mapBoxEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }
-        }, 200);
+        }, 600);
       }
     } else {
-      // Default: Center on the primary registered restaurant with live coordinates
-      const primaryRest = (restaurants || RESTAURANTS_DATA || [])[0];
-      if (primaryRest) {
-        const liveCoords = getLiveRestaurantCoords(primaryRest);
-        if (liveCoords && typeof liveCoords.lng === 'number' && typeof liveCoords.lat === 'number') {
-          map.flyTo({
-            center: [liveCoords.lng, liveCoords.lat],
-            zoom: 16.5,
-            pitch: 55,
-            bearing: -15,
-            duration: 1800,
-            essential: true
-          });
-        }
+      // Center gracefully on the primary restaurant
+      const primaryRest = dispersedRestaurants[0];
+      if (primaryRest && primaryRest.mapCoords) {
+        map.flyTo({
+          center: [primaryRest.mapCoords.lng, primaryRest.mapCoords.lat],
+          zoom: 15.5,
+          pitch: 50,
+          bearing: -15,
+          duration: 1800,
+          essential: true
+        });
       }
     }
   };
@@ -540,23 +620,39 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
     updateRouteLayers(mapRef.current, currentRoute);
   }, [activeRouteId, isMapLoaded]);
 
-  // Fly to selected checkpoint from sidebar & open modal if it is a restaurant
+  // Fly to selected checkpoint from sidebar & open popup
   const handleCheckpointClick = (cp) => {
     if (!cp) return;
     setSelectedCheckpoint(cp);
-    if (mapRef.current && typeof cp.lng === 'number' && typeof cp.lat === 'number') {
+    
+    if (cp.refId && restaurantEntriesRef.current[cp.refId]) {
+      const entry = restaurantEntriesRef.current[cp.refId];
+      if (mapRef.current && entry.coords) {
+        mapRef.current.flyTo({
+          center: [entry.coords.lng, entry.coords.lat],
+          zoom: 16.8,
+          pitch: 52,
+          bearing: -15,
+          speed: 1.2,
+          curve: 1.4,
+          essential: true
+        });
+        setTimeout(() => {
+          if (entry.popup && mapRef.current) {
+            entry.popup.addTo(mapRef.current);
+          }
+        }, 400);
+      }
+    } else if (mapRef.current && typeof cp.lng === 'number' && typeof cp.lat === 'number') {
       mapRef.current.flyTo({
         center: [cp.lng, cp.lat],
-        zoom: cp.type === 'restaurant' ? 17.2 : 15.5,
-        pitch: 58,
+        zoom: 15.5,
+        pitch: 50,
         bearing: -15,
         speed: 1.2,
         curve: 1.4,
         essential: true
       });
-    }
-    if (cp.refId && onSelectRestaurantById) {
-      onSelectRestaurantById(cp.refId);
     }
   };
 

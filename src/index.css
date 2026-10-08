@@ -66,14 +66,38 @@
 .mapboxgl-popup-content {
   border-radius: 1.25rem !important;
   padding: 0 !important;
-  box-shadow: 0 20px 30px -8px rgba(0, 0, 0, 0.35) !important;
+  box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(217, 119, 6, 0.25) !important;
   overflow: hidden !important;
-  border: 1px solid rgba(217, 119, 6, 0.3) !important;
+  border: none !important;
   background: #ffffff !important;
 }
 
 .mapboxgl-popup-tip {
   border-top-color: #ffffff !important;
+}
+
+.mapboxgl-popup-close-button {
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 9999px !important;
+  background: rgba(15, 23, 42, 0.8) !important;
+  color: #ffffff !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  top: 8px !important;
+  right: 8px !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  cursor: pointer !important;
+  z-index: 50 !important;
+  transition: all 0.2s ease !important;
+}
+
+.mapboxgl-popup-close-button:hover {
+  background: #d97706 !important;
+  transform: scale(1.1) !important;
 }
 
 /* Radar Beacon Ripple Animation for Certified Restaurants */
