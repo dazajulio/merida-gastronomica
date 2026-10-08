@@ -1130,13 +1130,13 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
 
     try {
       const cleanId = loginIdentifier.trim().toLowerCase();
+
+      // 1. Check Kaffia Default / Master Demo Account
       if (
         cleanId === 'cafe.kaffia@gmail.com' ||
         cleanId === 'kaffia@meridagastronomica.com' ||
         cleanId === 'cgm-2026-001' ||
-        cleanId === 'kaffia' ||
-        loginPassword === 'kaffia2026' ||
-        loginPassword.length >= 4
+        cleanId === 'kaffia'
       ) {
         setActiveUser({
           id: "CGM-2026-001",
@@ -1157,11 +1157,108 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
           }
         });
         setViewMode('dashboard');
+        return;
+      }
+
+      // 2. Query Supabase directorio_agremiados
+      let foundMember = null;
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('directorio_agremiados')
+            .select('*')
+            .or(`email.ilike.${cleanId},codigo_afiliado.ilike.${cleanId},rif_cedula.ilike.${cleanId}`)
+            .maybeSingle();
+          if (data && !error) {
+            foundMember = data;
+          }
+        } catch (err) {
+          console.warn('Supabase login lookup notice:', err);
+        }
+      }
+
+      // 3. Fallback: Query Local Directory Storage
+      if (!foundMember) {
+        try {
+          const localList = JSON.parse(localStorage.getItem('cgem_directorio_agremiados') || '[]');
+          foundMember = localList.find(m => 
+            (m.email && m.email.toLowerCase() === cleanId) ||
+            (m.codigo_afiliado && m.codigo_afiliado.toLowerCase() === cleanId) ||
+            (m.rif_cedula && m.rif_cedula.toLowerCase() === cleanId)
+          );
+        } catch (e) {}
+      }
+
+      // 4. Fallback: Query solicitudes_afiliacion in Supabase
+      if (!foundMember && supabase) {
+        try {
+          const { data: solData } = await supabase
+            .from('solicitudes_afiliacion')
+            .select('*')
+            .or(`correo.ilike.${cleanId},codigo_afiliado.ilike.${cleanId},rif.ilike.${cleanId}`)
+            .maybeSingle();
+          if (solData) {
+            foundMember = {
+              codigo_afiliado: solData.codigo_afiliado,
+              nombre_establecimiento: solData.nombre_comercial,
+              representante_legal: solData.titular_propietario,
+              categoria_negocio: solData.categoria || solData.tipo_negocio,
+              telefono: solData.telefono,
+              email: solData.correo,
+              direccion_completa: solData.direccion,
+              municipio: solData.municipio,
+              estado_solvencia: solData.estado === 'aprobada' ? 'Activo (Solvente)' : 'En Trámite (Verificación Pago)',
+              monto_cuota_mensual: 10
+            };
+          }
+        } catch (e) {}
+      }
+
+      // 5. If member found, log in with their actual account
+      if (foundMember) {
+        const code = foundMember.codigo_afiliado || `CGM-2026-${Math.floor(100 + Math.random() * 899)}`;
+        const restName = foundMember.nombre_establecimiento || foundMember.nombre_comercial || 'Mi Establecimiento Agremiado';
+        const owner = foundMember.representante_legal || foundMember.titular_propietario || 'Representante Legal';
+
+        setActiveUser({
+          id: code,
+          restaurantName: restName,
+          ownerName: owner,
+          memberCategory: foundMember.categoria_negocio || "Empresas Gastronómicas",
+          businessType: foundMember.categoria_negocio || "empresas",
+          registrationDate: foundMember.fecha_registro ? new Date(foundMember.fecha_registro).toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' }) : "01 de Enero de 2026",
+          expiryDate: "31 de Diciembre de 2026",
+          status: foundMember.estado_solvencia || "Activo (Solvente)",
+          monthlyDues: foundMember.monto_cuota_mensual ? `$${foundMember.monto_cuota_mensual}.00` : "$10.00",
+          lastPaymentDate: "Reciente",
+          certificateCode: `CGM-CERT-2026-${code.replace('CGM-', '')}`,
+          stats: {
+            profileViewsMonth: 1240,
+            reservationsMonth: 38,
+            chamberRating: "5.0 / 5.0 (Auditoría de Calidad en Curso)"
+          }
+        });
+
+        // Initialize business profile for this specific affiliate
+        setBusinessProfile(prev => ({
+          ...prev,
+          id: `rest-${code.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+          name: restName,
+          slug: restName.toLowerCase().replace(/\s+/g, '-'),
+          certificateNumber: code,
+          location: foundMember.direccion_completa || prev.location,
+          phone: foundMember.telefono || prev.phone,
+          instagram: foundMember.instagram || prev.instagram,
+          chef: owner
+        }));
+
+        setViewMode('dashboard');
       } else {
-        setLoginError('Credenciales incorrectas. Verifique su correo o código de afiliado.');
+        setLoginError('No se encontró ninguna cuenta registrada con este correo o código de afiliado.');
       }
     } catch (err) {
-      setLoginError('Error de autenticación.');
+      console.error('Error de autenticación:', err);
+      setLoginError('Error al autenticar. Verifique su conexión.');
     } finally {
       setIsLoggingIn(false);
     }
