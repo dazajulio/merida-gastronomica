@@ -71,6 +71,11 @@ export function convertAgremiadoToRestaurant(m) {
     ejeName = 'Eje Panamericano & Sur del Lago';
   }
 
+  // Coordenadas con fallback a Mérida Centro
+  const lat = parseFloat(m.latitud || m.latitude || m.lat || m.coordinates?.lat) || 8.5956;
+  const lng = parseFloat(m.longitud || m.longitude || m.lng || m.coordinates?.lng) || -71.1437;
+  const alt = parseInt(m.altitud || m.altitude || m.alt || m.coordinates?.alt, 10) || 1620;
+
   return {
     id: m.codigo_afiliado ? `cgm-${m.codigo_afiliado.toLowerCase().replace(/[^a-z0-9]/g, '-')}` : `cgm-${m.id || Math.random()}`,
     codigo_afiliado: m.codigo_afiliado,
@@ -83,7 +88,10 @@ export function convertAgremiadoToRestaurant(m) {
     rating: 5.0,
     reviewsCount: 1,
     priceTier: "$$",
-    altitude: 1620,
+    altitude: alt,
+    coordinates: { lat, lng, alt },
+    latitude: lat,
+    longitude: lng,
     location: m.direccion_completa ? `${m.direccion_completa}${m.municipio ? `, ${m.municipio}` : ''}` : (m.municipio || 'Mérida, Venezuela'),
     chef: m.representante_legal || 'Equipo Gastronómico',
     chefBio: `Establecimiento oficial de la Cámara Gastronómica del Estado Mérida bajo la representación de ${m.representante_legal || 'la gerencia'}.`,

@@ -31,14 +31,15 @@ const MAPBOX_TOKEN = getMapboxToken();
 
 // LIVE COORDINATES RESOLVER (Gives 100% precedence to the Affiliate Portal Calibrator)
 export const getLiveRestaurantCoords = (restData) => {
+  if (!restData) return { lat: 8.5956, lng: -71.1437, alt: 1620 };
   if (typeof window !== 'undefined') {
     try {
-      const saved = localStorage.getItem(`coords_${restData.id}`) ||
-                    localStorage.getItem(`coords_${restData.certificateNumber}`) ||
-                    localStorage.getItem(`coords_${restData.slug}`);
+      const saved = (restData.id && localStorage.getItem(`coords_${restData.id}`)) ||
+                    (restData.certificateNumber && localStorage.getItem(`coords_${restData.certificateNumber}`)) ||
+                    (restData.slug && localStorage.getItem(`coords_${restData.slug}`));
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
+        if (parsed && typeof parsed.lat === 'number' && typeof parsed.lng === 'number' && !isNaN(parsed.lat) && !isNaN(parsed.lng)) {
           return {
             lat: parsed.lat,
             lng: parsed.lng,
@@ -48,7 +49,21 @@ export const getLiveRestaurantCoords = (restData) => {
       }
     } catch (e) {}
   }
-  return restData.coordinates;
+  if (restData.coordinates && typeof restData.coordinates.lat === 'number' && typeof restData.coordinates.lng === 'number' && !isNaN(restData.coordinates.lat) && !isNaN(restData.coordinates.lng)) {
+    return {
+      lat: restData.coordinates.lat,
+      lng: restData.coordinates.lng,
+      alt: restData.coordinates.alt || restData.altitude || 1620
+    };
+  }
+  if (typeof restData.latitude === 'number' && typeof restData.longitude === 'number' && !isNaN(restData.latitude) && !isNaN(restData.longitude)) {
+    return { lat: restData.latitude, lng: restData.longitude, alt: restData.altitude || 1620 };
+  }
+  if (typeof restData.lat === 'number' && typeof restData.lng === 'number' && !isNaN(restData.lat) && !isNaN(restData.lng)) {
+    return { lat: restData.lat, lng: restData.lng, alt: restData.alt || 1620 };
+  }
+  // Safe default coordinates for Mérida Centro
+  return { lat: 8.5956, lng: -71.1437, alt: 1620 };
 };
 
 const MAP_STYLES = [
@@ -132,7 +147,8 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
     // 1. Draw Route Polyline safely if style is ready
     try {
       if (map.isStyleLoaded()) {
-        const coordinates = route.checkpoints.map(cp => [cp.lng, cp.lat]);
+        const validCheckpoints = (route?.checkpoints || []).filter(cp => cp && typeof cp.lng === 'number' && typeof cp.lat === 'number');
+        const coordinates = validCheckpoints.map(cp => [cp.lng, cp.lat]);
         const geojsonData = {
           type: 'Feature',
           properties: {},
@@ -185,8 +201,10 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
     markersRef.current = [];
 
     // 3. MANDATORY: ALWAYS RENDER ALL REGISTERED RESTAURANTS IN PERMANENT 3D CARDS (LIVE SYNCED)
-    (restaurants || RESTAURANTS_DATA).forEach((restData) => {
+    (restaurants || RESTAURANTS_DATA || []).forEach((restData) => {
+      if (!restData) return;
       const liveCoords = getLiveRestaurantCoords(restData);
+      if (!liveCoords || typeof liveCoords.lng !== 'number' || typeof liveCoords.lat !== 'number' || isNaN(liveCoords.lng) || isNaN(liveCoords.lat)) return;
       const restLng = liveCoords.lng;
       const restLat = liveCoords.lat;
       const restAlt = liveCoords.alt || restData.altitude || 1620;
@@ -211,7 +229,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
           ">
             <!-- Cover Image & Badges -->
             <div style="position: relative; width: 100%; height: 110px; background: #0f172a; overflow: hidden;">
-              <img src="${restData.coverImage}" alt="${restData.name}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+              <img src="${restData.coverImage || '/images/default-cover.jpg'}" alt="${restData.name || 'Restaurante'}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
               <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(15,23,42,0.9) 0%, rgba(15,23,42,0.2) 60%, transparent 100%);"></div>
               
               <span style="position: absolute; top: 7px; left: 7px; background: #d97706; color: #ffffff; font-size: 9px; font-weight: 800; padding: 2.5px 8px; border-radius: 9999px; letter-spacing: 0.4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">
@@ -223,7 +241,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
               </span>
 
               <div style="position: absolute; bottom: 6px; left: 8px; right: 8px; display: flex; align-items: center; justify-content: space-between;">
-                <span style="font-size: 11px; color: #fbbf24; font-weight: 800;">★ ${restData.rating} <span style="font-size: 10px; color: #e2e8f0; font-weight: 500;">(${restData.reviewsCount})</span></span>
+                <span style="font-size: 11px; color: #fbbf24; font-weight: 800;">★ ${restData.rating || '5.0'} <span style="font-size: 10px; color: #e2e8f0; font-weight: 500;">(${restData.reviewsCount || 1})</span></span>
                 <span style="font-size: 10px; font-weight: 700; color: #ffffff; background: rgba(0,0,0,0.65); padding: 1px 6px; border-radius: 4px;">${restData.priceTier || '$$'}</span>
               </div>
             </div>
@@ -234,7 +252,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
                 ${restData.name}
               </h4>
               <p style="font-size: 10px; color: #64748b; margin: 0 0 8px 0; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                📍 ${restData.location}
+                📍 ${restData.location || 'Mérida, Venezuela'}
               </p>
 
               <!-- Button to open full modal -->
@@ -322,8 +340,8 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
     });
 
     // 4. RENDER TOURIST ATTRACTION CHECKPOINTS (Points of interest along current route)
-    route.checkpoints
-      .filter(cp => cp.type !== 'restaurant')
+    (route?.checkpoints || [])
+      .filter(cp => cp && cp.type !== 'restaurant' && typeof cp.lng === 'number' && typeof cp.lat === 'number')
       .forEach((cp, idx) => {
         const el = document.createElement('div');
         el.className = 'custom-mapbox-attraction-marker cursor-pointer';
@@ -347,7 +365,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
               ${idx + 1}
             </div>
             <span style="font-size: 9px; font-weight: 700; color: #0f172a; background: rgba(255,255,255,0.95); padding: 1.5px 5px; border-radius: 4px; margin-top: 3px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.25);">
-              ${cp.name.split('(')[0]}
+              ${(cp.name || '').split('(')[0]}
             </span>
           </div>
         `;
@@ -365,13 +383,13 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
 
     // 5. CAMERA POSITIONING (USING LIVE CALIBRATED COORDINATES)
     if (autoFocusRefId) {
-      const targetRest = RESTAURANTS_DATA.find(r => r.id === autoFocusRefId);
+      const targetRest = (restaurants || RESTAURANTS_DATA || []).find(r => r && (r.id === autoFocusRefId || r.certificateNumber === autoFocusRefId || r.slug === autoFocusRefId));
       const targetCoords = targetRest ? getLiveRestaurantCoords(targetRest) : null;
-      const targetCp = targetCoords 
+      const targetCp = (targetCoords && typeof targetCoords.lng === 'number' && typeof targetCoords.lat === 'number') 
         ? { lng: targetCoords.lng, lat: targetCoords.lat }
-        : route.checkpoints.find(cp => cp.refId === autoFocusRefId);
+        : (route?.checkpoints || []).find(cp => cp && cp.refId === autoFocusRefId && typeof cp.lng === 'number' && typeof cp.lat === 'number');
 
-      if (targetCp) {
+      if (targetCp && typeof targetCp.lng === 'number' && typeof targetCp.lat === 'number') {
         map.flyTo({
           center: [targetCp.lng, targetCp.lat],
           zoom: 17.2,
@@ -388,18 +406,20 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
         }, 200);
       }
     } else {
-      // Default: Center on the primary registered restaurant (Kaffia) with live coordinates
-      const primaryRest = RESTAURANTS_DATA[0];
+      // Default: Center on the primary registered restaurant with live coordinates
+      const primaryRest = (restaurants || RESTAURANTS_DATA || [])[0];
       if (primaryRest) {
         const liveCoords = getLiveRestaurantCoords(primaryRest);
-        map.flyTo({
-          center: [liveCoords.lng, liveCoords.lat],
-          zoom: 16.5,
-          pitch: 55,
-          bearing: -15,
-          duration: 1800,
-          essential: true
-        });
+        if (liveCoords && typeof liveCoords.lng === 'number' && typeof liveCoords.lat === 'number') {
+          map.flyTo({
+            center: [liveCoords.lng, liveCoords.lat],
+            zoom: 16.5,
+            pitch: 55,
+            bearing: -15,
+            duration: 1800,
+            essential: true
+          });
+        }
       }
     }
   };
@@ -413,14 +433,14 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
     // Detect if we have an initial focus restaurant
     let initialRoute = LIDAR_ROUTES[0];
     if (focusRestaurantId) {
-      const foundRoute = LIDAR_ROUTES.find(r => r.checkpoints.some(cp => cp.refId === focusRestaurantId));
+      const foundRoute = LIDAR_ROUTES.find(r => r.checkpoints && r.checkpoints.some(cp => cp && cp.refId === focusRestaurantId));
       if (foundRoute) {
         initialRoute = foundRoute;
         setActiveRouteId(foundRoute.id);
       }
     }
 
-    const firstPoint = initialRoute.checkpoints[0];
+    const firstPoint = (initialRoute?.checkpoints || []).find(cp => cp && typeof cp.lng === 'number' && typeof cp.lat === 'number') || { lng: -71.1437, lat: 8.5956 };
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
@@ -477,7 +497,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded || !focusRestaurantId) return;
     
-    const targetRoute = LIDAR_ROUTES.find(r => r.checkpoints.some(cp => cp.refId === focusRestaurantId));
+    const targetRoute = LIDAR_ROUTES.find(r => r.checkpoints && r.checkpoints.some(cp => cp && cp.refId === focusRestaurantId));
     if (targetRoute) {
       setActiveRouteId(targetRoute.id);
       updateRouteLayers(mapRef.current, targetRoute, focusRestaurantId);
@@ -522,8 +542,9 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
 
   // Fly to selected checkpoint from sidebar & open modal if it is a restaurant
   const handleCheckpointClick = (cp) => {
+    if (!cp) return;
     setSelectedCheckpoint(cp);
-    if (mapRef.current) {
+    if (mapRef.current && typeof cp.lng === 'number' && typeof cp.lat === 'number') {
       mapRef.current.flyTo({
         center: [cp.lng, cp.lat],
         zoom: cp.type === 'restaurant' ? 17.2 : 15.5,
