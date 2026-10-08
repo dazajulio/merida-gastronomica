@@ -817,13 +817,13 @@ export function BoardAdminPortal({ t, onNavigate }) {
       location: 'Centro Histórico / Mérida',
       category: 'Festival Gastronómico',
       badge: 'Evento Oficial 2026',
-      accessType: 'paid',
+      accessType: 'mixed', // 'free' | 'paid' | 'mixed'
       priceTiers: [
-        { id: 'tier-cgm', name: 'Miembros / Agremiados CGM', priceUSD: 0, isFree: true, note: 'Acceso gratuito para miembros solventes' },
+        { id: 'tier-cgm', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código CGM)' },
         { id: 'tier-est', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: 'Tarifa preferencial para estudiantes' },
-        { id: 'tier-gen', name: 'Público General', priceUSD: 10, isFree: false, note: 'Acceso general al evento' }
+        { id: 'tier-gen', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' }
       ],
-      ticketPrice: 'General: $10 USD • Estudiantes: $5 USD • Miembros: Gratis',
+      ticketPrice: 'Miembros CGM: Gratis • General: $10 USD • Estudiantes: $5 USD',
       isPagoMovilEnabled: true,
       pagoMovilBank: '0108 - Banco Provincial',
       pagoMovilCi: 'V-12517086',
@@ -840,12 +840,24 @@ export function BoardAdminPortal({ t, onNavigate }) {
     setEditingPublicEvent(event);
     setEventImageUploadStats(null);
 
-    // Ensure priceTiers array exists from previous legacy format
+    // Determine normalized accessType ('free' | 'paid' | 'mixed')
+    let currentAccessType = event.accessType;
     let existingTiers = event.priceTiers;
+
+    if (!currentAccessType) {
+      if (event.ticketPrice?.toLowerCase().includes('libre')) {
+        currentAccessType = 'free';
+      } else if (Array.isArray(existingTiers) && existingTiers.some(t => t.isFree || t.priceUSD === 0) && existingTiers.some(t => !t.isFree && t.priceUSD > 0)) {
+        currentAccessType = 'mixed';
+      } else {
+        currentAccessType = 'paid';
+      }
+    }
+
     if (!Array.isArray(existingTiers) || existingTiers.length === 0) {
-      if (event.accessType === 'free' || event.ticketPrice?.toLowerCase().includes('libre')) {
-        existingTiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Acceso gratuito' }];
-      } else if (event.accessType === 'member_free_paid_general') {
+      if (currentAccessType === 'free') {
+        existingTiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Acceso gratuito para todo público y agremiados' }];
+      } else if (currentAccessType === 'mixed') {
         existingTiers = [
           { id: 'tier-cgm', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito' },
           { id: 'tier-gen', name: 'Público General', priceUSD: parseFloat(event.priceGeneralUSD) || parseFloat(event.priceUSD) || 10, isFree: false, note: 'Entrada General' }
@@ -864,9 +876,9 @@ export function BoardAdminPortal({ t, onNavigate }) {
       location: event.location || '',
       category: event.category || 'Festival Gastronómico',
       badge: event.badge || 'Evento Oficial 2026',
-      accessType: event.accessType === 'free' ? 'free' : 'paid',
+      accessType: currentAccessType,
       priceTiers: existingTiers,
-      ticketPrice: event.ticketPrice || 'General: $10 USD • Estudiantes: $5 USD • Miembros: Gratis',
+      ticketPrice: event.ticketPrice || 'General: $10 USD',
       isPagoMovilEnabled: event.isPagoMovilEnabled !== false,
       pagoMovilBank: event.pagoMovilBank || '0108 - Banco Provincial',
       pagoMovilCi: event.pagoMovilCi || 'V-12517086',
@@ -913,10 +925,83 @@ export function BoardAdminPortal({ t, onNavigate }) {
     }
   };
 
+  // Switch between the 3 mutually exclusive access types
+  const handleSelectAccessType = (selectedType) => {
+    if (selectedType === 'free') {
+      setPublicEventFormData(prev => ({
+        ...prev,
+        accessType: 'free',
+        priceTiers: [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Acceso 100% gratuito para todo público y miembros' }],
+        ticketPrice: 'Entrada Totalmente Libre / Gratuita'
+      }));
+    } else if (selectedType === 'paid') {
+      // In PAID strict modality: EVERYONE pays. No free tiers allowed.
+      const currentTiers = Array.isArray(publicEventFormData.priceTiers) ? publicEventFormData.priceTiers : [];
+      let paidTiers = currentTiers
+        .filter(t => t.id !== 'tier-free')
+        .map(t => ({
+          ...t,
+          isFree: false,
+          priceUSD: (t.priceUSD && t.priceUSD > 0) ? t.priceUSD : 10,
+          note: t.name.toLowerCase().includes('miembro') ? 'Tarifa Especial para Afiliados CGM' : t.note
+        }));
+
+      if (paidTiers.length === 0) {
+        paidTiers = [
+          { id: 'tier-gen', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' },
+          { id: 'tier-est', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: 'Tarifa preferencial para estudiantes' },
+          { id: 'tier-cgm-paid', name: 'Miembros CGM (Tarifa Reducida)', priceUSD: 8, isFree: false, note: 'Tarifa preferencial para agremiados' }
+        ];
+      }
+
+      setPublicEventFormData(prev => ({
+        ...prev,
+        accessType: 'paid',
+        priceTiers: paidTiers
+      }));
+    } else if (selectedType === 'mixed') {
+      // In MIXED modality: Solvent Members FREE + General Public / Others PAID
+      const currentTiers = Array.isArray(publicEventFormData.priceTiers) ? publicEventFormData.priceTiers : [];
+      const hasMemberFree = currentTiers.some(t => t.isFree && t.name.toLowerCase().includes('miembro'));
+      
+      let mixedTiers = [];
+      if (!hasMemberFree) {
+        mixedTiers.push({
+          id: 'tier-cgm-free',
+          name: 'Miembros Solventes CGM',
+          priceUSD: 0,
+          isFree: true,
+          note: 'Acceso Gremial Gratuito (Requiere Código de Afiliado)'
+        });
+      }
+      
+      currentTiers.forEach(t => {
+        if (t.id !== 'tier-free') {
+          mixedTiers.push(t);
+        }
+      });
+
+      if (mixedTiers.length < 2) {
+        mixedTiers = [
+          { id: 'tier-cgm-free', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código de Afiliado)' },
+          { id: 'tier-est', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: 'Tarifa preferencial para estudiantes' },
+          { id: 'tier-gen', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' }
+        ];
+      }
+
+      setPublicEventFormData(prev => ({
+        ...prev,
+        accessType: 'mixed',
+        priceTiers: mixedTiers
+      }));
+    }
+  };
+
   const handleAddPriceTier = () => {
+    const isStrictPaid = publicEventFormData.accessType === 'paid';
     const newTier = {
       id: `tier-${Date.now()}`,
-      name: 'Nueva Tarifa (ej. VIP / Estudiantes)',
+      name: isStrictPaid ? 'Nueva Tarifa Paga (ej. VIP / Estudiantes)' : 'Nueva Tarifa',
       priceUSD: 5,
       isFree: false,
       note: ''
@@ -932,12 +1017,21 @@ export function BoardAdminPortal({ t, onNavigate }) {
   };
 
   const handleUpdatePriceTier = (tierId, field, value) => {
+    const isStrictPaid = publicEventFormData.accessType === 'paid';
     const currentTiers = Array.isArray(publicEventFormData.priceTiers) ? publicEventFormData.priceTiers : [];
     const updated = currentTiers.map(t => {
       if (t.id === tierId) {
         const updatedTier = { ...t, [field]: value };
-        if (field === 'isFree' && value === true) {
-          updatedTier.priceUSD = 0;
+        // In strict paid mode, never allow isFree = true or priceUSD = 0
+        if (isStrictPaid) {
+          updatedTier.isFree = false;
+          if (field === 'priceUSD' && (value <= 0 || isNaN(value))) {
+            updatedTier.priceUSD = 1;
+          }
+        } else {
+          if (field === 'isFree' && value === true) {
+            updatedTier.priceUSD = 0;
+          }
         }
         return updatedTier;
       }
@@ -955,21 +1049,41 @@ export function BoardAdminPortal({ t, onNavigate }) {
           { id: 'tier-1', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' }
         ]
       });
-    } else if (presetType === 'members_and_general') {
+    } else if (presetType === 'paid_general_and_students') {
       setPublicEventFormData({
         ...publicEventFormData,
         accessType: 'paid',
         priceTiers: [
-          { id: 'tier-1', name: 'Miembros / Agremiados CGM', priceUSD: 0, isFree: true, note: 'Gratis con Código de Afiliado' },
+          { id: 'tier-1', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: 'Tarifa preferencial para estudiantes' },
           { id: 'tier-2', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' }
         ]
       });
-    } else if (presetType === 'complete_festival') {
+    } else if (presetType === 'paid_full_no_free') {
       setPublicEventFormData({
         ...publicEventFormData,
         accessType: 'paid',
         priceTiers: [
-          { id: 'tier-1', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito' },
+          { id: 'tier-1', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: 'Tarifa preferencial para estudiantes' },
+          { id: 'tier-2', name: 'Afiliados CGM (Tarifa Preferencial)', priceUSD: 8, isFree: false, note: 'Descuento especial para miembros solventes' },
+          { id: 'tier-3', name: 'Público General', priceUSD: 12, isFree: false, note: 'Entrada General' },
+          { id: 'tier-4', name: 'Pase VIP / Masterclass', priceUSD: 25, isFree: false, note: 'Acceso a todas las catas + acreditación' }
+        ]
+      });
+    } else if (presetType === 'mixed_members_and_general') {
+      setPublicEventFormData({
+        ...publicEventFormData,
+        accessType: 'mixed',
+        priceTiers: [
+          { id: 'tier-1', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Gratis con Código de Afiliado' },
+          { id: 'tier-2', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' }
+        ]
+      });
+    } else if (presetType === 'mixed_complete') {
+      setPublicEventFormData({
+        ...publicEventFormData,
+        accessType: 'mixed',
+        priceTiers: [
+          { id: 'tier-1', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código CGM)' },
           { id: 'tier-2', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: 'Tarifa preferencial para estudiantes' },
           { id: 'tier-3', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' },
           { id: 'tier-4', name: 'Pase VIP / Masterclass', priceUSD: 25, isFree: false, note: 'Acceso a todas las catas + acreditación' }
@@ -983,27 +1097,37 @@ export function BoardAdminPortal({ t, onNavigate }) {
     
     // Auto-generate summary ticketPrice from tiers
     let generatedTicketText = '';
-    const tiers = Array.isArray(publicEventFormData.priceTiers) ? publicEventFormData.priceTiers : [];
+    const currentAccessType = publicEventFormData.accessType || 'paid';
+    let tiers = Array.isArray(publicEventFormData.priceTiers) ? publicEventFormData.priceTiers : [];
     
-    if (publicEventFormData.accessType === 'free') {
-      generatedTicketText = 'Entrada Totalmente Libre / Gratuito';
-    } else if (tiers.length > 0) {
+    if (currentAccessType === 'free') {
+      generatedTicketText = 'Entrada Totalmente Libre / Gratuita';
+      tiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Acceso 100% gratuito para todo público y miembros' }];
+    } else if (currentAccessType === 'paid') {
+      // Guarantee all tiers are paid
+      tiers = tiers.map(t => ({
+        ...t,
+        isFree: false,
+        priceUSD: (t.priceUSD && t.priceUSD > 0) ? t.priceUSD : 10
+      }));
+      generatedTicketText = tiers
+        .map(t => `${t.name}: $${t.priceUSD} USD`)
+        .join(' • ');
+    } else {
+      // Mixed modality
       generatedTicketText = tiers
         .map(t => `${t.name}: ${t.isFree || t.priceUSD === 0 ? 'Gratis' : `$${t.priceUSD} USD`}`)
         .join(' • ');
-    } else {
-      generatedTicketText = `$10 USD Entrada General`;
     }
 
     const payload = {
       ...publicEventFormData,
+      accessType: currentAccessType,
       ticketPrice: generatedTicketText,
-      priceTiers: publicEventFormData.accessType === 'free' 
-        ? [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Acceso 100% gratuito' }]
-        : tiers,
-      priceUSD: publicEventFormData.accessType === 'free' ? 0 : (tiers.find(t => !t.isFree)?.priceUSD || 10),
+      priceTiers: tiers,
+      priceUSD: currentAccessType === 'free' ? 0 : (tiers.find(t => !t.isFree)?.priceUSD || 10),
       priceGeneralUSD: tiers.find(t => !t.isFree)?.priceUSD || 10,
-      priceMemberUSD: tiers.find(t => t.isFree)?.priceUSD || 0
+      priceMemberUSD: currentAccessType === 'paid' ? (tiers.find(t => t.name.toLowerCase().includes('miembro') || t.name.toLowerCase().includes('afiliado'))?.priceUSD || 10) : 0
     };
 
     if (editingPublicEvent) {
@@ -4683,161 +4807,236 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
               {/* Access Type & Multi-Tier Pricing Controls */}
               <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/70 border border-amber-200/90 space-y-4 font-sans">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <label className="block font-bold text-slate-900 uppercase tracking-wider text-xs">
-                      1. Tarifas & Modalidades de Entrada *
-                    </label>
-                    <p className="text-[11px] text-slate-600">
-                      Configure múltiples precios para público general, estudiantes, miembros agremiados o VIP.
-                    </p>
+                <div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2.5">
+                    <div>
+                      <label className="block font-bold text-slate-900 uppercase tracking-wider text-xs">
+                        1. Modalidad de Acceso & Tarifas *
+                      </label>
+                      <p className="text-[11px] text-slate-600">
+                        Seleccione una única modalidad. Si elige <strong>Paga Estricta</strong>, todos los asistentes pagan sin pases gratis. Si elige <strong>Mixta</strong>, los Miembros entran gratis y el Público paga.
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  {/* 3 Mutually Exclusive Tabs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <button
                       type="button"
-                      onClick={() => setPublicEventFormData({
-                        ...publicEventFormData,
-                        accessType: 'free',
-                        priceTiers: [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Acceso 100% gratuito' }],
-                        ticketPrice: 'Entrada Totalmente Libre / Gratuito'
-                      })}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      onClick={() => handleSelectAccessType('free')}
+                      className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1 ${
                         publicEventFormData.accessType === 'free'
-                          ? 'bg-emerald-600 text-white shadow-sm'
-                          : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                          ? 'bg-emerald-600 text-white border-emerald-700 shadow-md ring-2 ring-emerald-400/40'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/40'
                       }`}
                     >
-                      🆓 Evento Gratuito
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-xs">🆓 1. Entrada Libre</span>
+                        {publicEventFormData.accessType === 'free' && (
+                          <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                        )}
+                      </div>
+                      <span className={`text-[10px] leading-tight ${publicEventFormData.accessType === 'free' ? 'text-emerald-100' : 'text-slate-500'}`}>
+                        100% Gratuito para todo el público y agremiados.
+                      </span>
                     </button>
+
                     <button
                       type="button"
-                      onClick={() => setPublicEventFormData({
-                        ...publicEventFormData,
-                        accessType: 'paid',
-                        priceTiers: Array.isArray(publicEventFormData.priceTiers) && publicEventFormData.priceTiers.length > 0 ? publicEventFormData.priceTiers : DEFAULT_PRICE_TIERS
-                      })}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      onClick={() => handleSelectAccessType('paid')}
+                      className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1 ${
                         publicEventFormData.accessType === 'paid'
-                          ? 'bg-amber-500 text-slate-950 shadow-sm font-extrabold'
-                          : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                          ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-md ring-2 ring-amber-400/50'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-amber-300 hover:bg-amber-50/40'
                       }`}
                     >
-                      🎟️ Entrada Paga / Tarifas
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-xs">🎟️ 2. Entrada Paga Estricta</span>
+                        {publicEventFormData.accessType === 'paid' && (
+                          <span className="w-2 h-2 rounded-full bg-slate-950 animate-pulse" />
+                        )}
+                      </div>
+                      <span className={`text-[10px] leading-tight ${publicEventFormData.accessType === 'paid' ? 'text-slate-900 font-semibold' : 'text-slate-500'}`}>
+                        Todos pagan su entrada. Cero pases gratis.
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectAccessType('mixed')}
+                      className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1 ${
+                        publicEventFormData.accessType === 'mixed'
+                          ? 'bg-indigo-600 text-white border-indigo-700 shadow-md ring-2 ring-indigo-400/40'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-xs">⭐ 3. Modalidad Mixta</span>
+                        {publicEventFormData.accessType === 'mixed' && (
+                          <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                        )}
+                      </div>
+                      <span className={`text-[10px] leading-tight ${publicEventFormData.accessType === 'mixed' ? 'text-indigo-100' : 'text-slate-500'}`}>
+                        Miembros Solventes Gratis + Público General Pago.
+                      </span>
                     </button>
                   </div>
                 </div>
 
                 {publicEventFormData.accessType === 'free' ? (
-                  <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs font-bold flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Este evento se publicará como Acceso Libre sin costo para todo el público.</span>
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs font-bold flex items-center gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="font-extrabold">Modalidad Entrada 100% Libre / Gratuita</p>
+                      <p className="text-[11px] font-normal text-emerald-800">
+                        El evento no requerirá pago móvil ni cobro de boletos para ningún asistente.
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3 pt-1">
+                    {/* Status notification based on active mode */}
+                    {publicEventFormData.accessType === 'paid' ? (
+                      <div className="p-3 rounded-xl bg-amber-100/90 border border-amber-300 text-amber-950 text-xs flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+                        <span><strong>Modalidad Paga Estricta:</strong> Todos los asistentes pagan su entrada. No existen accesos gratuitos (las tarifas de afiliados/estudiantes tienen costo preferencial &gt; $0 USD).</span>
+                      </div>
+                    ) : (
+                      <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-950 text-xs flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                        <span><strong>Modalidad Mixta:</strong> Los Miembros Solventes CGM se acreditan gratis con su Código de Afiliado; las demás categorías pagan vía Pago Móvil.</span>
+                      </div>
+                    )}
+
                     {/* Presets Bar */}
                     <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl bg-white border border-amber-200 text-[11px]">
-                      <span className="font-bold text-amber-900 mr-1 flex items-center gap-1">
+                      <span className="font-bold text-slate-800 mr-1 flex items-center gap-1">
                         <Sparkles className="w-3 h-3 text-amber-600" />
-                        Plantillas rápidas:
+                        Plantillas para {publicEventFormData.accessType === 'paid' ? 'Entrada Paga' : 'Modalidad Mixta'}:
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => handleApplyTierPreset('general_only')}
-                        className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-700 font-semibold"
-                      >
-                        Solo General ($10)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleApplyTierPreset('members_and_general')}
-                        className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-700 font-semibold"
-                      >
-                        Miembros (Gratis) + General ($10)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleApplyTierPreset('complete_festival')}
-                        className="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-950 font-bold border border-amber-400/40"
-                      >
-                        Completo: Miembros + Estudiantes + General + VIP
-                      </button>
+                      {publicEventFormData.accessType === 'paid' ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyTierPreset('general_only')}
+                            className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-700 font-semibold"
+                          >
+                            Solo General ($10)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyTierPreset('paid_general_and_students')}
+                            className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-700 font-semibold"
+                          >
+                            General ($10) + Estudiantes ($5)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyTierPreset('paid_full_no_free')}
+                            className="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-950 font-bold border border-amber-400/40"
+                          >
+                            General ($12) + Afiliados con Descuento ($8) + VIP ($25)
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyTierPreset('mixed_members_and_general')}
+                            className="px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-semibold border border-indigo-200"
+                          >
+                            Miembros (Gratis) + General ($10)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyTierPreset('mixed_complete')}
+                            className="px-2 py-1 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-950 font-bold border border-indigo-300"
+                          >
+                            Completo: Miembros (Gratis) + Estudiantes ($5) + General ($10) + VIP ($25)
+                          </button>
+                        </>
+                      )}
                     </div>
 
                     {/* Price Tiers List */}
                     <div className="space-y-2">
-                      {(publicEventFormData.priceTiers || []).map((tier, index) => (
-                        <div 
-                          key={tier.id || index}
-                          className="p-3 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center gap-2.5 justify-between"
-                        >
-                          <div className="flex-1 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                            {/* Tier Name */}
-                            <div className="sm:col-span-6">
-                              <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
-                                Nombre de Tarifa #{index + 1} *
-                              </label>
-                              <input
-                                type="text"
-                                required
-                                value={tier.name}
-                                onChange={(e) => handleUpdatePriceTier(tier.id, 'name', e.target.value)}
-                                placeholder="ej: Estudiantes con carnet / Preventa"
-                                className="w-full px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500"
-                              />
-                            </div>
-
-                            {/* Price USD */}
-                            <div className="sm:col-span-3">
-                              <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
-                                Precio (USD)
-                              </label>
-                              <div className="relative">
-                                <span className="absolute left-2.5 top-1.5 text-xs font-bold text-slate-400">$</span>
+                      {(publicEventFormData.priceTiers || []).map((tier, index) => {
+                        const isStrictPaid = publicEventFormData.accessType === 'paid';
+                        return (
+                          <div 
+                            key={tier.id || index}
+                            className="p-3 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center gap-2.5 justify-between"
+                          >
+                            <div className="flex-1 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                              {/* Tier Name */}
+                              <div className={isStrictPaid ? "sm:col-span-8" : "sm:col-span-6"}>
+                                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                                  Nombre de Tarifa #{index + 1} *
+                                </label>
                                 <input
-                                  type="number"
-                                  min={0}
-                                  step="0.5"
-                                  disabled={tier.isFree}
-                                  value={tier.isFree ? 0 : (tier.priceUSD !== undefined ? tier.priceUSD : 10)}
-                                  onChange={(e) => handleUpdatePriceTier(tier.id, 'priceUSD', parseFloat(e.target.value) || 0)}
-                                  placeholder="0"
-                                  className={`w-full pl-6 pr-2 py-1.5 rounded-lg border text-xs font-bold focus:outline-none ${
-                                    tier.isFree 
-                                      ? 'bg-slate-100 text-slate-400 border-slate-200' 
-                                      : 'bg-white text-emerald-800 border-emerald-300 focus:border-emerald-500 font-mono text-sm'
-                                  }`}
+                                  type="text"
+                                  required
+                                  value={tier.name}
+                                  onChange={(e) => handleUpdatePriceTier(tier.id, 'name', e.target.value)}
+                                  placeholder={isStrictPaid ? "ej: General, Estudiantes, Afiliados con Descuento" : "ej: Miembros Solventes, General, Estudiantes"}
+                                  className="w-full px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500"
                                 />
                               </div>
+
+                              {/* Price USD */}
+                              <div className={isStrictPaid ? "sm:col-span-4" : "sm:col-span-3"}>
+                                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                                  Precio (USD) *
+                                </label>
+                                <div className="relative">
+                                  <span className="absolute left-2.5 top-1.5 text-xs font-bold text-slate-400">$</span>
+                                  <input
+                                    type="number"
+                                    min={isStrictPaid ? 1 : 0}
+                                    step="0.5"
+                                    disabled={!isStrictPaid && tier.isFree}
+                                    value={(!isStrictPaid && tier.isFree) ? 0 : (tier.priceUSD !== undefined ? tier.priceUSD : 10)}
+                                    onChange={(e) => handleUpdatePriceTier(tier.id, 'priceUSD', parseFloat(e.target.value) || (isStrictPaid ? 1 : 0))}
+                                    placeholder="0"
+                                    className={`w-full pl-6 pr-2 py-1.5 rounded-lg border text-xs font-bold focus:outline-none ${
+                                      (!isStrictPaid && tier.isFree)
+                                        ? 'bg-slate-100 text-slate-400 border-slate-200' 
+                                        : 'bg-white text-emerald-800 border-emerald-300 focus:border-emerald-500 font-mono text-sm'
+                                    }`}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Is Free Checkbox (Only allowed in Mixed modality) */}
+                              {!isStrictPaid && (
+                                <div className="sm:col-span-3 flex items-center pt-2 sm:pt-4">
+                                  <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
+                                    <input
+                                      type="checkbox"
+                                      checked={!!tier.isFree}
+                                      onChange={(e) => handleUpdatePriceTier(tier.id, 'isFree', e.target.checked)}
+                                      className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <span>Gratis / $0</span>
+                                  </label>
+                                </div>
+                              )}
                             </div>
 
-                            {/* Is Free Checkbox */}
-                            <div className="sm:col-span-3 flex items-center pt-2 sm:pt-4">
-                              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
-                                <input
-                                  type="checkbox"
-                                  checked={!!tier.isFree}
-                                  onChange={(e) => handleUpdatePriceTier(tier.id, 'isFree', e.target.checked)}
-                                  className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500"
-                                />
-                                <span>Gratis / $0</span>
-                              </label>
-                            </div>
+                            {/* Delete Button */}
+                            {(publicEventFormData.priceTiers || []).length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemovePriceTier(tier.id)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors self-end sm:self-center"
+                                title="Eliminar esta tarifa"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
-
-                          {/* Delete Button */}
-                          {(publicEventFormData.priceTiers || []).length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemovePriceTier(tier.id)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors self-end sm:self-center"
-                              title="Eliminar esta tarifa"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     {/* Add Tier Button */}

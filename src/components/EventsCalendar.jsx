@@ -77,19 +77,33 @@ export function EventsCalendar({ t }) {
   const handleOpenRsvp = (event) => {
     setRsvpModalEvent(event);
     
-    // Determine initial tier
+    // Determine available tiers based on accessType ('free' | 'paid' | 'mixed')
+    const currentAccessType = event.accessType || (event.ticketPrice?.toLowerCase().includes('libre') ? 'free' : 'paid');
+    
+    let validTiers = [];
     if (Array.isArray(event.priceTiers) && event.priceTiers.length > 0) {
-      // Default to first tier or paid tier
-      setSelectedTier(event.priceTiers[0]);
+      if (currentAccessType === 'paid') {
+        // Strict paid: NEVER show a free tier
+        validTiers = event.priceTiers.filter(t => !t.isFree && t.priceUSD > 0);
+      } else if (currentAccessType === 'free') {
+        validTiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Acceso 100% gratuito' }];
+      } else {
+        // Mixed: allows both
+        validTiers = event.priceTiers;
+      }
+    }
+
+    if (validTiers.length > 0) {
+      setSelectedTier(validTiers[0]);
     } else {
-      // Legacy fallback
-      const isFree = event.accessType === 'free' || (!event.priceGeneralUSD && !event.priceUSD && event.ticketPrice?.toLowerCase().includes('libre'));
+      // Fallback based on modality
+      const isFree = currentAccessType === 'free' || (!event.priceGeneralUSD && !event.priceUSD && event.ticketPrice?.toLowerCase().includes('libre'));
       setSelectedTier({
         id: isFree ? 'tier-legacy-free' : 'tier-legacy-paid',
         name: isFree ? 'Entrada Libre' : 'Público General',
         priceUSD: isFree ? 0 : (event.priceGeneralUSD || event.priceUSD || 10),
         isFree: isFree,
-        note: isFree ? 'Acceso 100% gratuito' : 'Entrada general con acreditación'
+        note: isFree ? 'Acceso 100% gratuito' : 'Entrada general'
       });
     }
 
@@ -365,48 +379,57 @@ export function EventsCalendar({ t }) {
             </div>
 
             {/* Price Tier Selector (Dynamic Multiple Tiers) */}
-            {Array.isArray(rsvpModalEvent.priceTiers) && rsvpModalEvent.priceTiers.length > 0 && (
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Seleccione su Categoría / Tarifa de Entrada:
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {rsvpModalEvent.priceTiers.map((tier) => {
-                    const isSelected = selectedTier?.id === tier.id || selectedTier?.name === tier.name;
-                    return (
-                      <button
-                        key={tier.id}
-                        type="button"
-                        onClick={() => setSelectedTier(tier)}
-                        className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1.5 ${
-                          isSelected
-                            ? 'bg-amber-500/15 border-amber-500 ring-2 ring-amber-500/30 shadow-xs'
-                            : 'bg-slate-50 hover:bg-slate-100 border-slate-200'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="font-bold text-xs text-slate-900 leading-snug">
-                            {tier.name}
-                          </span>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${
-                            tier.isFree 
-                              ? 'bg-emerald-600 text-white' 
-                              : 'bg-amber-500 text-slate-950'
-                          }`}>
-                            {tier.isFree ? 'GRATIS' : `$${tier.priceUSD} USD`}
-                          </span>
-                        </div>
-                        {tier.note && (
-                          <p className="text-[11px] text-slate-500 line-clamp-1">
-                            {tier.note}
-                          </p>
-                        )}
-                      </button>
-                    );
-                  })}
+            {(() => {
+              const currentAccess = rsvpModalEvent.accessType || (rsvpModalEvent.ticketPrice?.toLowerCase().includes('libre') ? 'free' : 'paid');
+              const tiersToRender = Array.isArray(rsvpModalEvent.priceTiers) && rsvpModalEvent.priceTiers.length > 0
+                ? (currentAccess === 'paid' ? rsvpModalEvent.priceTiers.filter(t => !t.isFree && t.priceUSD > 0) : rsvpModalEvent.priceTiers)
+                : [];
+
+              if (currentAccess === 'free' || tiersToRender.length <= 1) return null;
+
+              return (
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    {currentAccess === 'paid' ? 'Seleccione su Tarifa de Entrada (Modalidad Paga):' : 'Seleccione su Categoría / Tarifa de Entrada:'}
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {tiersToRender.map((tier) => {
+                      const isSelected = selectedTier?.id === tier.id || selectedTier?.name === tier.name;
+                      return (
+                        <button
+                          key={tier.id}
+                          type="button"
+                          onClick={() => setSelectedTier(tier)}
+                          className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1.5 ${
+                            isSelected
+                              ? 'bg-amber-500/15 border-amber-500 ring-2 ring-amber-500/30 shadow-xs'
+                              : 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-xs text-slate-900 leading-snug">
+                              {tier.name}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${
+                              tier.isFree 
+                                ? 'bg-emerald-600 text-white' 
+                                : 'bg-amber-500 text-slate-950'
+                            }`}>
+                              {tier.isFree ? 'GRATIS' : `$${tier.priceUSD} USD`}
+                            </span>
+                          </div>
+                          {tier.note && (
+                            <p className="text-[11px] text-slate-500 line-clamp-1">
+                              {tier.note}
+                            </p>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             <form onSubmit={handleRsvpSubmit} className="space-y-3 text-xs">
               <div>
