@@ -149,6 +149,7 @@ export function EventsCalendar({ t }) {
         status: isFreeTier ? 'confirmado' : 'pendiente_conciliacion'
       };
       localStorage.setItem('cgem_event_rsvps', JSON.stringify([newRsvp, ...list]));
+      window.dispatchEvent(new Event('cgem_rsvps_updated'));
     } catch (err) {}
 
     setTimeout(() => {

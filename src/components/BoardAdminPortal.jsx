@@ -418,6 +418,36 @@ export function BoardAdminPortal({ t, onNavigate }) {
   });
 
   // =========================================================================
+  // 3.1 EVENT RSVPS & ATTENDEES STATE (PRESIDENCY & DIRECTORS)
+  // =========================================================================
+  const [eventRsvpsList, setEventRsvpsList] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cgem_event_rsvps');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
+
+  useEffect(() => {
+    const handleRsvpsUpdate = () => {
+      try {
+        const saved = localStorage.getItem('cgem_event_rsvps');
+        if (saved) setEventRsvpsList(JSON.parse(saved));
+      } catch (e) {}
+    };
+    window.addEventListener('cgem_rsvps_updated', handleRsvpsUpdate);
+    window.addEventListener('storage', handleRsvpsUpdate);
+    return () => {
+      window.removeEventListener('cgem_rsvps_updated', handleRsvpsUpdate);
+      window.removeEventListener('storage', handleRsvpsUpdate);
+    };
+  }, []);
+
+  const [selectedEventForRsvps, setSelectedEventForRsvps] = useState(null);
+  const [rsvpSearchQuery, setRsvpSearchQuery] = useState('');
+  const [rsvpStatusFilter, setRsvpStatusFilter] = useState('all'); // 'all' | 'confirmado' | 'pendiente_conciliacion'
+
+  // =========================================================================
   // 4. VINCULACIONES TURÍSTICAS & SERVICIOS STATE (PRESIDENCY)
   // =========================================================================
   const [touristServices, setTouristServices] = useState(() => {
@@ -1155,6 +1185,70 @@ export function BoardAdminPortal({ t, onNavigate }) {
       setActionSuccessMessage(`Evento "${title}" eliminado.`);
       setTimeout(() => setActionSuccessMessage(''), 4000);
     }
+  };
+
+  // =========================================================================
+  // RSVP & ATTENDEES MANAGEMENT HANDLERS (PRESIDENCY)
+  // =========================================================================
+  const handleToggleRsvpStatus = (rsvpId) => {
+    const updated = eventRsvpsList.map(r => {
+      if (r.id === rsvpId) {
+        const nextStatus = r.status === 'confirmado' ? 'pendiente_conciliacion' : 'confirmado';
+        return {
+          ...r,
+          status: nextStatus
+        };
+      }
+      return r;
+    });
+    setEventRsvpsList(updated);
+    try {
+      localStorage.setItem('cgem_event_rsvps', JSON.stringify(updated));
+      window.dispatchEvent(new Event('cgem_rsvps_updated'));
+    } catch (e) {}
+    setActionSuccessMessage('Estado de acreditación actualizado.');
+    setTimeout(() => setActionSuccessMessage(''), 3000);
+  };
+
+  const handleDeleteRsvp = (rsvpId, name) => {
+    if (!window.confirm(`¿Desea eliminar la inscripción de "${name}"?`)) return;
+    const updated = eventRsvpsList.filter(r => r.id !== rsvpId);
+    setEventRsvpsList(updated);
+    try {
+      localStorage.setItem('cgem_event_rsvps', JSON.stringify(updated));
+      window.dispatchEvent(new Event('cgem_rsvps_updated'));
+    } catch (e) {}
+    setActionSuccessMessage(`Registro de "${name}" eliminado.`);
+    setTimeout(() => setActionSuccessMessage(''), 3000);
+  };
+
+  const handleExportRsvpsCsv = (event) => {
+    const attendees = eventRsvpsList.filter(r => r.eventId === event.id || r.eventTitle === event.title);
+    if (attendees.length === 0) {
+      alert('No hay inscritos registrados para este evento aún.');
+      return;
+    }
+    const headers = ['Nombre Completo', 'Email', 'Telefono / WhatsApp', 'Tarifa', 'Monto USD', 'Estado', 'Banco Pago', 'Referencia Pago', 'Codigo Afiliado', 'Fecha Registro'];
+    const rows = attendees.map(a => [
+      `"${(a.fullName || '').replace(/"/g, '""')}"`,
+      `"${(a.email || '').replace(/"/g, '""')}"`,
+      `"${(a.phone || '').replace(/"/g, '""')}"`,
+      `"${(a.tierName || (a.isFree ? 'Gratis' : 'Publico')).replace(/"/g, '""')}"`,
+      `"${a.tierPriceUSD !== undefined ? a.tierPriceUSD : (a.isFree ? 0 : 10)}"`,
+      `"${a.status === 'confirmado' ? 'Acreditado / Confirmado' : 'Pendiente Pago'}"`,
+      `"${(a.paymentBank || 'N/A').replace(/"/g, '""')}"`,
+      `"${(a.paymentRef || 'N/A').replace(/"/g, '""')}"`,
+      `"${(a.affiliateCode || 'N/A').replace(/"/g, '""')}"`,
+      `"${a.registeredAt ? new Date(a.registeredAt).toLocaleString('es-VE') : ''}"`
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Acreditados_${(event.title || 'Evento').replace(/\s+/g, '_')}_2026.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // =========================================================================
@@ -3303,21 +3397,47 @@ export function BoardAdminPortal({ t, onNavigate }) {
                       </div>
                     </div>
 
-                    <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => openEditPublicEventModal(event)}
-                        className="p-2 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1"
-                      >
-                        <Edit3 className="w-3.5 h-3.5 text-amber-700" />
-                        <span>Editar</span>
-                      </button>
-                      <button
-                        onClick={() => handleDeletePublicEvent(event.id, event.title)}
-                        className="p-2 rounded-lg bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 text-xs font-bold flex items-center gap-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Eliminar</span>
-                      </button>
+                    <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+                      {/* Attendees / RSVPs Button with live count */}
+                      {(() => {
+                        const count = eventRsvpsList.filter(r => r.eventId === event.id || r.eventTitle === event.title).length;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedEventForRsvps(event);
+                              setRsvpSearchQuery('');
+                              setRsvpStatusFilter('all');
+                            }}
+                            className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all ${
+                              count > 0 
+                                ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-sm hover:bg-amber-400' 
+                                : 'bg-white hover:bg-amber-50 text-slate-700 border-slate-200'
+                            }`}
+                            title="Ver lista de personas inscritas y acreditaciones"
+                          >
+                            <Users className="w-3.5 h-3.5" />
+                            <span>Inscritos ({count})</span>
+                          </button>
+                        );
+                      })()}
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => openEditPublicEventModal(event)}
+                          className="p-2 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-amber-700" />
+                          <span>Editar</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeletePublicEvent(event.id, event.title)}
+                          className="p-2 rounded-lg bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 text-xs font-bold flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Eliminar</span>
+                        </button>
+                      </div>
                     </div>
 
                   </div>
@@ -5462,6 +5582,289 @@ export function BoardAdminPortal({ t, onNavigate }) {
               </div>
 
             </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL: EVENT RSVPS & ATTENDEES LIST (PRESIDENCY / EVENT MANAGEMENT)
+          ========================================================================= */}
+      {selectedEventForRsvps && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn font-sans">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl relative my-8 max-h-[92vh] overflow-y-auto text-slate-800 space-y-6">
+            
+            {/* Modal Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+              <div className="flex items-start gap-3.5">
+                <div className="p-3 rounded-2xl bg-amber-500 text-slate-950 shadow-sm shrink-0">
+                  <Users className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                      Nómina de Acreditaciones
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-500">
+                      {selectedEventForRsvps.month} 2026
+                    </span>
+                  </div>
+                  <h3 className="font-serif font-black text-xl sm:text-2xl text-slate-900 leading-tight mt-1">
+                    {selectedEventForRsvps.title}
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {selectedEventForRsvps.date} — {selectedEventForRsvps.location}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => handleExportRsvpsCsv(selectedEventForRsvps)}
+                  className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all active:scale-95"
+                  title="Descargar nómina de acreditados en formato Excel / CSV"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>Exportar CSV / Excel</span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedEventForRsvps(null)}
+                  className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                  title="Cerrar ventana"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Metrics Bar */}
+            {(() => {
+              const allEventRsvps = eventRsvpsList.filter(r => r.eventId === selectedEventForRsvps.id || r.eventTitle === selectedEventForRsvps.title);
+              const confirmedCount = allEventRsvps.filter(r => r.status === 'confirmado').length;
+              const pendingCount = allEventRsvps.filter(r => r.status === 'pendiente_conciliacion').length;
+              const totalUsd = allEventRsvps.reduce((acc, r) => acc + (parseFloat(r.tierPriceUSD) || 0), 0);
+
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 block">Total Inscritos</span>
+                    <span className="font-serif font-black text-2xl text-slate-900">{allEventRsvps.length}</span>
+                    <span className="text-[10px] text-slate-400 block">asistentes registrados</span>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200">
+                    <span className="text-[10px] uppercase font-bold text-emerald-800 block">Acreditados</span>
+                    <span className="font-serif font-black text-2xl text-emerald-700">{confirmedCount}</span>
+                    <span className="text-[10px] text-emerald-600 block">pase confirmado</span>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200">
+                    <span className="text-[10px] uppercase font-bold text-amber-900 block">Por Conciliar</span>
+                    <span className="font-serif font-black text-2xl text-amber-700">{pendingCount}</span>
+                    <span className="text-[10px] text-amber-600 block">pago móvil pendiente</span>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-sky-50 border border-sky-200">
+                    <span className="text-[10px] uppercase font-bold text-sky-900 block">Recaudación Est.</span>
+                    <span className="font-serif font-black text-2xl text-sky-700">${totalUsd} USD</span>
+                    <span className="text-[10px] text-sky-600 block">total en tarifas</span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Filter & Search Bar */}
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                <input 
+                  type="text"
+                  value={rsvpSearchQuery}
+                  onChange={(e) => setRsvpSearchQuery(e.target.value)}
+                  placeholder="Buscar asistente por nombre, correo, teléfono o referencia bancaria..."
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs font-medium text-slate-800 focus:bg-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl text-xs font-bold shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setRsvpStatusFilter('all')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${rsvpStatusFilter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRsvpStatusFilter('confirmado')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${rsvpStatusFilter === 'confirmado' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                >
+                  Acreditados
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRsvpStatusFilter('pendiente_conciliacion')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${rsvpStatusFilter === 'pendiente_conciliacion' ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                >
+                  Pendientes
+                </button>
+              </div>
+            </div>
+
+            {/* Attendees Table / List */}
+            {(() => {
+              const allEventRsvps = eventRsvpsList.filter(r => r.eventId === selectedEventForRsvps.id || r.eventTitle === selectedEventForRsvps.title);
+              const filteredRsvps = allEventRsvps.filter(r => {
+                const matchStatus = rsvpStatusFilter === 'all' || r.status === rsvpStatusFilter;
+                const q = rsvpSearchQuery.toLowerCase().trim();
+                const matchSearch = !q || 
+                  (r.fullName && r.fullName.toLowerCase().includes(q)) ||
+                  (r.email && r.email.toLowerCase().includes(q)) ||
+                  (r.phone && r.phone.toLowerCase().includes(q)) ||
+                  (r.paymentRef && r.paymentRef.toLowerCase().includes(q)) ||
+                  (r.affiliateCode && r.affiliateCode.toLowerCase().includes(q)) ||
+                  (r.tierName && r.tierName.toLowerCase().includes(q));
+                return matchStatus && matchSearch;
+              });
+
+              if (allEventRsvps.length === 0) {
+                return (
+                  <div className="p-12 text-center rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                    <Users className="w-10 h-10 text-slate-300 mx-auto" />
+                    <h4 className="font-serif font-bold text-base text-slate-700">
+                      Aún no hay inscripciones registradas
+                    </h4>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      Cuando los usuarios, miembros o el público general se inscriban a este evento a través del portal público, sus registros aparecerán aquí automáticamente en tiempo real.
+                    </p>
+                  </div>
+                );
+              }
+
+              if (filteredRsvps.length === 0) {
+                return (
+                  <div className="p-8 text-center rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-500">
+                    No se encontraron asistentes que coincidan con la búsqueda o filtro aplicado.
+                  </div>
+                );
+              }
+
+              return (
+                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
+                        <tr>
+                          <th className="p-3.5">Asistente</th>
+                          <th className="p-3.5">Contacto</th>
+                          <th className="p-3.5">Tarifa / Acceso</th>
+                          <th className="p-3.5">Comprobante Pago</th>
+                          <th className="p-3.5">Estado</th>
+                          <th className="p-3.5 text-right">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredRsvps.map((rsvp, idx) => (
+                          <tr key={rsvp.id || idx} className="hover:bg-amber-50/30 transition-colors">
+                            <td className="p-3.5">
+                              <span className="font-bold text-slate-900 block">{rsvp.fullName}</span>
+                              <span className="text-[10px] text-slate-400">
+                                {rsvp.registeredAt ? new Date(rsvp.registeredAt).toLocaleString('es-VE', { dateStyle: 'short', timeStyle: 'short' }) : 'Reciente'}
+                              </span>
+                            </td>
+
+                            <td className="p-3.5 space-y-0.5">
+                              <span className="text-slate-800 block">{rsvp.email}</span>
+                              <span className="text-slate-500 text-[11px] block">{rsvp.phone}</span>
+                            </td>
+
+                            <td className="p-3.5">
+                              <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200 inline-block">
+                                {rsvp.tierName || (rsvp.isFree ? 'Entrada Libre' : 'Público')}
+                              </span>
+                              <span className="text-[11px] font-extrabold text-emerald-800 block mt-0.5 font-mono">
+                                {rsvp.isFree || rsvp.tierPriceUSD === 0 ? 'GRATIS' : `$${rsvp.tierPriceUSD || 10} USD`}
+                              </span>
+                            </td>
+
+                            <td className="p-3.5 text-xs">
+                              {rsvp.isFree ? (
+                                rsvp.affiliateCode ? (
+                                  <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300 font-mono font-bold text-[11px]">
+                                    Código: {rsvp.affiliateCode}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 text-[11px]">Acceso Libre ($0)</span>
+                                )
+                              ) : (
+                                <div className="space-y-0.5 font-mono text-[11px]">
+                                  <div className="text-slate-800 font-bold">Ref: {rsvp.paymentRef || 'N/A'}</div>
+                                  <div className="text-slate-500 text-[10px]">{rsvp.paymentBank || 'Provincial'}</div>
+                                </div>
+                              )}
+                            </td>
+
+                            <td className="p-3.5">
+                              {rsvp.status === 'confirmado' ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  <span>Acreditado</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
+                                  <Clock className="w-3 h-3 text-amber-600" />
+                                  <span>Por Conciliar</span>
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="p-3.5 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleRsvpStatus(rsvp.id)}
+                                  className={`p-1.5 rounded-lg text-xs font-bold border transition-all ${
+                                    rsvp.status === 'confirmado'
+                                      ? 'bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-900 border-slate-200'
+                                      : 'bg-emerald-600 text-white hover:bg-emerald-700 border-emerald-700 shadow-xs'
+                                  }`}
+                                  title={rsvp.status === 'confirmado' ? 'Marcar como pendiente' : 'Validar pago y acreditar'}
+                                >
+                                  {rsvp.status === 'confirmado' ? 'Desmarcar' : 'Acreditar'}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteRsvp(rsvp.id, rsvp.fullName)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                  title="Eliminar inscripción"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Modal Footer */}
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+              <span>Sincronización en tiempo real con el portal público.</span>
+              <button
+                type="button"
+                onClick={() => setSelectedEventForRsvps(null)}
+                className="py-2.5 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold"
+              >
+                Cerrar Nómina
+              </button>
+            </div>
 
           </div>
         </div>
