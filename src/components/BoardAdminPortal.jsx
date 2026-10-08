@@ -49,7 +49,8 @@ import {
   History,
   Ticket,
   Image as ImageIcon,
-  Star
+  Star,
+  CreditCard
 } from 'lucide-react';
 import { BOARD_MEMBERS_DATA, INITIAL_BOARD_AGENDA_DATA } from '../data/boardData';
 import { LEGAL_DATA } from '../data/legalData';
