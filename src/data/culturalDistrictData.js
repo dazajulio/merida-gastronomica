@@ -92,7 +92,7 @@ export const CULTURAL_DISTRICT_DATA = {
       location: 'Avenidas 3 y 4 con Calles 22 y 23',
       description: 'El corazón histórico de Mérida, rodeado de arquitectura colonial, la Catedral Metropolitana y majestuosas palmeras, donde convergen la cultura, la vida y la memoria de la ciudad.',
       badge: 'Epicentro Histórico',
-      imageUrl: 'https://images.unsplash.com/photo-1539650116574-75c0c6d73f6e?w=800&auto=format&fit=crop&q=80'
+      imageUrl: '/images/PLAZA BOLIVAR.png'
     },
     {
       id: 'plaza-milla',
@@ -101,7 +101,7 @@ export const CULTURAL_DISTRICT_DATA = {
       location: 'Av. 2 con Calle 13, Casco Norte',
       description: 'Un rincón tradicional y bohemio que conserva el encanto de la vieja Mérida, entre su hermosa iglesia, la brisa fresca de la montaña y la calidez de su gente.',
       badge: 'Bohemio & Tradicional',
-      imageUrl: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=800&auto=format&fit=crop&q=80'
+      imageUrl: '/images/PLAZA MILLA.png'
     },
     {
       id: 'plaza-las-heroinas',
@@ -110,7 +110,7 @@ export const CULTURAL_DISTRICT_DATA = {
       location: 'Calle 24 entre Avenidas 6 y 7, Sector Barinitas',
       description: 'Un homenaje a las valientes mujeres merideñas que lucharon por la independencia nacional, con una vista privilegiada hacia la majestuosidad de la Sierra Nevada y la estación inicial del Teleférico Mukumbarí.',
       badge: 'Mirador & Monumento',
-      imageUrl: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&auto=format&fit=crop&q=80'
+      imageUrl: '/images/Plaza Las Heroínas.png'
     }
   ],
   circuits: [
@@ -195,7 +195,7 @@ export const CULTURAL_DISTRICT_DATA = {
       name: 'Carolina Carrero',
       role: 'Guía de Patrimonio & Rutas Históricas',
       specialty: 'Rutas Turísticas Patrimoniales en el Centro Histórico de Mérida.',
-      avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80',
+      avatarUrl: '/images/carolina carrero.png',
       description: 'Especialista en arquitectura tradicional andina y anfitriona de paseos comentados por los rincones menos conocidos del casco colonial.'
     },
     {
@@ -203,7 +203,7 @@ export const CULTURAL_DISTRICT_DATA = {
       name: 'Samuel Hurtado',
       role: 'Historiador & Investigador',
       specialty: 'Estatuas, Monumentos y Plazas de Mérida.',
-      avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80',
+      avatarUrl: '/images/SAMUEL HURTADO.png',
       description: 'Investigador de la memoria escultórica, héroes patrios y personajes ilustres plasmados en el bronce y la piedra de la ciudad.'
     },
     {
@@ -211,7 +211,7 @@ export const CULTURAL_DISTRICT_DATA = {
       name: 'José Luis Chacón',
       role: 'Curador & Gestor de Arte',
       specialty: 'Patrimonio artístico, arquitectura contemporánea, arte público y distritos creativos.',
-      avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&auto=format&fit=crop&q=80',
+      avatarUrl: '/images/JOSÉ LUIS CHACÓN.png',
       description: 'Enfocado en las intervenciones de arte urbano, galerías emergentes y articulación de distritos culturales de innovación.'
     },
     {
@@ -219,7 +219,7 @@ export const CULTURAL_DISTRICT_DATA = {
       name: 'Bernardo Moncada',
       role: 'Arquitecto & Docente ULA',
       specialty: 'Visitas guiadas especializadas a la Catedral Basílica Menor de Mérida.',
-      avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
+      avatarUrl: '/images/BERNARDO MONCADA.png',
       description: 'Arquitecto y humanista. Conduce recorridos de interpretación estética, estructural y sacra en la Catedral Metropolitana.'
     }
   ],
