@@ -1345,7 +1345,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
         monto_inscripcion: tierInfo.inscriptionUsd || 30,
         monto_cuota_mensual: tierInfo.monthlyUsd || 10,
         fecha_registro: new Date().toISOString(),
-        observaciones: `Registro Web Público. Ref: ${regData.referenceNumber} (${regData.issuingBank || 'Banco Provincial'}). Tel. Pagador: ${regData.payerPhone || regData.phone}. Descripción: ${regData.specialty || ''}. Monto Bs: ${regData.amountPaidBs || ''}`
+        observaciones: regData.specialty ? `${regData.specialty}. Establecimiento afiliado a la Cámara Gastronómica del Estado Mérida.` : 'Establecimiento gastronómico afiliado a la Cámara Gastronómica del Estado Mérida.'
       };
 
       try {

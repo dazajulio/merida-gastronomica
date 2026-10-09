@@ -76,15 +76,36 @@ export function convertAgremiadoToRestaurant(m) {
   const lng = parseFloat(m.longitud || m.longitude || m.lng || m.coordinates?.lng) || -71.1437;
   const alt = parseInt(m.altitud || m.altitude || m.alt || m.coordinates?.alt, 10) || 1620;
 
+  // Sanitizar descripción pública para que JAMÁS exponga comprobantes bancarios, referencias o teléfonos de pagadores
+  const cleanCategory = m.categoria_negocio || 'Gastronomía Andina';
+  const cleanMunicipio = m.municipio || 'Mérida, Venezuela';
+  
+  let publicDescription = `Establecimiento formal de ${cleanCategory} ubicado en ${cleanMunicipio}, comprometido con la hospitalidad y la excelencia de la gastronomía andina.`;
+  let publicTagline = `${cleanCategory} • Miembro Oficial Cámara Gastronómica`;
+
+  if (m.observaciones && typeof m.observaciones === 'string') {
+    const raw = m.observaciones.trim();
+    if (raw.includes('Ref:') || raw.includes('Tel. Pagador') || raw.includes('Monto Bs') || raw.includes('Registro Web') || raw.includes('Pago Móvil')) {
+      const match = raw.match(/Descripción:\s*([^.]+)/i) || raw.match(/Especialidad:\s*([^.]+)/i);
+      if (match && match[1] && match[1].trim().length > 3) {
+        publicDescription = `${match[1].trim()}. Establecimiento miembro de la Cámara Gastronómica del Estado Mérida.`;
+        publicTagline = match[1].trim();
+      }
+    } else if (raw.length > 5) {
+      publicDescription = raw;
+      publicTagline = raw;
+    }
+  }
+
   return {
     id: m.codigo_afiliado ? `cgm-${m.codigo_afiliado.toLowerCase().replace(/[^a-z0-9]/g, '-')}` : `cgm-${m.id || Math.random()}`,
     codigo_afiliado: m.codigo_afiliado,
     name: m.nombre_establecimiento,
     slug: slug || `miembro-${m.codigo_afiliado || m.id}`,
-    tagline: m.observaciones || `${m.categoria_negocio} • Miembro Oficial Cámara Gastronómica`,
+    tagline: publicTagline,
     eje,
     ejeName,
-    category: m.categoria_negocio || 'Gastronomía Andina',
+    category: cleanCategory,
     rating: 5.0,
     reviewsCount: 1,
     priceTier: "$$",
@@ -92,7 +113,7 @@ export function convertAgremiadoToRestaurant(m) {
     coordinates: { lat, lng, alt },
     latitude: lat,
     longitude: lng,
-    location: m.direccion_completa ? `${m.direccion_completa}${m.municipio ? `, ${m.municipio}` : ''}` : (m.municipio || 'Mérida, Venezuela'),
+    location: m.direccion_completa ? `${m.direccion_completa}${m.municipio ? `, ${m.municipio}` : ''}` : cleanMunicipio,
     chef: m.representante_legal || 'Equipo Gastronómico',
     chefBio: `Establecimiento oficial de la Cámara Gastronómica del Estado Mérida bajo la representación de ${m.representante_legal || 'la gerencia'}.`,
     phone: m.telefono || '',
@@ -107,7 +128,7 @@ export function convertAgremiadoToRestaurant(m) {
     badge: m.destacado_portada ? '⭐ Joya Destacada de Portada' : (isSolvente ? 'Miembro Oficial Solvente 2026' : 'En Verificación'),
     coverImage: defaultCover,
     gallery,
-    description: m.observaciones || `Establecimiento formal de ${m.categoria_negocio} ubicado en ${m.municipio || 'Mérida'}, comprometido con la hospitalidad y la excelencia de la gastronomía andina.`,
+    description: publicDescription,
     signatureDishes: [
       {
         name: `Especialidad de la Casa - ${m.categoria_negocio}`,
