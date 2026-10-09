@@ -71,32 +71,35 @@ export function App() {
   // Live Synchronized Restaurants State (Includes Supabase Directory Agremiados & Custom Edits)
   const [restaurants, setRestaurants] = useState(() => {
     try {
-      const saved = localStorage.getItem('cgem_custom_restaurants');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-      const localDir = localStorage.getItem('cgem_directorio_agremiados');
-      if (localDir) {
-        const dirList = JSON.parse(localDir);
-        if (Array.isArray(dirList) && dirList.length > 0) {
-          const map = new Map();
-          RESTAURANTS_DATA.forEach(r => map.set(r.id, r));
-          dirList.forEach(m => {
-            const conv = convertAgremiadoToRestaurant(m);
-            map.set(conv.id, conv);
-          });
-          return Array.from(map.values());
+      if (typeof localStorage !== 'undefined') {
+        const localDir = localStorage.getItem('cgem_directorio_agremiados');
+        if (localDir) {
+          const dirList = JSON.parse(localDir);
+          if (Array.isArray(dirList) && dirList.length > 0) {
+            const hiddenNames = new Set(
+              dirList
+                .filter(m => m.visible_en_guia === false)
+                .map(m => (m.nombre_establecimiento || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim())
+            );
+            const list = [];
+            const seen = new Set();
+            RESTAURANTS_DATA.forEach(r => {
+              const norm = (r.name || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+              if (!hiddenNames.has(norm)) {
+                list.push(r);
+                seen.add(norm);
+              }
+            });
+            dirList.forEach(m => {
+              if (m.visible_en_guia === false) return;
+              const norm = (m.nombre_establecimiento || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+              if (seen.has(norm)) return;
+              list.push(convertAgremiadoToRestaurant(m));
+              seen.add(norm);
+            });
+            if (list.length > 0) return list;
+          }
         }
-      }
-      const myProfile = localStorage.getItem('cgem_my_business_profile');
-      if (myProfile) {
-        const myObj = JSON.parse(myProfile);
-        const exists = RESTAURANTS_DATA.some(r => r.id === myObj.id);
-        if (exists) {
-          return RESTAURANTS_DATA.map(r => r.id === myObj.id ? { ...r, ...myObj } : r);
-        }
-        return [myObj, ...RESTAURANTS_DATA];
       }
     } catch (e) {}
     return RESTAURANTS_DATA;

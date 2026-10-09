@@ -151,8 +151,21 @@ export function convertAgremiadoToRestaurant(m) {
 }
 
 /**
+ * Normaliza un nombre para deduplicación insensible a mayúsculas y acentos
+ */
+export function normalizeEstablishmentName(name) {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
+}
+
+/**
  * Consulta los agremiados en Supabase y localStorage
- * y genera la lista sincronizada para la Guía Oficial
+ * y genera la lista sincronizada para la Guía Oficial y el Mapa 3D.
+ * Garantiza cero duplicados y respeto estricto a visible_en_guia === false.
  */
 export async function fetchLiveRestaurants() {
   let directoryMembers = [];
@@ -173,59 +186,114 @@ export async function fetchLiveRestaurants() {
     }
   }
 
-  // 2. Fallback a localStorage si Supabase retornó vacío
-  if (directoryMembers.length === 0 && typeof localStorage !== 'undefined') {
+  // 2. Fallback / Sincronización con localStorage
+  if (typeof localStorage !== 'undefined') {
     try {
       const localDir = localStorage.getItem('cgem_directorio_agremiados');
       if (localDir) {
-        directoryMembers = JSON.parse(localDir);
-      }
-    } catch (e) {}
-  }
-
-  // 3. Fusionar datos
-  const baseMap = new Map();
-  RESTAURANTS_DATA.forEach(r => baseMap.set(r.id, r));
-
-  // Aplicar perfil personalizado en localStorage de Kaffia
-  if (typeof localStorage !== 'undefined') {
-    try {
-      const myProfile = localStorage.getItem('cgem_my_business_profile');
-      if (myProfile) {
-        const parsed = JSON.parse(myProfile);
-        if (parsed && parsed.id) {
-          baseMap.set(parsed.id, { ...baseMap.get(parsed.id), ...parsed });
+        const parsed = JSON.parse(localDir);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (directoryMembers.length === 0) {
+            directoryMembers = parsed;
+          } else {
+            // Sincronizar overrides de visibilidad locales recientes si existen
+            const localMap = new Map(parsed.map(p => [p.id || p.codigo_afiliado, p]));
+            directoryMembers = directoryMembers.map(m => {
+              const localMatch = localMap.get(m.id) || localMap.get(m.codigo_afiliado);
+              if (localMatch && typeof localMatch.visible_en_guia === 'boolean') {
+                return { ...m, visible_en_guia: localMatch.visible_en_guia };
+              }
+              return m;
+            });
+          }
         }
       }
     } catch (e) {}
   }
 
-  // Convertir y agregar miembros del directorio
+  // 3. Obtener perfil enriquecido guardado localmente si existe
+  let localBizProfile = null;
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const p = localStorage.getItem('cgem_my_business_profile');
+      if (p) localBizProfile = JSON.parse(p);
+    } catch (e) {}
+  }
+
+  const resultList = [];
+  const hiddenNormalizedNames = new Set();
+  const hiddenCodes = new Set();
+  const processedCodes = new Set();
+  const processedNames = new Set();
+
+  // Paso A: Registrar todos los que están explícitamente OCULTOS por administración (visible_en_guia === false)
   directoryMembers.forEach(m => {
-    // Control Editorial: Si el administrador lo marcó explícitamente como oculto (visible_en_guia === false), NO se publica en la guía
+    if (m.visible_en_guia === false) {
+      if (m.codigo_afiliado) hiddenCodes.add(m.codigo_afiliado.toLowerCase().trim());
+      if (m.nombre_establecimiento) hiddenNormalizedNames.add(normalizeEstablishmentName(m.nombre_establecimiento));
+    }
+  });
+
+  // Paso B: Cargar base inicial RESTAURANTS_DATA (Kaffia)
+  RESTAURANTS_DATA.forEach(r => {
+    const normName = normalizeEstablishmentName(r.name);
+    const code = (r.certificateNumber || '').toLowerCase().trim();
+
+    // Si la administración lo marcó como oculto, omitir
+    if (hiddenNormalizedNames.has(normName) || (code && hiddenCodes.has(code))) {
+      return;
+    }
+
+    let finalObj = { ...r };
+    if (localBizProfile && (localBizProfile.id === r.id || normalizeEstablishmentName(localBizProfile.name) === normName)) {
+      finalObj = { ...finalObj, ...localBizProfile };
+    }
+
+    resultList.push(finalObj);
+    processedNames.add(normName);
+    if (code) processedCodes.add(code);
+  });
+
+  // Paso C: Procesar y agregar miembros del Directorio de Agremiados
+  directoryMembers.forEach(m => {
+    // Si está marcado como oculto en web por la junta directiva, JAMÁS mostrar
     if (m.visible_en_guia === false) {
       return;
     }
 
-    // Si es Kaffia, actualizar el existente
-    if (m.codigo_afiliado === 'CGM-2026-001' || (m.nombre_establecimiento && m.nombre_establecimiento.toLowerCase().includes('kaffia'))) {
-      const existing = baseMap.get('rest-kaffia');
-      if (existing) {
-        baseMap.set('rest-kaffia', {
-          ...existing,
-          name: m.nombre_establecimiento || existing.name,
-          category: m.categoria_negocio || existing.category,
-          phone: m.telefono || existing.phone,
-          location: m.direccion_completa || existing.location,
-          isCertifiedByCamara: (m.estado_solvencia || '').toLowerCase().includes('solvente') || (m.estado_solvencia || '').toLowerCase().includes('activo')
-        });
-      }
+    const normName = normalizeEstablishmentName(m.nombre_establecimiento);
+    const code = (m.codigo_afiliado || '').toLowerCase().trim();
+
+    // Si coincide con un miembro oculto, omitir
+    if (hiddenNormalizedNames.has(normName) || (code && hiddenCodes.has(code))) {
+      return;
+    }
+
+    // Si ya fue procesado (por ejemplo Kaffia de RESTAURANTS_DATA o registro duplicado), omitir para evitar duplicados
+    if (processedNames.has(normName) || (code && processedCodes.has(code))) {
       return;
     }
 
     const converted = convertAgremiadoToRestaurant(m);
-    baseMap.set(converted.id, converted);
+
+    // Si el usuario tiene una ficha enriquecida guardada en local storage para este negocio, fusionarla
+    if (localBizProfile && (
+      localBizProfile.id === converted.id ||
+      normalizeEstablishmentName(localBizProfile.name) === normName ||
+      (localBizProfile.certificateNumber && localBizProfile.certificateNumber.toLowerCase().trim() === code)
+    )) {
+      Object.assign(converted, {
+        ...localBizProfile,
+        id: converted.id,
+        isCertifiedByCamara: converted.isCertifiedByCamara,
+        badge: converted.badge
+      });
+    }
+
+    resultList.push(converted);
+    processedNames.add(normName);
+    if (code) processedCodes.add(code);
   });
 
-  return Array.from(baseMap.values());
+  return resultList;
 }
