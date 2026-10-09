@@ -656,9 +656,9 @@ export function BoardAdminPortal({ t, onNavigate }) {
   }, [officialCourses]);
 
   const DEFAULT_COURSE_PRICE_TIERS = [
-    { id: 'tier-cgm', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código de Afiliado)' },
-    { id: 'tier-est', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: 'Tarifa preferencial para estudiantes con carnet' },
-    { id: 'tier-gen', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción General y Certificación' }
+    { id: 'tier-cgm', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: '' },
+    { id: 'tier-est', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: '' },
+    { id: 'tier-gen', name: 'Público General', priceUSD: 35, isFree: false, note: '' }
   ];
 
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
@@ -1139,9 +1139,9 @@ export function BoardAdminPortal({ t, onNavigate }) {
       badge: 'Certificación Oficial 2026',
       accessType: 'mixed', // 'free' | 'paid' | 'mixed'
       priceTiers: [
-        { id: 'tier-cgm', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código CGM)' },
-        { id: 'tier-est', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: 'Tarifa preferencial para estudiantes con carnet' },
-        { id: 'tier-gen', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción y Certificado General' }
+        { id: 'tier-cgm', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: '' },
+        { id: 'tier-est', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: '' },
+        { id: 'tier-gen', name: 'Público General', priceUSD: 35, isFree: false, note: '' }
       ],
       ticketPrice: 'Miembros CGM: Gratis • General: $35 USD • Estudiantes: $15 USD',
       isPagoMovilEnabled: true,
@@ -1185,16 +1185,16 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
     if (!Array.isArray(existingTiers) || existingTiers.length === 0) {
       if (currentAccessType === 'free') {
-        existingTiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Taller 100% gratuito para todo público y agremiados' }];
+        existingTiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: '' }];
       } else if (currentAccessType === 'mixed') {
         existingTiers = [
-          { id: 'tier-cgm', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código de Afiliado)' },
-          { id: 'tier-est', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: 'Tarifa preferencial para estudiantes' },
-          { id: 'tier-gen', name: 'Público General', priceUSD: parseFloat(course.priceGeneralUSD) || 35, isFree: false, note: 'Inscripción y Certificado General' }
+          { id: 'tier-cgm', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: '' },
+          { id: 'tier-est', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: '' },
+          { id: 'tier-gen', name: 'Público General', priceUSD: parseFloat(course.priceGeneralUSD) || 35, isFree: false, note: '' }
         ];
       } else {
         existingTiers = [
-          { id: 'tier-gen', name: 'Público General', priceUSD: parseFloat(course.priceGeneralUSD) || 35, isFree: false, note: 'Inscripción General' }
+          { id: 'tier-gen', name: 'Público General', priceUSD: parseFloat(course.priceGeneralUSD) || 35, isFree: false, note: '' }
         ];
       }
     }
@@ -1265,7 +1265,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       setCourseFormData(prev => ({
         ...prev,
         accessType: 'free',
-        priceTiers: [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Taller 100% gratuito para todo público y agremiados' }],
+        priceTiers: [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: '' }],
         ticketPrice: 'Entrada Totalmente Libre / Gratuita'
       }));
     } else if (selectedType === 'paid') {
@@ -1276,14 +1276,14 @@ export function BoardAdminPortal({ t, onNavigate }) {
           ...t,
           isFree: false,
           priceUSD: (t.priceUSD && t.priceUSD > 0) ? t.priceUSD : 25,
-          note: t.name.toLowerCase().includes('miembro') ? 'Tarifa Especial para Afiliados CGM' : t.note
+          note: t.note || ''
         }));
 
       if (paidTiers.length === 0) {
         paidTiers = [
-          { id: 'tier-gen', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción y Certificación' },
-          { id: 'tier-est', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: 'Tarifa preferencial para estudiantes' },
-          { id: 'tier-cgm-paid', name: 'Miembros CGM (Tarifa Preferencial)', priceUSD: 20, isFree: false, note: 'Tarifa reducida para afiliados' }
+          { id: 'tier-gen', name: 'Público General', priceUSD: 35, isFree: false, note: '' },
+          { id: 'tier-est', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: '' },
+          { id: 'tier-cgm-paid', name: 'Miembros CGM (Tarifa Preferencial)', priceUSD: 20, isFree: false, note: '' }
         ];
       }
 
@@ -1303,7 +1303,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
           name: 'Miembros Solventes CGM',
           priceUSD: 0,
           isFree: true,
-          note: 'Acceso Gremial Gratuito (Requiere Código de Afiliado)'
+          note: ''
         });
       }
       
@@ -1315,9 +1315,9 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
       if (mixedTiers.length < 2) {
         mixedTiers = [
-          { id: 'tier-cgm-free', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código de Afiliado)' },
-          { id: 'tier-est', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: 'Tarifa preferencial para estudiantes' },
-          { id: 'tier-gen', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción General y Certificado' }
+          { id: 'tier-cgm-free', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: '' },
+          { id: 'tier-est', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: '' },
+          { id: 'tier-gen', name: 'Público General', priceUSD: 35, isFree: false, note: '' }
         ];
       }
 
@@ -1377,7 +1377,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
         ...courseFormData,
         accessType: 'paid',
         priceTiers: [
-          { id: 'tier-c-1', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción y Certificación General' }
+          { id: 'tier-c-1', name: 'Público General', priceUSD: 35, isFree: false, note: '' }
         ]
       });
     } else if (presetType === 'paid_general_and_students') {
@@ -1385,8 +1385,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
         ...courseFormData,
         accessType: 'paid',
         priceTiers: [
-          { id: 'tier-c-1', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: 'Tarifa preferencial para estudiantes con carnet' },
-          { id: 'tier-c-2', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción y Certificación' }
+          { id: 'tier-c-1', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: '' },
+          { id: 'tier-c-2', name: 'Público General', priceUSD: 35, isFree: false, note: '' }
         ]
       });
     } else if (presetType === 'paid_full_no_free') {
@@ -1394,9 +1394,9 @@ export function BoardAdminPortal({ t, onNavigate }) {
         ...courseFormData,
         accessType: 'paid',
         priceTiers: [
-          { id: 'tier-c-1', name: 'Miembros CGM (Tarifa Preferencial)', priceUSD: 20, isFree: false, note: 'Tarifa reducida para afiliados solventes' },
-          { id: 'tier-c-2', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: 'Tarifa para estudiantes' },
-          { id: 'tier-c-3', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción General y Certificado' }
+          { id: 'tier-c-1', name: 'Miembros CGM (Tarifa Preferencial)', priceUSD: 20, isFree: false, note: '' },
+          { id: 'tier-c-2', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: '' },
+          { id: 'tier-c-3', name: 'Público General', priceUSD: 35, isFree: false, note: '' }
         ]
       });
     } else if (presetType === 'mixed_members_and_general') {
@@ -1404,8 +1404,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
         ...courseFormData,
         accessType: 'mixed',
         priceTiers: [
-          { id: 'tier-c-1', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código de Afiliado)' },
-          { id: 'tier-c-2', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción General y Certificado' }
+          { id: 'tier-c-1', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: '' },
+          { id: 'tier-c-2', name: 'Público General', priceUSD: 35, isFree: false, note: '' }
         ]
       });
     } else if (presetType === 'mixed_complete') {
@@ -1413,9 +1413,9 @@ export function BoardAdminPortal({ t, onNavigate }) {
         ...courseFormData,
         accessType: 'mixed',
         priceTiers: [
-          { id: 'tier-c-1', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código de Afiliado)' },
-          { id: 'tier-c-2', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: 'Tarifa preferencial para estudiantes' },
-          { id: 'tier-c-3', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción General y Certificado' }
+          { id: 'tier-c-1', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: '' },
+          { id: 'tier-c-2', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: '' },
+          { id: 'tier-c-3', name: 'Público General', priceUSD: 35, isFree: false, note: '' }
         ]
       });
     }
@@ -1468,9 +1468,9 @@ export function BoardAdminPortal({ t, onNavigate }) {
       badge: 'Evento Oficial 2026',
       accessType: 'mixed', // 'free' | 'paid' | 'mixed'
       priceTiers: [
-        { id: 'tier-cgm', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código CGM)' },
-        { id: 'tier-est', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: 'Tarifa preferencial para estudiantes' },
-        { id: 'tier-gen', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' }
+        { id: 'tier-cgm', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: '' },
+        { id: 'tier-est', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: '' },
+        { id: 'tier-gen', name: 'Público General', priceUSD: 10, isFree: false, note: '' }
       ],
       ticketPrice: 'Miembros CGM: Gratis • General: $10 USD • Estudiantes: $5 USD',
       isPagoMovilEnabled: true,
@@ -1505,15 +1505,15 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
     if (!Array.isArray(existingTiers) || existingTiers.length === 0) {
       if (currentAccessType === 'free') {
-        existingTiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Acceso gratuito para todo público y agremiados' }];
+        existingTiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: '' }];
       } else if (currentAccessType === 'mixed') {
         existingTiers = [
-          { id: 'tier-cgm', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito' },
-          { id: 'tier-gen', name: 'Público General', priceUSD: parseFloat(event.priceGeneralUSD) || parseFloat(event.priceUSD) || 10, isFree: false, note: 'Entrada General' }
+          { id: 'tier-cgm', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: '' },
+          { id: 'tier-gen', name: 'Público General', priceUSD: parseFloat(event.priceGeneralUSD) || parseFloat(event.priceUSD) || 10, isFree: false, note: '' }
         ];
       } else {
         existingTiers = [
-          { id: 'tier-gen', name: 'Público General', priceUSD: parseFloat(event.priceGeneralUSD) || parseFloat(event.priceUSD) || 10, isFree: false, note: 'Entrada General' }
+          { id: 'tier-gen', name: 'Público General', priceUSD: parseFloat(event.priceGeneralUSD) || parseFloat(event.priceUSD) || 10, isFree: false, note: '' }
         ];
       }
     }
@@ -1580,7 +1580,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       setPublicEventFormData(prev => ({
         ...prev,
         accessType: 'free',
-        priceTiers: [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Acceso 100% gratuito para todo público y miembros' }],
+        priceTiers: [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: '' }],
         ticketPrice: 'Entrada Totalmente Libre / Gratuita'
       }));
     } else if (selectedType === 'paid') {
@@ -1592,14 +1592,14 @@ export function BoardAdminPortal({ t, onNavigate }) {
           ...t,
           isFree: false,
           priceUSD: (t.priceUSD && t.priceUSD > 0) ? t.priceUSD : 10,
-          note: t.name.toLowerCase().includes('miembro') ? 'Tarifa Especial para Afiliados CGM' : t.note
+          note: t.note || ''
         }));
 
       if (paidTiers.length === 0) {
         paidTiers = [
-          { id: 'tier-gen', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' },
-          { id: 'tier-est', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: 'Tarifa preferencial para estudiantes' },
-          { id: 'tier-cgm-paid', name: 'Miembros CGM (Tarifa Reducida)', priceUSD: 8, isFree: false, note: 'Tarifa preferencial para agremiados' }
+          { id: 'tier-gen', name: 'Público General', priceUSD: 10, isFree: false, note: '' },
+          { id: 'tier-est', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: '' },
+          { id: 'tier-cgm-paid', name: 'Miembros CGM (Tarifa Reducida)', priceUSD: 8, isFree: false, note: '' }
         ];
       }
 
@@ -1620,7 +1620,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
           name: 'Miembros Solventes CGM',
           priceUSD: 0,
           isFree: true,
-          note: 'Acceso Gremial Gratuito (Requiere Código de Afiliado)'
+          note: ''
         });
       }
       
@@ -1632,9 +1632,9 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
       if (mixedTiers.length < 2) {
         mixedTiers = [
-          { id: 'tier-cgm-free', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código de Afiliado)' },
-          { id: 'tier-est', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: 'Tarifa preferencial para estudiantes' },
-          { id: 'tier-gen', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' }
+          { id: 'tier-cgm-free', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: '' },
+          { id: 'tier-est', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: '' },
+          { id: 'tier-gen', name: 'Público General', priceUSD: 10, isFree: false, note: '' }
         ];
       }
 
@@ -1695,7 +1695,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
         ...publicEventFormData,
         accessType: 'paid',
         priceTiers: [
-          { id: 'tier-1', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' }
+          { id: 'tier-1', name: 'Público General', priceUSD: 10, isFree: false, note: '' }
         ]
       });
     } else if (presetType === 'paid_general_and_students') {
@@ -1703,8 +1703,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
         ...publicEventFormData,
         accessType: 'paid',
         priceTiers: [
-          { id: 'tier-1', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: 'Tarifa preferencial para estudiantes' },
-          { id: 'tier-2', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' }
+          { id: 'tier-1', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: '' },
+          { id: 'tier-2', name: 'Público General', priceUSD: 10, isFree: false, note: '' }
         ]
       });
     } else if (presetType === 'paid_full_no_free') {
@@ -1712,10 +1712,10 @@ export function BoardAdminPortal({ t, onNavigate }) {
         ...publicEventFormData,
         accessType: 'paid',
         priceTiers: [
-          { id: 'tier-1', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: 'Tarifa preferencial para estudiantes' },
-          { id: 'tier-2', name: 'Afiliados CGM (Tarifa Preferencial)', priceUSD: 8, isFree: false, note: 'Descuento especial para miembros solventes' },
-          { id: 'tier-3', name: 'Público General', priceUSD: 12, isFree: false, note: 'Entrada General' },
-          { id: 'tier-4', name: 'Pase VIP / Masterclass', priceUSD: 25, isFree: false, note: 'Acceso a todas las catas + acreditación' }
+          { id: 'tier-1', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: '' },
+          { id: 'tier-2', name: 'Afiliados CGM (Tarifa Preferencial)', priceUSD: 8, isFree: false, note: '' },
+          { id: 'tier-3', name: 'Público General', priceUSD: 12, isFree: false, note: '' },
+          { id: 'tier-4', name: 'Pase VIP / Masterclass', priceUSD: 25, isFree: false, note: '' }
         ]
       });
     } else if (presetType === 'mixed_members_and_general') {
@@ -1723,8 +1723,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
         ...publicEventFormData,
         accessType: 'mixed',
         priceTiers: [
-          { id: 'tier-1', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Gratis con Código de Afiliado' },
-          { id: 'tier-2', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' }
+          { id: 'tier-1', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: '' },
+          { id: 'tier-2', name: 'Público General', priceUSD: 10, isFree: false, note: '' }
         ]
       });
     } else if (presetType === 'mixed_complete') {
@@ -1732,10 +1732,10 @@ export function BoardAdminPortal({ t, onNavigate }) {
         ...publicEventFormData,
         accessType: 'mixed',
         priceTiers: [
-          { id: 'tier-1', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código CGM)' },
-          { id: 'tier-2', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: 'Tarifa preferencial para estudiantes' },
-          { id: 'tier-3', name: 'Público General', priceUSD: 10, isFree: false, note: 'Entrada General' },
-          { id: 'tier-4', name: 'Pase VIP / Masterclass', priceUSD: 25, isFree: false, note: 'Acceso a todas las catas + acreditación' }
+          { id: 'tier-1', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: '' },
+          { id: 'tier-2', name: 'Estudiantes (con carnet)', priceUSD: 5, isFree: false, note: '' },
+          { id: 'tier-3', name: 'Público General', priceUSD: 10, isFree: false, note: '' },
+          { id: 'tier-4', name: 'Pase VIP / Masterclass', priceUSD: 25, isFree: false, note: '' }
         ]
       });
     }
@@ -1751,7 +1751,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
     
     if (currentAccessType === 'free') {
       generatedTicketText = 'Entrada Totalmente Libre / Gratuita';
-      tiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Acceso 100% gratuito para todo público y miembros' }];
+      tiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: '' }];
     } else if (currentAccessType === 'paid') {
       // Guarantee all tiers are paid
       tiers = tiers.map(t => ({
@@ -5681,6 +5681,20 @@ export function BoardAdminPortal({ t, onNavigate }) {
                                   </label>
                                 </div>
                               )}
+
+                              {/* Optional Subtitle / Note */}
+                              <div className="sm:col-span-12 mt-1">
+                                <label className="block text-[9px] uppercase font-bold text-slate-400 mb-0.5">
+                                  Subtítulo / Leyenda Opcional (dejar en blanco si no aplica)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={tier.note || ''}
+                                  onChange={(e) => handleUpdateCoursePriceTier(tier.id, 'note', e.target.value)}
+                                  placeholder="Ej: Requiere carnet vigente / Incluye certificado digital / Cupo limitado..."
+                                  className="w-full px-3 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-sky-400"
+                                />
+                              </div>
                             </div>
 
                             {/* Delete Button */}
@@ -6226,6 +6240,20 @@ export function BoardAdminPortal({ t, onNavigate }) {
                                   </label>
                                 </div>
                               )}
+
+                              {/* Optional Subtitle / Note */}
+                              <div className="sm:col-span-12 mt-1">
+                                <label className="block text-[9px] uppercase font-bold text-slate-400 mb-0.5">
+                                  Subtítulo / Leyenda Opcional (dejar en blanco si no aplica)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={tier.note || ''}
+                                  onChange={(e) => handleUpdatePriceTier(tier.id, 'note', e.target.value)}
+                                  placeholder="Ej: Incluye copa de degustación / Acceso a zona VIP / Requiere carnet..."
+                                  className="w-full px-3 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-amber-400"
+                                />
+                              </div>
                             </div>
 
                             {/* Delete Button */}

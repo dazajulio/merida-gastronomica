@@ -94,7 +94,7 @@ export function EventsCalendar({ t }) {
         // Strict paid: NEVER show a free tier
         validTiers = event.priceTiers.filter(t => !t.isFree && t.priceUSD > 0);
       } else if (currentAccessType === 'free') {
-        validTiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Acceso 100% gratuito' }];
+        validTiers = event.priceTiers.length > 0 ? event.priceTiers : [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: '' }];
       } else {
         // Mixed: allows both
         validTiers = event.priceTiers;
@@ -111,7 +111,7 @@ export function EventsCalendar({ t }) {
         name: isFree ? 'Entrada Libre' : 'Público General',
         priceUSD: isFree ? 0 : (event.priceGeneralUSD || event.priceUSD || 10),
         isFree: isFree,
-        note: isFree ? 'Acceso 100% gratuito' : 'Entrada general'
+        note: ''
       });
     }
 
@@ -431,7 +431,7 @@ export function EventsCalendar({ t }) {
                               {tier.isFree ? 'GRATIS' : `$${tier.priceUSD} USD`}
                             </span>
                           </div>
-                          {tier.note && (
+                          {tier.note && tier.note.trim() !== '' && (
                             <p className="text-[11px] text-slate-500 line-clamp-1">
                               {tier.note}
                             </p>

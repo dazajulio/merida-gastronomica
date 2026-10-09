@@ -96,7 +96,7 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
       if (currentAccessType === 'paid') {
         validTiers = course.priceTiers.filter(t => !t.isFree && t.priceUSD > 0);
       } else if (currentAccessType === 'free') {
-        validTiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Taller 100% gratuito' }];
+        validTiers = course.priceTiers.length > 0 ? course.priceTiers : [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: '' }];
       } else {
         validTiers = course.priceTiers;
       }
@@ -109,9 +109,9 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
       setSelectedCourseTier({
         id: isFree ? 'tier-legacy-free' : 'tier-legacy-mixed',
         name: isFree ? 'Entrada Libre' : 'Miembros Solventes CGM',
-        priceUSD: isFree ? 0 : 0,
-        isFree: isFree || true,
-        note: isFree ? 'Taller 100% gratuito' : 'Acceso gratuito para miembros solventes'
+        priceUSD: 0,
+        isFree: true,
+        note: ''
       });
     }
 
@@ -405,7 +405,7 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
                                   >
                                     <div className="pr-2">
                                       <span className="font-bold block text-[11px] leading-tight">{t.name}</span>
-                                      {t.note && (
+                                      {t.note && t.note.trim() !== '' && (
                                         <span className="text-[9.5px] text-slate-500 block leading-tight mt-0.5">{t.note}</span>
                                       )}
                                     </div>
@@ -711,7 +711,7 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
                 if (currentAccessType === 'paid') {
                   availableTiers = selectedCourseForEnroll.priceTiers.filter(t => !t.isFree && t.priceUSD > 0);
                 } else if (currentAccessType === 'free') {
-                  availableTiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Taller 100% gratuito para todos' }];
+                  availableTiers = selectedCourseForEnroll.priceTiers.length > 0 ? selectedCourseForEnroll.priceTiers : [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: '' }];
                 } else {
                   availableTiers = selectedCourseForEnroll.priceTiers;
                 }
@@ -725,14 +725,14 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
                     name: isFree ? 'Entrada Libre' : 'Miembros Solventes CGM',
                     priceUSD: 0,
                     isFree: true,
-                    note: isFree ? 'Taller 100% gratuito' : 'Acceso Gremial Gratuito (Requiere Código CGM)'
+                    note: ''
                   },
                   {
                     id: 'tier-gen',
                     name: 'Público General',
                     priceUSD: selectedCourseForEnroll.priceGeneralUSD || 35,
                     isFree: false,
-                    note: 'Inscripción y Certificado General'
+                    note: ''
                   }
                 ];
               }
@@ -770,7 +770,7 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
                               {tier.isFree ? 'GRATIS' : `$${tier.priceUSD} USD`}
                             </span>
                           </div>
-                          {tier.note && (
+                          {tier.note && tier.note.trim() !== '' && (
                             <p className="text-[11px] text-slate-500 line-clamp-1">
                               {tier.note}
                             </p>
