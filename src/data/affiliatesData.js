@@ -103,7 +103,7 @@ export const AFFILIATES_DATA = {
   guildBenefits: [
     "Presencia en la Guía Gastronómica y Mapa 3D de www.meridagastronomica.com",
     "Postulación al Sello de Calidad 'Mérida Gastronómica'",
-    "Integración al Ecosistema Tecnológico Comercial (Glubbi) www.glubii.app",
+    "Integración al Ecosistema Tecnológico Comercial (Glubbi) www.glubbi.app",
     "Acceso al Centro de Recursos Jurídicos y Operativos",
     "Bolsa de Empleo Especializada (Convenio ULA y Hotel Escuela)",
     "Portal Privado de Autogestión de Agremiados (Solvencias y Certificados)",

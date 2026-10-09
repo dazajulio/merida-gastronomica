@@ -280,7 +280,7 @@ export async function sendAffiliateWelcomeEmail({
         <tr>
           <td style="padding: 8px 0; vertical-align: top; width: 24px; color: #ea580c; font-weight: bold;">✓</td>
           <td style="padding: 8px 0; vertical-align: top; color: #334155;">
-            <strong>Integración al Ecosistema Tecnológico Comercial (Glubbi):</strong> Digitalización y delivery predictivo con IA en <a href="https://www.glubii.app" target="_blank" style="color: #c2410c; text-decoration: underline; font-weight: 600;">www.glubii.app</a>.
+            <strong>Integración al Ecosistema Tecnológico Comercial (Glubbi):</strong> Digitalización y delivery predictivo con IA en <a href="https://www.glubbi.app" target="_blank" style="color: #c2410c; text-decoration: underline; font-weight: 600;">www.glubbi.app</a>.
           </td>
         </tr>
         <tr>
