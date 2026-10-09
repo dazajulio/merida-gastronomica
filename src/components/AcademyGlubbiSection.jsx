@@ -19,7 +19,12 @@ import {
   Clock,
   Layers,
   BookOpen,
-  CalendarDays
+  CalendarDays,
+  Maximize2,
+  AlertCircle,
+  Tag,
+  Info,
+  Ticket
 } from 'lucide-react';
 import { ACADEMY_DATA } from '../data/academyData';
 import { fetchLiveCourses, saveCourseEnrollmentToSupabase } from '../lib/eventsCoursesSync';
@@ -29,6 +34,7 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
   const [expoModalOpen, setExpoModalOpen] = useState(false);
   const [expoSuccess, setExpoSuccess] = useState(false);
   const [glubbiDemoActive, setGlubbiDemoActive] = useState(false);
+  const [flyerPreviewCourse, setFlyerPreviewCourse] = useState(null);
 
   // Official courses from Presidencia (Supabase Cloud + localStorage fallback)
   const [officialCourses, setOfficialCourses] = useState(() => {
@@ -70,24 +76,51 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
 
   // Course Enrollment Modal State
   const [selectedCourseForEnroll, setSelectedCourseForEnroll] = useState(null);
+  const [selectedCourseTier, setSelectedCourseTier] = useState(null);
   const [courseEnrollSuccess, setCourseEnrollSuccess] = useState(false);
-  const [enrollAttendeeType, setEnrollAttendeeType] = useState('afiliado'); // 'afiliado' | 'publico'
   const [enrollFullName, setEnrollFullName] = useState('');
   const [enrollEmail, setEnrollEmail] = useState('');
   const [enrollPhone, setEnrollPhone] = useState('');
   const [enrollAffiliateCode, setEnrollAffiliateCode] = useState('');
   const [enrollPaymentRef, setEnrollPaymentRef] = useState('');
-  const [enrollPaymentBank, setEnrollPaymentBank] = useState('Provincial');
+  const [enrollPaymentBank, setEnrollPaymentBank] = useState('0108 - Banco Provincial');
 
   const handleOpenEnrollCourse = (course) => {
     setSelectedCourseForEnroll(course);
-    setEnrollAttendeeType('afiliado');
+    
+    // Determine available tiers based on accessType ('free' | 'paid' | 'mixed')
+    const currentAccessType = course.accessType || (course.ticketPrice?.toLowerCase().includes('libre') ? 'free' : 'mixed');
+    
+    let validTiers = [];
+    if (Array.isArray(course.priceTiers) && course.priceTiers.length > 0) {
+      if (currentAccessType === 'paid') {
+        validTiers = course.priceTiers.filter(t => !t.isFree && t.priceUSD > 0);
+      } else if (currentAccessType === 'free') {
+        validTiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Taller 100% gratuito' }];
+      } else {
+        validTiers = course.priceTiers;
+      }
+    }
+
+    if (validTiers.length > 0) {
+      setSelectedCourseTier(validTiers[0]);
+    } else {
+      const isFree = currentAccessType === 'free';
+      setSelectedCourseTier({
+        id: isFree ? 'tier-legacy-free' : 'tier-legacy-mixed',
+        name: isFree ? 'Entrada Libre' : 'Miembros Solventes CGM',
+        priceUSD: isFree ? 0 : 0,
+        isFree: isFree || true,
+        note: isFree ? 'Taller 100% gratuito' : 'Acceso gratuito para miembros solventes'
+      });
+    }
+
     setEnrollFullName('');
     setEnrollEmail('');
     setEnrollPhone('');
     setEnrollAffiliateCode('');
     setEnrollPaymentRef('');
-    setEnrollPaymentBank('Provincial');
+    setEnrollPaymentBank('0108 - Banco Provincial');
     setCourseEnrollSuccess(false);
   };
 
@@ -95,27 +128,35 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
     e.preventDefault();
     setCourseEnrollSuccess(true);
 
-    // Guardar en Supabase Cloud
+    const isFreeTier = selectedCourseTier ? !!selectedCourseTier.isFree : (selectedCourseForEnroll?.accessType === 'free');
+    const tierName = selectedCourseTier ? selectedCourseTier.name : 'Inscripción General';
+    const tierPrice = selectedCourseTier ? (selectedCourseTier.isFree ? 0 : selectedCourseTier.priceUSD) : (selectedCourseForEnroll?.priceGeneralUSD || 0);
+
+    // Guardar en Supabase Cloud y respaldo
     saveCourseEnrollmentToSupabase({
       courseId: selectedCourseForEnroll?.id,
       courseTitle: selectedCourseForEnroll?.title,
-      attendeeType: enrollAttendeeType,
+      tierId: selectedCourseTier?.id || 'tier-general',
+      tierName,
+      tierPriceUSD: tierPrice,
+      isFree: isFreeTier,
+      attendeeType: isFreeTier ? 'afiliado' : 'publico',
       fullName: enrollFullName,
       email: enrollEmail,
       phone: enrollPhone,
-      affiliateCode: enrollAffiliateCode,
-      paymentRef: enrollPaymentRef,
-      paymentBank: enrollPaymentBank,
-      status: enrollAttendeeType === 'afiliado' ? 'confirmado' : 'pendiente_conciliacion'
+      affiliateCode: isFreeTier && (tierName.toLowerCase().includes('miembro') || tierName.toLowerCase().includes('afiliado')) ? enrollAffiliateCode : '',
+      paymentRef: !isFreeTier ? enrollPaymentRef : '',
+      paymentBank: !isFreeTier ? enrollPaymentBank : '',
+      status: isFreeTier ? 'confirmado' : 'pendiente_conciliacion'
     });
 
     setTimeout(() => {
       setCourseEnrollSuccess(false);
       setSelectedCourseForEnroll(null);
-      if (enrollAttendeeType === 'afiliado') {
-        alert(`¡Inscripción Confirmada! Como Miembro Solvente de la Cámara Gastronómica, tu plaza gratuita para el curso "${selectedCourseForEnroll.title}" está garantizada. Te hemos enviado las credenciales de acceso al correo ${enrollEmail}.`);
+      if (isFreeTier) {
+        alert(`¡Inscripción Confirmada! Su plaza para el curso "${selectedCourseForEnroll.title}" está garantizada (${tierName}). Te hemos enviado los detalles al correo ${enrollEmail}.`);
       } else {
-        alert(`¡Registro en Proceso! Hemos recibido su comprobante de Pago Móvil Provincial (Ref: ${enrollPaymentRef}) para el curso "${selectedCourseForEnroll.title}". En breve recibirá su confirmación formal y ficha de estudio en ${enrollEmail}.`);
+        alert(`¡Registro en Proceso! Hemos recibido su comprobante de Pago Móvil Provincial (Ref: ${enrollPaymentRef}) para el curso "${selectedCourseForEnroll.title}". En breve recibirá su confirmación formal en ${enrollEmail}.`);
       }
     }, 1200);
   };
@@ -251,85 +292,170 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
-                {officialCourses.map((course) => (
-                  <div 
-                    key={course.id}
-                    className="bg-white rounded-3xl border border-slate-200 hover:border-sky-400 hover:shadow-card-hover transition-all flex flex-col justify-between overflow-hidden group"
-                  >
-                    <div>
-                      {course.image && (
-                        <div className="relative h-48 w-full overflow-hidden bg-slate-100">
-                          <img 
-                            src={course.image} 
-                            alt={course.title} 
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          />
-                          <div className="absolute top-3 left-3">
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-sky-600 text-white shadow-sm">
-                              {course.category}
-                            </span>
-                          </div>
-                          <div className="absolute top-3 right-3">
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/90 text-slate-900 shadow-sm">
-                              {course.hours}
-                            </span>
-                          </div>
-                        </div>
-                      )}
+                {officialCourses.map((course) => {
+                  const currentAccessType = course.accessType || (course.ticketPrice?.toLowerCase().includes('libre') ? 'free' : 'mixed');
+                  const tiers = Array.isArray(course.priceTiers) && course.priceTiers.length > 0 ? course.priceTiers : [];
+                  const lowestPaidTier = tiers.filter(t => !t.isFree && t.priceUSD > 0).sort((a, b) => a.priceUSD - b.priceUSD)[0];
+                  
+                  return (
+                    <div 
+                      key={course.id}
+                      className="bg-white rounded-3xl border border-slate-200 hover:border-sky-400 hover:shadow-card-hover transition-all flex flex-col justify-between overflow-hidden group"
+                    >
+                      <div>
+                        {course.image && (
+                          <div className="relative h-56 w-full overflow-hidden bg-slate-900">
+                            <img 
+                              src={course.image} 
+                              alt={course.title} 
+                              className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/30" />
 
-                      <div className="p-6 space-y-3">
-                        <h3 className="font-serif font-bold text-xl text-slate-900 group-hover:text-sky-700 transition-colors leading-snug">
-                          {course.title}
-                        </h3>
+                            <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 items-center">
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-sky-600 text-white shadow-sm">
+                                {course.category || 'Capacitación'}
+                              </span>
+                              {course.badge && (
+                                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950 shadow-sm">
+                                  {course.badge}
+                                </span>
+                              )}
+                            </div>
 
-                        <div className="space-y-1.5 text-xs text-slate-600">
-                          <div className="flex items-center gap-2">
-                            <Users className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                            <span>Instructor: <strong className="text-slate-800">{course.instructor || 'Facilitador CGEM'}</strong></span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <CalendarDays className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                            <span>Fechas: <strong>{course.dates}</strong> ({course.schedule})</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                            <span className="truncate">{course.isOnline ? 'Online / Aula Virtual ULA' : course.location}</span>
-                          </div>
-                        </div>
+                            <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setFlyerPreviewCourse(course)}
+                                className="p-1.5 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-xs transition-colors shadow-xs"
+                                title="Ver afiche completo"
+                              >
+                                <Maximize2 className="w-3.5 h-3.5" />
+                              </button>
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/90 text-slate-900 shadow-sm backdrop-blur-xs">
+                                {course.hours || '16 Horas'}
+                              </span>
+                            </div>
 
-                        <p className="text-xs text-slate-600 mt-2 line-clamp-3 leading-relaxed">
-                          {course.description}
-                        </p>
-
-                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                          <div>
-                            <span className="text-[10px] font-bold text-emerald-700 block">Miembros Solventes:</span>
-                            <span className="font-extrabold text-emerald-900">Gratis (100% Cubierto)</span>
+                            {/* Access Type Ribbon at Bottom of Image */}
+                            <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-[11px] font-bold text-white">
+                              <div className="flex items-center gap-1 text-amber-300 drop-shadow-sm">
+                                <CalendarDays className="w-3.5 h-3.5" />
+                                <span>{course.dates || 'Fechas 2026'}</span>
+                              </div>
+                              {currentAccessType === 'free' ? (
+                                <span className="px-2 py-0.5 rounded-md bg-emerald-500 text-white text-[10px] font-extrabold uppercase tracking-wide shadow-xs">
+                                  🆓 100% Gratuito
+                                </span>
+                              ) : currentAccessType === 'paid' ? (
+                                <span className="px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 text-[10px] font-extrabold uppercase tracking-wide shadow-xs">
+                                  🎟️ Arancel Pago
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-md bg-sky-500 text-white text-[10px] font-extrabold uppercase tracking-wide shadow-xs">
+                                  ⭐ Mixto (Gremio Gratis)
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <span className="text-[10px] font-bold text-slate-500 block">Público General:</span>
-                            <span className="font-extrabold text-slate-900">${course.priceGeneralUSD || 35} USD</span>
+                        )}
+
+                        <div className="p-6 space-y-3">
+                          <h3 className="font-serif font-bold text-xl text-slate-900 group-hover:text-sky-700 transition-colors leading-snug">
+                            {course.title}
+                          </h3>
+
+                          <div className="space-y-1.5 text-xs text-slate-600">
+                            <div className="flex items-center gap-2">
+                              <Users className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                              <span>Instructor: <strong className="text-slate-800">{course.instructor || 'Facilitador CGEM'}</strong></span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                              <span>Horario: <strong>{course.schedule || '09:00 AM - 01:00 PM'}</strong></span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span className="truncate">{course.isOnline ? 'Online / Aula Virtual ULA' : course.location}</span>
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-slate-600 mt-2 line-clamp-3 leading-relaxed">
+                            {course.description}
+                          </p>
+
+                          {/* Dynamic Pricing Badges & Tiers Box */}
+                          <div className="pt-3 border-t border-slate-100 space-y-2">
+                            {currentAccessType === 'free' ? (
+                              <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
+                                <span className="font-bold text-emerald-900">Entrada Libre / Sin Costo</span>
+                                <span className="font-mono font-extrabold text-emerald-700">GRATIS</span>
+                              </div>
+                            ) : currentAccessType === 'paid' ? (
+                              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between text-xs">
+                                <div>
+                                  <span className="text-[10px] uppercase font-bold text-amber-900 block">Matrícula General</span>
+                                  <span className="text-slate-700 text-[11px]">
+                                    {lowestPaidTier ? `Desde $${lowestPaidTier.priceUSD} USD` : `$${course.priceGeneralUSD || 35} USD`}
+                                  </span>
+                                </div>
+                                <span className="px-2 py-0.5 rounded-lg bg-amber-400 text-slate-950 font-black font-mono text-xs">
+                                  ${lowestPaidTier ? lowestPaidTier.priceUSD : (course.priceGeneralUSD || 35)} USD
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-200 space-y-1 text-xs">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-bold text-emerald-700">Miembros Solventes CGM:</span>
+                                  <span className="font-black text-emerald-800 font-mono text-[11px]">100% GRATIS</span>
+                                </div>
+                                <div className="flex items-center justify-between pt-0.5 border-t border-sky-200/60">
+                                  <span className="text-[10px] font-bold text-slate-600">Público / Estudiantes:</span>
+                                  <span className="font-black text-slate-900 font-mono text-[11px]">
+                                    ${lowestPaidTier ? lowestPaidTier.priceUSD : (course.priceGeneralUSD || 35)} USD
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Available Tiers Pills */}
+                            {tiers.length > 0 && (
+                              <div className="flex flex-wrap gap-1 pt-1">
+                                {tiers.map((t, idx) => (
+                                  <span 
+                                    key={t.id || idx}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                                      t.isFree 
+                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                                        : 'bg-slate-50 text-slate-700 border-slate-200'
+                                    }`}
+                                  >
+                                    {t.name}: {t.isFree ? 'Gratis' : `$${t.priceUSD} USD`}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
+
+                      <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3">
+                        <span className="text-[10px] text-slate-500 font-medium">
+                          Cupo: {course.spots || 25} plazas
+                        </span>
+
+                        <button
+                          onClick={() => handleOpenEnrollCourse(course)}
+                          className="py-2.5 px-5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-serif font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
+                        >
+                          <BookOpen className="w-3.5 h-3.5" />
+                          <span>Inscribirse</span>
+                        </button>
+                      </div>
+
                     </div>
-
-                    <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3">
-                      <span className="text-[10px] text-slate-500 font-medium">
-                        Cupo: {course.spots || 25} plazas
-                      </span>
-
-                      <button
-                        onClick={() => handleOpenEnrollCourse(course)}
-                        className="py-2.5 px-5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-serif font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
-                      >
-                        <BookOpen className="w-3.5 h-3.5" />
-                        <span>Inscribirse</span>
-                      </button>
-                    </div>
-
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -531,47 +657,118 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
             
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2 text-sky-700">
-                <BookOpen className="w-5 h-5" />
+                <GraduationCap className="w-5 h-5 text-sky-600" />
                 <h3 className="font-serif text-lg font-bold text-slate-900">Inscripción Oficial a Capacitación</h3>
               </div>
               <button 
                 onClick={() => setSelectedCourseForEnroll(null)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-500"
+                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div>
-              <h4 className="font-serif text-xl font-bold text-slate-900">{selectedCourseForEnroll.title}</h4>
-              <p className="text-xs text-sky-800 font-bold mt-1">{selectedCourseForEnroll.hours} — {selectedCourseForEnroll.dates} ({selectedCourseForEnroll.schedule})</p>
+            {/* Course Summary Header */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-sky-600 text-white">
+                  {selectedCourseForEnroll.category || 'Capacitación'}
+                </span>
+                {selectedCourseForEnroll.badge && (
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-400 text-slate-950">
+                    {selectedCourseForEnroll.badge}
+                  </span>
+                )}
+              </div>
+              <h4 className="font-serif text-lg font-bold text-slate-900 leading-snug">
+                {selectedCourseForEnroll.title}
+              </h4>
+              <p className="text-xs text-sky-800 font-semibold flex items-center gap-1.5 pt-0.5">
+                <CalendarDays className="w-3.5 h-3.5 text-amber-600" />
+                <span>{selectedCourseForEnroll.dates} &bull; {selectedCourseForEnroll.hours} ({selectedCourseForEnroll.schedule})</span>
+              </p>
             </div>
 
-            {/* Selector: Miembro Solvente (Gratis) vs Público General */}
-            <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => setEnrollAttendeeType('afiliado')}
-                className={`py-2 px-3 rounded-xl transition-all ${
-                  enrollAttendeeType === 'afiliado'
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Miembro Solvente CGM (Gratis)
-              </button>
-              <button
-                type="button"
-                onClick={() => setEnrollAttendeeType('publico')}
-                className={`py-2 px-3 rounded-xl transition-all ${
-                  enrollAttendeeType === 'publico'
-                    ? 'bg-sky-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Público (${selectedCourseForEnroll.priceGeneralUSD || 35} USD)
-              </button>
-            </div>
+            {/* Price Tier Selection Selector */}
+            {(() => {
+              const currentAccessType = selectedCourseForEnroll.accessType || (selectedCourseForEnroll.ticketPrice?.toLowerCase().includes('libre') ? 'free' : 'mixed');
+              let availableTiers = [];
+
+              if (Array.isArray(selectedCourseForEnroll.priceTiers) && selectedCourseForEnroll.priceTiers.length > 0) {
+                if (currentAccessType === 'paid') {
+                  availableTiers = selectedCourseForEnroll.priceTiers.filter(t => !t.isFree && t.priceUSD > 0);
+                } else if (currentAccessType === 'free') {
+                  availableTiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Taller 100% gratuito para todos' }];
+                } else {
+                  availableTiers = selectedCourseForEnroll.priceTiers;
+                }
+              }
+
+              if (availableTiers.length === 0) {
+                const isFree = currentAccessType === 'free';
+                availableTiers = [
+                  {
+                    id: isFree ? 'tier-free' : 'tier-cgm-free',
+                    name: isFree ? 'Entrada Libre' : 'Miembros Solventes CGM',
+                    priceUSD: 0,
+                    isFree: true,
+                    note: isFree ? 'Taller 100% gratuito' : 'Acceso Gremial Gratuito (Requiere Código CGM)'
+                  },
+                  {
+                    id: 'tier-gen',
+                    name: 'Público General',
+                    priceUSD: selectedCourseForEnroll.priceGeneralUSD || 35,
+                    isFree: false,
+                    note: 'Inscripción y Certificado General'
+                  }
+                ];
+              }
+
+              return (
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1.5 uppercase text-[10px] tracking-wider">
+                    Seleccione su Categoría / Tarifa de Matrícula *
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {availableTiers.map((tier) => {
+                      const isSelected = selectedCourseTier?.id === tier.id || (selectedCourseTier?.name === tier.name && selectedCourseTier?.isFree === tier.isFree);
+                      return (
+                        <button
+                          key={tier.id}
+                          type="button"
+                          onClick={() => setSelectedCourseTier(tier)}
+                          className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1.5 ${
+                            isSelected
+                              ? (tier.isFree 
+                                  ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-400/40' 
+                                  : 'bg-sky-50 border-sky-500 ring-2 ring-sky-400/40')
+                              : 'bg-white border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-xs text-slate-900 leading-snug">
+                              {tier.name}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${
+                              tier.isFree 
+                                ? 'bg-emerald-600 text-white' 
+                                : 'bg-sky-600 text-white'
+                            }`}>
+                              {tier.isFree ? 'GRATIS' : `$${tier.priceUSD} USD`}
+                            </span>
+                          </div>
+                          {tier.note && (
+                            <p className="text-[11px] text-slate-500 line-clamp-1">
+                              {tier.note}
+                            </p>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             <form onSubmit={handleCourseEnrollSubmit} className="space-y-3 text-xs">
               <div>
@@ -581,8 +778,8 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
                   required 
                   value={enrollFullName}
                   onChange={(e) => setEnrollFullName(e.target.value)}
-                  placeholder="Ej. Chef Manuel Márquez" 
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:border-sky-500 focus:bg-white"
+                  placeholder="Ej. Chef Manuel Márquez / Lic. María Gómez" 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:border-sky-500 focus:bg-white font-medium"
                 />
               </div>
 
@@ -605,63 +802,90 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
                     required 
                     value={enrollPhone}
                     onChange={(e) => setEnrollPhone(e.target.value)}
-                    placeholder="+58 414..." 
+                    placeholder="+58 414 0000000" 
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:border-sky-500 focus:bg-white"
                   />
                 </div>
               </div>
 
-              {enrollAttendeeType === 'afiliado' ? (
+              {/* Free Tier Confirmation or Member Code */}
+              {selectedCourseTier?.isFree ? (
                 <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2">
                   <div className="flex items-center gap-2 text-emerald-900 font-bold">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>Beneficio de Miembro Solvente: Formación 100% Gratuita</span>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Tarifa Gratuita Seleccionada: {selectedCourseTier.name}</span>
                   </div>
-                  <div>
-                    <label className="block text-emerald-950 font-bold mb-1">Código de Afiliado CGM *</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={enrollAffiliateCode}
-                      onChange={(e) => setEnrollAffiliateCode(e.target.value)}
-                      placeholder="Ej. CGM-2026-001" 
-                      className="w-full bg-white border border-emerald-300 rounded-xl px-3 py-2 text-slate-800 uppercase focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
+                  {selectedCourseTier.name.toLowerCase().includes('miembro') || selectedCourseTier.name.toLowerCase().includes('afiliado') ? (
+                    <div>
+                      <label className="block text-emerald-950 font-bold mb-1">Código de Afiliado CGM *</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={enrollAffiliateCode}
+                        onChange={(e) => setEnrollAffiliateCode(e.target.value)}
+                        placeholder="Ej. CGM-2026-001" 
+                        className="w-full bg-white border border-emerald-300 rounded-xl px-3 py-2 text-slate-800 uppercase font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-emerald-800">
+                      Su plaza ha sido asignada sin costo. Recibirá su confirmación y material digital en su correo.
+                    </p>
+                  )}
                 </div>
               ) : (
-                <div className="p-3.5 rounded-2xl bg-sky-50 border border-sky-200 space-y-3">
-                  <div className="flex items-center gap-2 text-sky-950 font-bold">
-                    <CreditCard className="w-4 h-4 text-sky-600" />
-                    <span>Datos de Pago Móvil Oficial Banco Provincial</span>
+                /* Paid Tier Details & Pago Móvil Banco Provincial */
+                <div className="p-4 rounded-2xl bg-sky-50 border border-sky-300 space-y-3">
+                  <div className="flex items-center justify-between gap-2 text-sky-950 font-bold">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-sky-600" />
+                      <span>Pago Móvil Oficial Banco Provincial</span>
+                    </div>
+                    <span className="text-xs bg-sky-600 text-white px-2.5 py-0.5 rounded-md font-extrabold font-mono">
+                      ${selectedCourseTier?.priceUSD || selectedCourseForEnroll.priceGeneralUSD || 35} USD
+                    </span>
                   </div>
-                  <div className="text-[11px] text-slate-700 space-y-0.5 bg-white p-2.5 rounded-xl border border-sky-200 font-mono">
-                    <div>Banco: <strong>0108 - Banco Provincial</strong></div>
-                    <div>Cédula / RIF: <strong>V-12517086</strong></div>
-                    <div>Teléfono: <strong>0414-8817137</strong></div>
-                    <div>Monto: <strong>${selectedCourseForEnroll.priceGeneralUSD || 35} USD (o equivalente en Bs a tasa BCV)</strong></div>
+
+                  <div className="text-[11px] text-slate-800 space-y-1 bg-white p-3 rounded-xl border border-sky-200 font-mono">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Banco:</span>
+                      <strong>0108 - Banco Provincial</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Cédula / RIF:</span>
+                      <strong>V-12517086</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Teléfono:</span>
+                      <strong>0414-8817137</strong>
+                    </div>
+                    <div className="flex justify-between text-sky-900 font-sans font-bold pt-1 border-t border-slate-100">
+                      <span>Matrícula a Transferir:</span>
+                      <span>{selectedCourseTier?.name || 'General'} (${selectedCourseTier?.priceUSD || 35} USD a tasa BCV)</span>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-slate-700 font-bold mb-1">Banco Emisor</label>
+                      <label className="block text-slate-700 font-bold mb-1 text-[11px]">Banco Emisor *</label>
                       <input 
                         type="text" 
+                        required
                         value={enrollPaymentBank}
                         onChange={(e) => setEnrollPaymentBank(e.target.value)}
-                        placeholder="Ej. Provincial, Mercantil..." 
-                        className="w-full bg-white border border-sky-300 rounded-xl px-2.5 py-1.5 text-slate-800 text-xs"
+                        placeholder="Ej. Provincial, Banesco, Mercantil..." 
+                        className="w-full bg-white border border-sky-300 rounded-xl px-2.5 py-2 text-slate-800 text-xs focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-700 font-bold mb-1">Nro. de Referencia *</label>
+                      <label className="block text-slate-700 font-bold mb-1 text-[11px]">Nro. de Referencia *</label>
                       <input 
                         type="text" 
                         required
                         value={enrollPaymentRef}
                         onChange={(e) => setEnrollPaymentRef(e.target.value)}
-                        placeholder="Ej. 654321" 
-                        className="w-full bg-white border border-sky-300 rounded-xl px-2.5 py-1.5 text-slate-800 text-xs font-mono"
+                        placeholder="Ej. 12345678" 
+                        className="w-full bg-white border border-sky-300 rounded-xl px-2.5 py-2 text-slate-800 text-xs font-mono font-bold focus:outline-none"
                       />
                     </div>
                   </div>
@@ -671,12 +895,56 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
               <button
                 type="submit"
                 disabled={courseEnrollSuccess}
-                className="w-full py-3.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-serif font-black text-xs uppercase tracking-wider transition-all mt-4 shadow-md active:scale-98"
+                className="w-full py-3.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-serif font-black text-xs uppercase tracking-wider transition-all mt-4 shadow-md active:scale-98 disabled:opacity-50"
               >
-                {courseEnrollSuccess ? 'Procesando Inscripción...' : 'Confirmar Mi Inscripción Oficial'}
+                {courseEnrollSuccess ? 'Procesando Inscripción...' : `Confirmar Inscripción (${selectedCourseTier?.name || 'Matrícula'} ${selectedCourseTier?.isFree ? '• Gratis' : `• $${selectedCourseTier?.priceUSD || 35} USD`})`}
               </button>
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Full Flyer Preview for Course */}
+      {flyerPreviewCourse && (
+        <div 
+          className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setFlyerPreviewCourse(null)}
+        >
+          <div 
+            className="relative max-w-md w-full max-h-[92vh] flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setFlyerPreviewCourse(null)}
+              className="absolute -top-12 right-0 p-2 rounded-full bg-white/20 hover:bg-white/40 text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-white/20 bg-slate-900 max-h-[85vh]">
+              <img 
+                src={flyerPreviewCourse.image} 
+                alt={flyerPreviewCourse.title} 
+                className="w-full h-auto max-h-[80vh] object-contain"
+              />
+              <div className="p-4 bg-slate-950/95 text-white flex items-center justify-between gap-3 border-t border-slate-800">
+                <div>
+                  <h4 className="font-serif font-bold text-sm line-clamp-1">{flyerPreviewCourse.title}</h4>
+                  <p className="text-xs text-amber-300">{flyerPreviewCourse.dates} &bull; {flyerPreviewCourse.hours}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    const c = flyerPreviewCourse;
+                    setFlyerPreviewCourse(null);
+                    handleOpenEnrollCourse(c);
+                  }}
+                  className="py-2 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-serif font-bold text-xs uppercase tracking-wider shrink-0"
+                >
+                  Inscribirse
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

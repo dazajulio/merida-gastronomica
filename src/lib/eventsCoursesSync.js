@@ -151,11 +151,20 @@ function formatCourseFromSupabase(row) {
     location: row.location || 'Sede CGEM / Laboratorio ULA',
     isOnline: row.is_online === true,
     category: row.category || 'Formación Gastronómica',
+    badge: row.badge || 'Certificación Oficial 2026',
+    accessType: row.access_type || row.accessType || 'mixed',
+    priceTiers: Array.isArray(row.price_tiers) ? row.price_tiers : (typeof row.price_tiers === 'string' ? JSON.parse(row.price_tiers) : []),
+    ticketPrice: row.ticket_price || row.ticketPrice || '',
+    isPagoMovilEnabled: row.is_pago_movil_enabled !== false,
+    pagoMovilBank: row.pago_movil_bank || '0108 - Banco Provincial',
+    pagoMovilCi: row.pago_movil_ci || 'V-12517086',
+    pagoMovilPhone: row.pago_movil_phone || '0414-8817137',
     description: row.description || '',
     spots: row.spots || 25,
     priceMemberText: row.price_member_text || 'Gratuito para Miembros Solventes',
     priceGeneralUSD: row.price_general_usd ? parseFloat(row.price_general_usd) : 35,
     image: row.image || 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80',
+    imageAspect: row.image_aspect || row.imageAspect || '9:16',
     created_at: row.created_at || new Date().toISOString()
   };
 }
@@ -171,11 +180,20 @@ function formatCourseForSupabase(course) {
     location: course.location || 'Sede CGEM / Laboratorio ULA',
     is_online: !!course.isOnline,
     category: course.category || 'Formación Gastronómica',
+    badge: course.badge || 'Certificación Oficial 2026',
+    access_type: course.accessType || 'mixed',
+    price_tiers: course.priceTiers || [],
+    ticket_price: course.ticketPrice || '',
+    is_pago_movil_enabled: course.isPagoMovilEnabled !== false,
+    pago_movil_bank: course.pagoMovilBank || '0108 - Banco Provincial',
+    pago_movil_ci: course.pagoMovilCi || 'V-12517086',
+    pago_movil_phone: course.pagoMovilPhone || '0414-8817137',
     description: course.description || '',
     spots: parseInt(course.spots, 10) || 25,
     price_member_text: course.priceMemberText || 'Gratuito para Miembros Solventes',
     price_general_usd: parseFloat(course.priceGeneralUSD) || 35.00,
     image: course.image || '',
+    image_aspect: course.imageAspect || '9:16',
     updated_at: new Date().toISOString()
   };
 }

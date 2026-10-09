@@ -655,8 +655,16 @@ export function BoardAdminPortal({ t, onNavigate }) {
     } catch (e) {}
   }, [officialCourses]);
 
+  const DEFAULT_COURSE_PRICE_TIERS = [
+    { id: 'tier-cgm', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código de Afiliado)' },
+    { id: 'tier-est', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: 'Tarifa preferencial para estudiantes con carnet' },
+    { id: 'tier-gen', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción General y Certificación' }
+  ];
+
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
+  const [isOptimizingCourseImage, setIsOptimizingCourseImage] = useState(false);
+  const [courseImageUploadStats, setCourseImageUploadStats] = useState(null);
   const [courseFormData, setCourseFormData] = useState({
     title: '',
     hours: '16 Horas Académicas',
@@ -666,11 +674,20 @@ export function BoardAdminPortal({ t, onNavigate }) {
     location: 'Sede CGEM / Laboratorio ULA',
     isOnline: false,
     category: 'Formación Gastronómica',
+    badge: 'Certificación Oficial 2026',
+    accessType: 'mixed', // 'free' | 'paid' | 'mixed'
+    priceTiers: DEFAULT_COURSE_PRICE_TIERS,
+    ticketPrice: 'Miembros CGM: Gratis • General: $35 USD • Estudiantes: $15 USD',
+    isPagoMovilEnabled: true,
+    pagoMovilBank: '0108 - Banco Provincial',
+    pagoMovilCi: 'V-12517086',
+    pagoMovilPhone: '0414-8817137',
     description: '',
     spots: 25,
     priceMemberText: 'Gratuito para Miembros Solventes',
     priceGeneralUSD: 35,
-    image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80'
+    image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80',
+    imageAspect: '9:16'
   });
 
   // =========================================================================
@@ -1109,6 +1126,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
   // =========================================================================
   const openNewCourseModal = () => {
     setEditingCourse(null);
+    setCourseImageUploadStats(null);
     setCourseFormData({
       title: '',
       hours: '16 Horas Académicas',
@@ -1118,17 +1136,61 @@ export function BoardAdminPortal({ t, onNavigate }) {
       location: 'Sede CGEM / Laboratorio ULA',
       isOnline: false,
       category: 'Formación Gastronómica',
+      badge: 'Certificación Oficial 2026',
+      accessType: 'mixed', // 'free' | 'paid' | 'mixed'
+      priceTiers: [
+        { id: 'tier-cgm', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código CGM)' },
+        { id: 'tier-est', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: 'Tarifa preferencial para estudiantes con carnet' },
+        { id: 'tier-gen', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción y Certificado General' }
+      ],
+      ticketPrice: 'Miembros CGM: Gratis • General: $35 USD • Estudiantes: $15 USD',
+      isPagoMovilEnabled: true,
+      pagoMovilBank: '0108 - Banco Provincial',
+      pagoMovilCi: 'V-12517086',
+      pagoMovilPhone: '0414-8817137',
       description: '',
       spots: 25,
       priceMemberText: 'Gratuito para Miembros Solventes',
       priceGeneralUSD: 35,
-      image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80'
+      image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80',
+      imageAspect: '9:16'
     });
     setIsCourseModalOpen(true);
   };
 
   const openEditCourseModal = (course) => {
     setEditingCourse(course);
+    setCourseImageUploadStats(null);
+
+    let currentAccessType = course.accessType;
+    let existingTiers = course.priceTiers;
+
+    if (!currentAccessType) {
+      if (course.priceMemberText?.toLowerCase().includes('gratis') || course.priceMemberText?.toLowerCase().includes('gratuito')) {
+        currentAccessType = 'mixed';
+      } else if (course.priceGeneralUSD === 0 || course.ticketPrice?.toLowerCase().includes('libre')) {
+        currentAccessType = 'free';
+      } else {
+        currentAccessType = 'paid';
+      }
+    }
+
+    if (!Array.isArray(existingTiers) || existingTiers.length === 0) {
+      if (currentAccessType === 'free') {
+        existingTiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Taller 100% gratuito para todo público y agremiados' }];
+      } else if (currentAccessType === 'mixed') {
+        existingTiers = [
+          { id: 'tier-cgm', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código de Afiliado)' },
+          { id: 'tier-est', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: 'Tarifa preferencial para estudiantes' },
+          { id: 'tier-gen', name: 'Público General', priceUSD: parseFloat(course.priceGeneralUSD) || 35, isFree: false, note: 'Inscripción y Certificado General' }
+        ];
+      } else {
+        existingTiers = [
+          { id: 'tier-gen', name: 'Público General', priceUSD: parseFloat(course.priceGeneralUSD) || 35, isFree: false, note: 'Inscripción General' }
+        ];
+      }
+    }
+
     setCourseFormData({
       title: course.title || '',
       hours: course.hours || '16 Horas Académicas',
@@ -1138,13 +1200,217 @@ export function BoardAdminPortal({ t, onNavigate }) {
       location: course.location || 'Sede CGEM / Laboratorio ULA',
       isOnline: course.isOnline || false,
       category: course.category || 'Formación Gastronómica',
+      badge: course.badge || 'Certificación Oficial 2026',
+      accessType: currentAccessType,
+      priceTiers: existingTiers,
+      ticketPrice: course.ticketPrice || 'Miembros CGM: Gratis • General: $35 USD',
+      isPagoMovilEnabled: course.isPagoMovilEnabled !== false,
+      pagoMovilBank: course.pagoMovilBank || '0108 - Banco Provincial',
+      pagoMovilCi: course.pagoMovilCi || 'V-12517086',
+      pagoMovilPhone: course.pagoMovilPhone || '0414-8817137',
       description: course.description || '',
       spots: course.spots || 25,
       priceMemberText: course.priceMemberText || 'Gratuito para Miembros Solventes',
       priceGeneralUSD: course.priceGeneralUSD || 35,
-      image: course.image || 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80'
+      image: course.image || 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80',
+      imageAspect: course.imageAspect || '9:16'
     });
     setIsCourseModalOpen(true);
+  };
+
+  // Convert and optimize Course image from PC
+  const handleCourseImageFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsOptimizingCourseImage(true);
+      const result = await optimizeImage(file, {
+        maxWidth: 720,
+        maxHeight: 1280,
+        quality: 0.82,
+        preferredFormat: 'image/webp'
+      });
+
+      setCourseFormData(prev => ({
+        ...prev,
+        image: result.dataUrl,
+        imageAspect: '9:16'
+      }));
+
+      setCourseImageUploadStats({
+        originalSize: result.originalSizeFormatted,
+        compressedSize: result.compressedSizeFormatted,
+        compressionRatio: result.compressionRatio,
+        fileName: result.fileName
+      });
+    } catch (err) {
+      console.warn('Error al procesar afiche del curso:', err);
+      alert('Error al optimizar la imagen del curso. Seleccione un archivo JPG, PNG o WebP válido.');
+    } finally {
+      setIsOptimizingCourseImage(false);
+    }
+  };
+
+  // Switch between the 3 mutually exclusive access types for courses
+  const handleSelectCourseAccessType = (selectedType) => {
+    if (selectedType === 'free') {
+      setCourseFormData(prev => ({
+        ...prev,
+        accessType: 'free',
+        priceTiers: [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: 'Taller 100% gratuito para todo público y agremiados' }],
+        ticketPrice: 'Entrada Totalmente Libre / Gratuita'
+      }));
+    } else if (selectedType === 'paid') {
+      const currentTiers = Array.isArray(courseFormData.priceTiers) ? courseFormData.priceTiers : [];
+      let paidTiers = currentTiers
+        .filter(t => t.id !== 'tier-free')
+        .map(t => ({
+          ...t,
+          isFree: false,
+          priceUSD: (t.priceUSD && t.priceUSD > 0) ? t.priceUSD : 25,
+          note: t.name.toLowerCase().includes('miembro') ? 'Tarifa Especial para Afiliados CGM' : t.note
+        }));
+
+      if (paidTiers.length === 0) {
+        paidTiers = [
+          { id: 'tier-gen', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción y Certificación' },
+          { id: 'tier-est', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: 'Tarifa preferencial para estudiantes' },
+          { id: 'tier-cgm-paid', name: 'Miembros CGM (Tarifa Preferencial)', priceUSD: 20, isFree: false, note: 'Tarifa reducida para afiliados' }
+        ];
+      }
+
+      setCourseFormData(prev => ({
+        ...prev,
+        accessType: 'paid',
+        priceTiers: paidTiers
+      }));
+    } else if (selectedType === 'mixed') {
+      const currentTiers = Array.isArray(courseFormData.priceTiers) ? courseFormData.priceTiers : [];
+      const hasMemberFree = currentTiers.some(t => t.isFree && t.name.toLowerCase().includes('miembro'));
+      
+      let mixedTiers = [];
+      if (!hasMemberFree) {
+        mixedTiers.push({
+          id: 'tier-cgm-free',
+          name: 'Miembros Solventes CGM',
+          priceUSD: 0,
+          isFree: true,
+          note: 'Acceso Gremial Gratuito (Requiere Código de Afiliado)'
+        });
+      }
+      
+      currentTiers.forEach(t => {
+        if (t.id !== 'tier-free') {
+          mixedTiers.push(t);
+        }
+      });
+
+      if (mixedTiers.length < 2) {
+        mixedTiers = [
+          { id: 'tier-cgm-free', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código de Afiliado)' },
+          { id: 'tier-est', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: 'Tarifa preferencial para estudiantes' },
+          { id: 'tier-gen', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción General y Certificado' }
+        ];
+      }
+
+      setCourseFormData(prev => ({
+        ...prev,
+        accessType: 'mixed',
+        priceTiers: mixedTiers
+      }));
+    }
+  };
+
+  const handleAddCoursePriceTier = () => {
+    const isStrictPaid = courseFormData.accessType === 'paid';
+    const newTier = {
+      id: `tier-course-${Date.now()}`,
+      name: isStrictPaid ? 'Nueva Tarifa Paga (ej. Afiliados / Estudiantes)' : 'Nueva Tarifa',
+      priceUSD: 20,
+      isFree: false,
+      note: ''
+    };
+    const currentTiers = Array.isArray(courseFormData.priceTiers) ? courseFormData.priceTiers : [];
+    setCourseFormData({ ...courseFormData, priceTiers: [...currentTiers, newTier] });
+  };
+
+  const handleRemoveCoursePriceTier = (tierId) => {
+    const currentTiers = Array.isArray(courseFormData.priceTiers) ? courseFormData.priceTiers : [];
+    const updated = currentTiers.filter(t => t.id !== tierId);
+    setCourseFormData({ ...courseFormData, priceTiers: updated });
+  };
+
+  const handleUpdateCoursePriceTier = (tierId, field, value) => {
+    const isStrictPaid = courseFormData.accessType === 'paid';
+    const currentTiers = Array.isArray(courseFormData.priceTiers) ? courseFormData.priceTiers : [];
+    const updated = currentTiers.map(t => {
+      if (t.id === tierId) {
+        const updatedTier = { ...t, [field]: value };
+        if (isStrictPaid) {
+          updatedTier.isFree = false;
+          if (field === 'priceUSD' && (value <= 0 || isNaN(value))) {
+            updatedTier.priceUSD = 1;
+          }
+        } else {
+          if (field === 'isFree' && value === true) {
+            updatedTier.priceUSD = 0;
+          }
+        }
+        return updatedTier;
+      }
+      return t;
+    });
+    setCourseFormData({ ...courseFormData, priceTiers: updated });
+  };
+
+  const handleApplyCourseTierPreset = (presetType) => {
+    if (presetType === 'general_only') {
+      setCourseFormData({
+        ...courseFormData,
+        accessType: 'paid',
+        priceTiers: [
+          { id: 'tier-c-1', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción y Certificación General' }
+        ]
+      });
+    } else if (presetType === 'paid_general_and_students') {
+      setCourseFormData({
+        ...courseFormData,
+        accessType: 'paid',
+        priceTiers: [
+          { id: 'tier-c-1', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: 'Tarifa preferencial para estudiantes con carnet' },
+          { id: 'tier-c-2', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción y Certificación' }
+        ]
+      });
+    } else if (presetType === 'paid_full_no_free') {
+      setCourseFormData({
+        ...courseFormData,
+        accessType: 'paid',
+        priceTiers: [
+          { id: 'tier-c-1', name: 'Miembros CGM (Tarifa Preferencial)', priceUSD: 20, isFree: false, note: 'Tarifa reducida para afiliados solventes' },
+          { id: 'tier-c-2', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: 'Tarifa para estudiantes' },
+          { id: 'tier-c-3', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción General y Certificado' }
+        ]
+      });
+    } else if (presetType === 'mixed_members_and_general') {
+      setCourseFormData({
+        ...courseFormData,
+        accessType: 'mixed',
+        priceTiers: [
+          { id: 'tier-c-1', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código de Afiliado)' },
+          { id: 'tier-c-2', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción General y Certificado' }
+        ]
+      });
+    } else if (presetType === 'mixed_complete') {
+      setCourseFormData({
+        ...courseFormData,
+        accessType: 'mixed',
+        priceTiers: [
+          { id: 'tier-c-1', name: 'Miembros Solventes CGM', priceUSD: 0, isFree: true, note: 'Acceso Gremial Gratuito (Requiere Código de Afiliado)' },
+          { id: 'tier-c-2', name: 'Estudiantes ULA / Hotel Escuela', priceUSD: 15, isFree: false, note: 'Tarifa preferencial para estudiantes' },
+          { id: 'tier-c-3', name: 'Público General', priceUSD: 35, isFree: false, note: 'Inscripción General y Certificado' }
+        ]
+      });
+    }
   };
 
   const handleSaveCourse = (e) => {
@@ -5048,7 +5314,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     {editingCourse ? 'Editar Programa de Capacitación' : 'Publicar Nuevo Curso Oficial'}
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Academia Gastronómica CGEM &bull; Oferta Formativa
+                    Academia Gastronómica CGEM &bull; Oferta Formativa & Masterclasses 2026
                   </p>
                 </div>
               </div>
@@ -5064,7 +5330,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
             <form onSubmit={handleSaveCourse} className="mt-6 space-y-4 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Título del Curso / Taller *
+                  Título del Curso / Taller / Masterclass *
                 </label>
                 <input
                   type="text"
@@ -5076,7 +5342,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Horas Académicas *
@@ -5100,7 +5366,20 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     required
                     value={courseFormData.category}
                     onChange={(e) => setCourseFormData({ ...courseFormData, category: e.target.value })}
-                    placeholder="ej: Gestión & Finanzas, Cocina Andina, Barismo..."
+                    placeholder="ej: Gestión & Finanzas, Cocina Andina..."
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Distintivo / Badge
+                  </label>
+                  <input
+                    type="text"
+                    value={courseFormData.badge}
+                    onChange={(e) => setCourseFormData({ ...courseFormData, badge: e.target.value })}
+                    placeholder="ej: Certificación Oficial 2026"
                     className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
                   />
                 </div>
@@ -5136,7 +5415,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Instructor / Facilitador *
@@ -5146,7 +5425,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     required
                     value={courseFormData.instructor}
                     onChange={(e) => setCourseFormData({ ...courseFormData, instructor: e.target.value })}
-                    placeholder="ej: Chef Ejecutivo / Especialista ULA"
+                    placeholder="ej: Chef Ejecutivo / ULA"
                     className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
                   />
                 </div>
@@ -5160,13 +5439,11 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     required
                     value={courseFormData.location}
                     onChange={(e) => setCourseFormData({ ...courseFormData, location: e.target.value })}
-                    placeholder="ej: Sede CGEM / Laboratorio Hotel Escuela ULA"
+                    placeholder="ej: Sede CGEM / Laboratorio ULA"
                     className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Cupos Disponibles
@@ -5179,44 +5456,394 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
                   />
                 </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Arancel Miembro Solvente
-                  </label>
-                  <input
-                    type="text"
-                    value={courseFormData.priceMemberText}
-                    onChange={(e) => setCourseFormData({ ...courseFormData, priceMemberText: e.target.value })}
-                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Precio Público General (USD)
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={courseFormData.priceGeneralUSD}
-                    onChange={(e) => setCourseFormData({ ...courseFormData, priceGeneralUSD: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
-                  />
-                </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Imagen Referencial (URL)
-                </label>
-                <input
-                  type="url"
-                  value={courseFormData.image}
-                  onChange={(e) => setCourseFormData({ ...courseFormData, image: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-sky-500 focus:bg-white"
-                />
+              {/* Course Access Type & Multi-Tier Pricing Controls */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-sky-50/70 border border-sky-200/90 space-y-4 font-sans">
+                <div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2.5">
+                    <div>
+                      <label className="block font-bold text-slate-900 uppercase tracking-wider text-xs">
+                        1. Modalidad de Acceso & Tarifas del Curso *
+                      </label>
+                      <p className="text-[11px] text-slate-600">
+                        Seleccione una única modalidad. Si elige <strong>Paga Estricta</strong>, todos los participantes pagan. Si elige <strong>Mixta</strong>, los Miembros Solventes acceden gratis y el Público/Estudiantes pagan.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 3 Mutually Exclusive Tabs for Courses */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectCourseAccessType('free')}
+                      className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1 ${
+                        courseFormData.accessType === 'free'
+                          ? 'bg-emerald-600 text-white border-emerald-700 shadow-md ring-2 ring-emerald-400/40'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-xs">🆓 1. Taller Libre / Gratis</span>
+                        {courseFormData.accessType === 'free' && (
+                          <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                        )}
+                      </div>
+                      <span className={`text-[10px] leading-tight ${courseFormData.accessType === 'free' ? 'text-emerald-100' : 'text-slate-500'}`}>
+                        100% Gratuito para todo el público y agremiados.
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectCourseAccessType('paid')}
+                      className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1 ${
+                        courseFormData.accessType === 'paid'
+                          ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-md ring-2 ring-amber-400/50'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-amber-300 hover:bg-amber-50/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-xs">🎟️ 2. Curso Pago Estricto</span>
+                        {courseFormData.accessType === 'paid' && (
+                          <span className="w-2 h-2 rounded-full bg-slate-950 animate-pulse" />
+                        )}
+                      </div>
+                      <span className={`text-[10px] leading-tight ${courseFormData.accessType === 'paid' ? 'text-slate-900 font-semibold' : 'text-slate-500'}`}>
+                        Todos pagan su matrícula. Cero pases gratis.
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectCourseAccessType('mixed')}
+                      className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1 ${
+                        courseFormData.accessType === 'mixed'
+                          ? 'bg-sky-600 text-white border-sky-700 shadow-md ring-2 ring-sky-400/40'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-sky-300 hover:bg-sky-50/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-xs">⭐ 3. Modalidad Mixta</span>
+                        {courseFormData.accessType === 'mixed' && (
+                          <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                        )}
+                      </div>
+                      <span className={`text-[10px] leading-tight ${courseFormData.accessType === 'mixed' ? 'text-sky-100' : 'text-slate-500'}`}>
+                        Miembros Solventes Gratis + Público General Pago.
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {courseFormData.accessType === 'free' ? (
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs font-bold flex items-center gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="font-extrabold">Capacitación 100% Gratuita / Entrada Libre</p>
+                      <p className="text-[11px] font-normal text-emerald-800">
+                        El curso no requerirá pago móvil ni cobro de arancel para ningún participante.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 pt-1">
+                    {courseFormData.accessType === 'paid' ? (
+                      <div className="p-3 rounded-xl bg-amber-100/90 border border-amber-300 text-amber-950 text-xs flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+                        <span><strong>Modalidad Paga Estricta:</strong> Todos los participantes abonan matrícula para cubrir honorarios y suministros del taller (afiliados/estudiantes tienen tarifa preferencial &gt; $0 USD).</span>
+                      </div>
+                    ) : (
+                      <div className="p-3 rounded-xl bg-sky-100/80 border border-sky-300 text-sky-950 text-xs flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-sky-700 shrink-0" />
+                        <span><strong>Modalidad Mixta Oficial:</strong> Los Miembros Solventes CGM ingresan 100% gratis con su Código de Afiliado; el público general y estudiantes pagan vía Pago Móvil.</span>
+                      </div>
+                    )}
+
+                    {/* Presets Bar for Courses */}
+                    <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl bg-white border border-sky-200 text-[11px]">
+                      <span className="font-bold text-slate-800 mr-1 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-sky-600" />
+                        Plantillas para {courseFormData.accessType === 'paid' ? 'Curso Pago' : 'Modalidad Mixta'}:
+                      </span>
+                      {courseFormData.accessType === 'paid' ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyCourseTierPreset('general_only')}
+                            className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-700 font-semibold"
+                          >
+                            Solo General ($35)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyCourseTierPreset('paid_general_and_students')}
+                            className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-700 font-semibold"
+                          >
+                            General ($35) + Estudiantes ($15)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyCourseTierPreset('paid_full_no_free')}
+                            className="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-950 font-bold border border-amber-400/40"
+                          >
+                            General ($35) + Afiliados con Descuento ($20) + Estudiantes ($15)
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyCourseTierPreset('mixed_members_and_general')}
+                            className="px-2 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-900 font-semibold border border-sky-200"
+                          >
+                            Miembros (Gratis) + General ($35)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyCourseTierPreset('mixed_complete')}
+                            className="px-2 py-1 rounded-lg bg-sky-100 hover:bg-sky-200 text-sky-950 font-bold border border-sky-300"
+                          >
+                            Completo: Miembros (Gratis) + Estudiantes ($15) + General ($35)
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Price Tiers List for Courses */}
+                    <div className="space-y-2">
+                      {(courseFormData.priceTiers || []).map((tier, index) => {
+                        const isStrictPaid = courseFormData.accessType === 'paid';
+                        return (
+                          <div 
+                            key={tier.id || index}
+                            className="p-3 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center gap-2.5 justify-between"
+                          >
+                            <div className="flex-1 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                              {/* Tier Name */}
+                              <div className={isStrictPaid ? "sm:col-span-8" : "sm:col-span-6"}>
+                                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                                  Nombre de Tarifa #{index + 1} *
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={tier.name}
+                                  onChange={(e) => handleUpdateCoursePriceTier(tier.id, 'name', e.target.value)}
+                                  placeholder={isStrictPaid ? "ej: General, Estudiantes, Afiliados con Descuento" : "ej: Miembros Solventes, General, Estudiantes"}
+                                  className="w-full px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-sky-500"
+                                />
+                              </div>
+
+                              {/* Price USD */}
+                              <div className={isStrictPaid ? "sm:col-span-4" : "sm:col-span-3"}>
+                                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                                  Precio (USD) *
+                                </label>
+                                <div className="relative">
+                                  <span className="absolute left-2.5 top-1.5 text-xs font-bold text-slate-400">$</span>
+                                  <input
+                                    type="number"
+                                    min={isStrictPaid ? 1 : 0}
+                                    step="0.5"
+                                    disabled={!isStrictPaid && tier.isFree}
+                                    value={(!isStrictPaid && tier.isFree) ? 0 : (tier.priceUSD !== undefined ? tier.priceUSD : 35)}
+                                    onChange={(e) => handleUpdateCoursePriceTier(tier.id, 'priceUSD', parseFloat(e.target.value) || (isStrictPaid ? 1 : 0))}
+                                    placeholder="0"
+                                    className={`w-full pl-6 pr-2 py-1.5 rounded-lg border text-xs font-bold focus:outline-none ${
+                                      (!isStrictPaid && tier.isFree)
+                                        ? 'bg-slate-100 text-slate-400 border-slate-200' 
+                                        : 'bg-white text-sky-800 border-sky-300 focus:border-sky-500 font-mono text-sm'
+                                    }`}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Is Free Checkbox (Only allowed in Mixed modality) */}
+                              {!isStrictPaid && (
+                                <div className="sm:col-span-3 flex items-center pt-2 sm:pt-4">
+                                  <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-slate-700">
+                                    <input
+                                      type="checkbox"
+                                      checked={!!tier.isFree}
+                                      onChange={(e) => handleUpdateCoursePriceTier(tier.id, 'isFree', e.target.checked)}
+                                      className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500"
+                                    />
+                                    <span>Gratis / $0</span>
+                                  </label>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Delete Button */}
+                            {(courseFormData.priceTiers || []).length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveCoursePriceTier(tier.id)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors self-end sm:self-center"
+                                title="Eliminar esta tarifa"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Add Tier Button */}
+                    <button
+                      type="button"
+                      onClick={handleAddCoursePriceTier}
+                      className="w-full py-2.5 rounded-xl border-2 border-dashed border-sky-300 hover:border-sky-400 bg-sky-50/50 hover:bg-sky-100/60 text-sky-900 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      <PlusCircle className="w-4 h-4 text-sky-700" />
+                      <span>Agregar Otra Tarifa / Precio</span>
+                    </button>
+
+                    {/* Official Pago Movil Details Banner */}
+                    <div className="p-3 rounded-xl bg-white border border-sky-300 text-xs space-y-1.5 font-mono text-slate-800">
+                      <div className="flex items-center gap-2 font-bold text-sky-900 font-sans">
+                        <CreditCard className="w-4 h-4 text-sky-600" />
+                        <span>Datos Oficiales de Pago Móvil para Matrícula:</span>
+                      </div>
+                      <div className="text-[11px] grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                        <div>Banco: <strong>0108 Provincial</strong></div>
+                        <div>C.I.: <strong>V-12517086</strong></div>
+                        <div>Tlf: <strong>0414-8817137</strong></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Course Flyer & Banner 9:16 Upload Section */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 font-sans">
+                <div>
+                  <label className="block font-bold text-slate-900 uppercase tracking-wider text-xs">
+                    2. Imagen del Flyer o Afiche del Curso (Formato 9:16 / HD) *
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    Cargue el afiche formativo desde su computador. El conversor optimizará automáticamente la imagen a WebP de alta nitidez y bajo peso.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                  
+                  {/* File Upload Drop Area */}
+                  <div className="md:col-span-7 space-y-3">
+                    <label className={`border-2 border-dashed rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                      isOptimizingCourseImage
+                        ? 'bg-sky-50 border-sky-400'
+                        : 'bg-white border-slate-300 hover:border-sky-400 hover:bg-sky-50/20'
+                    }`}>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        disabled={isOptimizingCourseImage}
+                        onChange={handleCourseImageFileUpload}
+                        className="hidden" 
+                      />
+                      
+                      {isOptimizingCourseImage ? (
+                        <div className="py-4 flex flex-col items-center gap-2">
+                          <Loader2 className="w-8 h-8 text-sky-600 animate-spin" />
+                          <span className="font-bold text-xs text-sky-900">Optimizando y ajustando imagen...</span>
+                          <span className="text-[10px] text-slate-500">Convirtiendo a WebP HD liviano...</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-800 flex items-center justify-center shadow-xs">
+                            <UploadCloud className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-slate-900 block">
+                              Haga clic o arrastre el Afiche aquí
+                            </span>
+                            <span className="text-[10px] text-slate-500 block mt-0.5">
+                              Soporta JPG, PNG, WebP (Vertical 9:16 o 4:3)
+                            </span>
+                          </div>
+                          <span className="mt-1 px-3 py-1 rounded-full bg-slate-100 hover:bg-sky-200 text-slate-700 font-bold text-[11px] transition-colors">
+                            Seleccionar desde PC
+                          </span>
+                        </div>
+                      )}
+                    </label>
+
+                    {/* Compression Stats Badge */}
+                    {courseImageUploadStats && (
+                      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs flex items-start gap-2.5 animate-fadeIn">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-bold block">¡Afiche optimizado con éxito!</span>
+                          <p className="text-[11px] text-emerald-800">
+                            Reducido de <strong>{courseImageUploadStats.originalSize}</strong> a <strong>{courseImageUploadStats.compressedSize}</strong> ({courseImageUploadStats.compressionRatio} de ahorro).
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Fallback Manual URL Input */}
+                    <div>
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
+                        O ingrese una URL directa de imagen:
+                      </label>
+                      <input
+                        type="url"
+                        value={courseFormData.image}
+                        onChange={(e) => {
+                          setCourseFormData({ ...courseFormData, image: e.target.value });
+                          setCourseImageUploadStats(null);
+                        }}
+                        placeholder="https://..."
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs focus:outline-none focus:border-sky-500 font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 9:16 Course Preview Card */}
+                  <div className="md:col-span-5 flex flex-col items-center justify-center">
+                    <div className="text-center mb-1.5">
+                      <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                        Vista Previa del Afiche
+                      </span>
+                    </div>
+
+                    <div className="relative w-36 sm:w-44 aspect-[9/16] rounded-2xl overflow-hidden shadow-lg border-2 border-sky-300 bg-slate-900 group">
+                      {courseFormData.image ? (
+                        <img 
+                          src={courseFormData.image} 
+                          alt="Course Flyer Preview" 
+                          className="w-full h-full object-cover object-center"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 p-3 text-center">
+                          <ImageIcon className="w-8 h-8 opacity-40 mb-1" />
+                          <span className="text-[10px] font-bold">Sin afiche</span>
+                        </div>
+                      )}
+
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none" />
+                      
+                      <div className="absolute top-2 left-2 right-2">
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-sky-600 text-white shadow-xs block truncate text-center">
+                          {courseFormData.category || 'Capacitación'}
+                        </span>
+                      </div>
+
+                      <div className="absolute bottom-2 left-2 right-2 text-white">
+                        <span className="text-[10px] font-black line-clamp-2 leading-tight">
+                          {courseFormData.title || 'Título del Curso'}
+                        </span>
+                        <span className="text-[8px] text-sky-300 block truncate mt-0.5">
+                          {courseFormData.dates || 'Fechas'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
               </div>
 
               <div>
@@ -5233,7 +5860,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 />
               </div>
 
-              <div className="flex items-center gap-2 pt-2">
+              <div className="flex items-center gap-2 pt-1">
                 <input
                   type="checkbox"
                   id="isOnlineCourse"
