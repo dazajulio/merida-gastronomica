@@ -248,25 +248,24 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
           </div>
 
           {/* Quick Info Strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-2xl bg-amber-50/60 border border-amber-200">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-amber-50/60 border border-amber-200">
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-500">Eje Geográfico</span>
-              <p className="text-xs font-bold text-slate-900 mt-0.5">{restaurant.ejeName}</p>
+              <span className="text-[10px] uppercase font-bold text-slate-500">Categoría Gastronómica</span>
+              <p className="text-xs font-bold text-amber-900 mt-0.5">{restaurant.category}</p>
             </div>
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-500">Categoría</span>
-              <p className="text-xs font-bold text-amber-800 mt-0.5">{restaurant.category}</p>
+              <span className="text-[10px] uppercase font-bold text-slate-500">Membresía & Aval</span>
+              <p className="text-xs font-bold text-emerald-800 mt-0.5 flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 inline" />
+                <span>{restaurant.isCertifiedByCamara ? 'Miembro Oficial Solvente' : 'Miembro Agremiado'}</span>
+              </p>
             </div>
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-500">Calificación</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500">Calificación Oficial</span>
               <div className="flex items-center gap-1 text-xs font-bold text-slate-900 mt-0.5">
                 <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                <span>{restaurant.rating} / 5.0</span>
+                <span>{restaurant.rating || '5.0'} / 5.0</span>
               </div>
-            </div>
-            <div>
-              <span className="text-[10px] uppercase font-bold text-slate-500">Rango de Precios</span>
-              <p className="text-xs font-bold text-emerald-700 mt-0.5">{restaurant.priceTier} (Gourmet)</p>
             </div>
           </div>
 

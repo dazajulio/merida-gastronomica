@@ -27,6 +27,7 @@ export function RestaurantCard({ restaurant, onSelect, onBookDirect, onViewOnMap
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-black/20" />
         
         {/* Top Badges */}
+        {/* Top Badges */}
         <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
           {restaurant.isCertifiedByCamara && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/95 text-amber-900 border border-amber-300 backdrop-blur-md shadow-sm">
@@ -34,20 +35,12 @@ export function RestaurantCard({ restaurant, onSelect, onBookDirect, onViewOnMap
               <span>Sello Oficial Cámara</span>
             </span>
           )}
-
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-900/80 text-white backdrop-blur-md ml-auto">
-            <Mountain className="w-3.5 h-3.5 text-sky-400" />
-            <span>{restaurant.altitude} msnm</span>
-          </span>
         </div>
 
         {/* Bottom Tag inside Image */}
         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-          <span className="text-xs font-bold px-3 py-1 rounded-lg bg-amber-500 text-white shadow-sm">
+          <span className="text-xs font-bold px-3 py-1 rounded-lg bg-amber-500 text-slate-950 shadow-sm">
             {restaurant.category}
-          </span>
-          <span className="text-xs font-bold text-white bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-sm">
-            {restaurant.priceTier}
           </span>
         </div>
       </div>

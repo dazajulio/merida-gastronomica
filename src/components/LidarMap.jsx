@@ -316,13 +316,9 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
               ★ AGREMIADO OFICIAL
             </span>
 
-            <span style="position: absolute; top: 7px; right: 38px; background: rgba(15,23,42,0.85); color: #38bdf8; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px; border: 1px solid rgba(56,189,248,0.3);">
-              ${restAlt} msnm
-            </span>
-
             <div style="position: absolute; bottom: 6px; left: 8px; right: 8px; display: flex; align-items: center; justify-content: space-between;">
               <span style="font-size: 11px; color: #fbbf24; font-weight: 800;">★ ${restData.rating || '5.0'} <span style="font-size: 10px; color: #e2e8f0; font-weight: 500;">(${restData.reviewsCount || 1})</span></span>
-              <span style="font-size: 10px; font-weight: 700; color: #ffffff; background: rgba(0,0,0,0.65); padding: 1px 6px; border-radius: 4px;">${restData.priceTier || '$$'}</span>
+              <span style="font-size: 10px; font-weight: 700; color: #f8fafc; background: rgba(15,23,42,0.8); padding: 1.5px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15);">${restData.category || 'Gastronomía'}</span>
             </div>
           </div>
 

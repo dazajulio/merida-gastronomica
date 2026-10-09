@@ -2571,42 +2571,6 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Rango de Precios</label>
-                  <select
-                    value={businessProfile.priceTier}
-                    onChange={(e) => setBusinessProfile({ ...businessProfile, priceTier: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
-                  >
-                    <option>$ (Económico / Casual)</option>
-                    <option>$$ (Gourmet / Estándar)</option>
-                    <option>$$$ (Alta Gama / Exclusivo)</option>
-                    <option>$$$$ (Fine Dining)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Altitud Andina (msnm)</label>
-                  <input
-                    type="number"
-                    value={businessProfile.altitude}
-                    onChange={(e) => setBusinessProfile({ ...businessProfile, altitude: parseInt(e.target.value, 10) || 1620 })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Eje Geográfico</label>
-                  <input
-                    type="text"
-                    value={businessProfile.ejeName}
-                    onChange={(e) => setBusinessProfile({ ...businessProfile, ejeName: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
-                  />
-                </div>
-              </div>
-
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Filosofía y Experiencia Culinaria (Descripción de la Ficha) *</label>
                 <textarea
