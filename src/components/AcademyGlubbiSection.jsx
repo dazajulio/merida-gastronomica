@@ -293,9 +293,11 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
                 {officialCourses.map((course) => {
-                  const currentAccessType = course.accessType || (course.ticketPrice?.toLowerCase().includes('libre') ? 'free' : 'mixed');
                   const tiers = Array.isArray(course.priceTiers) && course.priceTiers.length > 0 ? course.priceTiers : [];
-                  const lowestPaidTier = tiers.filter(t => !t.isFree && t.priceUSD > 0).sort((a, b) => a.priceUSD - b.priceUSD)[0];
+                  const hasFreeTier = tiers.some(t => t.isFree || t.priceUSD === 0);
+                  const hasPaidTier = tiers.some(t => !t.isFree && t.priceUSD > 0);
+                  const isAllFree = tiers.length > 0 ? !hasPaidTier : (course.accessType === 'free');
+                  const isStrictPaid = tiers.length > 0 ? !hasFreeTier : (course.accessType === 'paid');
                   
                   return (
                     <div 
@@ -343,17 +345,17 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
                                 <CalendarDays className="w-3.5 h-3.5" />
                                 <span>{course.dates || 'Fechas 2026'}</span>
                               </div>
-                              {currentAccessType === 'free' ? (
+                              {isAllFree ? (
                                 <span className="px-2 py-0.5 rounded-md bg-emerald-500 text-white text-[10px] font-extrabold uppercase tracking-wide shadow-xs">
                                   🆓 100% Gratuito
                                 </span>
-                              ) : currentAccessType === 'paid' ? (
+                              ) : isStrictPaid ? (
                                 <span className="px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 text-[10px] font-extrabold uppercase tracking-wide shadow-xs">
                                   🎟️ Arancel Pago
                                 </span>
                               ) : (
                                 <span className="px-2 py-0.5 rounded-md bg-sky-500 text-white text-[10px] font-extrabold uppercase tracking-wide shadow-xs">
-                                  ⭐ Mixto (Gremio Gratis)
+                                  ⭐ Acceso Mixto
                                 </span>
                               )}
                             </div>
@@ -384,56 +386,67 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
                             {course.description}
                           </p>
 
-                          {/* Dynamic Pricing Badges & Tiers Box */}
+                          {/* Dynamic 100% Consistent Pricing Breakdown */}
                           <div className="pt-3 border-t border-slate-100 space-y-2">
-                            {currentAccessType === 'free' ? (
-                              <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
-                                <span className="font-bold text-emerald-900">Entrada Libre / Sin Costo</span>
-                                <span className="font-mono font-extrabold text-emerald-700">GRATIS</span>
-                              </div>
-                            ) : currentAccessType === 'paid' ? (
-                              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between text-xs">
-                                <div>
-                                  <span className="text-[10px] uppercase font-bold text-amber-900 block">Matrícula General</span>
-                                  <span className="text-slate-700 text-[11px]">
-                                    {lowestPaidTier ? `Desde $${lowestPaidTier.priceUSD} USD` : `$${course.priceGeneralUSD || 35} USD`}
-                                  </span>
-                                </div>
-                                <span className="px-2 py-0.5 rounded-lg bg-amber-400 text-slate-950 font-black font-mono text-xs">
-                                  ${lowestPaidTier ? lowestPaidTier.priceUSD : (course.priceGeneralUSD || 35)} USD
-                                </span>
-                              </div>
-                            ) : (
-                              <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-200 space-y-1 text-xs">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-bold text-emerald-700">Miembros Solventes CGM:</span>
-                                  <span className="font-black text-emerald-800 font-mono text-[11px]">100% GRATIS</span>
-                                </div>
-                                <div className="flex items-center justify-between pt-0.5 border-t border-sky-200/60">
-                                  <span className="text-[10px] font-bold text-slate-600">Público / Estudiantes:</span>
-                                  <span className="font-black text-slate-900 font-mono text-[11px]">
-                                    ${lowestPaidTier ? lowestPaidTier.priceUSD : (course.priceGeneralUSD || 35)} USD
-                                  </span>
-                                </div>
-                              </div>
-                            )}
+                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                              Aranceles & Tarifas Oficiales:
+                            </span>
 
-                            {/* Available Tiers Pills */}
-                            {tiers.length > 0 && (
-                              <div className="flex flex-wrap gap-1 pt-1">
+                            {tiers.length > 0 ? (
+                              <div className="space-y-1.5">
                                 {tiers.map((t, idx) => (
-                                  <span 
+                                  <div 
                                     key={t.id || idx}
-                                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                                    className={`p-2 rounded-xl border flex items-center justify-between text-xs transition-all ${
                                       t.isFree 
-                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                                        : 'bg-slate-50 text-slate-700 border-slate-200'
+                                        ? 'bg-emerald-50/90 border-emerald-200 text-emerald-950' 
+                                        : 'bg-slate-50 border-slate-200 text-slate-800'
                                     }`}
                                   >
-                                    {t.name}: {t.isFree ? 'Gratis' : `$${t.priceUSD} USD`}
-                                  </span>
+                                    <div className="pr-2">
+                                      <span className="font-bold block text-[11px] leading-tight">{t.name}</span>
+                                      {t.note && (
+                                        <span className="text-[9.5px] text-slate-500 block leading-tight mt-0.5">{t.note}</span>
+                                      )}
+                                    </div>
+                                    <span className={`px-2.5 py-1 rounded-lg font-mono font-black text-xs shrink-0 shadow-xs ${
+                                      t.isFree 
+                                        ? 'bg-emerald-600 text-white' 
+                                        : 'bg-slate-900 text-amber-400'
+                                    }`}>
+                                      {t.isFree ? '100% GRATIS' : `$${t.priceUSD} USD`}
+                                    </span>
+                                  </div>
                                 ))}
                               </div>
+                            ) : (
+                              /* Fallback if no custom tiers array exists */
+                              isAllFree ? (
+                                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
+                                  <span className="font-bold text-emerald-900">Entrada Libre / Sin Costo</span>
+                                  <span className="font-mono font-extrabold text-emerald-700">100% GRATIS</span>
+                                </div>
+                              ) : isStrictPaid ? (
+                                <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between text-xs">
+                                  <span className="font-bold text-amber-950">Matrícula General</span>
+                                  <span className="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-black font-mono text-xs">
+                                    ${course.priceGeneralUSD || 35} USD
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-200 space-y-1 text-xs">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-emerald-700">Miembros Solventes CGM:</span>
+                                    <span className="font-black text-emerald-800 font-mono text-[11px]">100% GRATIS</span>
+                                  </div>
+                                  <div className="flex items-center justify-between pt-0.5 border-t border-sky-200/60">
+                                    <span className="text-[10px] font-bold text-slate-600">Público General:</span>
+                                    <span className="font-black text-slate-900 font-mono text-[11px]">
+                                      ${course.priceGeneralUSD || 35} USD
+                                    </span>
+                                  </div>
+                                </div>
+                              )
                             )}
                           </div>
                         </div>

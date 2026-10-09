@@ -1165,6 +1165,14 @@ export function BoardAdminPortal({ t, onNavigate }) {
     let currentAccessType = course.accessType;
     let existingTiers = course.priceTiers;
 
+    if (Array.isArray(existingTiers) && existingTiers.length > 0) {
+      const hasFree = existingTiers.some(t => t.isFree || t.priceUSD === 0);
+      const hasPaid = existingTiers.some(t => !t.isFree && t.priceUSD > 0);
+      if (hasFree && hasPaid) currentAccessType = 'mixed';
+      else if (hasFree && !hasPaid) currentAccessType = 'free';
+      else if (!hasFree && hasPaid) currentAccessType = 'paid';
+    }
+
     if (!currentAccessType) {
       if (course.priceMemberText?.toLowerCase().includes('gratis') || course.priceMemberText?.toLowerCase().includes('gratuito')) {
         currentAccessType = 'mixed';
