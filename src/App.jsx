@@ -445,17 +445,17 @@ export function App() {
                         <GraduationCap className="w-6 h-6" />
                       </div>
                       <h3 className="font-serif font-black text-xl text-slate-900 uppercase">
-                        Academia Gastronómica & Expo 2027
+                        Cursos, Capacitaciones & Academia
                       </h3>
                       <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                        Alianza con la ULA y Hotel Escuela para la Licenciatura en Gastronomía, centros de formación técnica y rumbo a Expo Andes 2027.
+                        Oferta formativa oficial de la Cámara, masterclasses, alianza con la ULA y Hotel Escuela para la Licenciatura en Gastronomía, y proyección hacia Expo Andes 2027.
                       </p>
                     </div>
                     <button
                       onClick={() => navigateTo('academy')}
                       className="mt-6 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all"
                     >
-                      <span>Conocer Alianza & Expo</span>
+                      <span>Ver Cursos & Academia</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>

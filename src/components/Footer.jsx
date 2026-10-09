@@ -143,7 +143,7 @@ export function Footer({ setActiveTab, t }) {
               <li>
                 <button onClick={() => { setActiveTab('academy'); scrollToTop(); }} className="hover:text-amber-400 transition-colors flex items-center gap-1">
                   <GraduationCap className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Academia Gastronómica ULA</span>
+                  <span>Cursos & Academia Gastronómica</span>
                 </button>
               </li>
               <li>

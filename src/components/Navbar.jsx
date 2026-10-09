@@ -71,7 +71,7 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
         { id: 'affiliates', label: 'Portal de Afiliados', desc: 'Acceso con clave, solvencias y certificados', icon: ShieldCheck },
         { id: 'sello', label: 'Sello de Calidad AAA', desc: 'Norma técnica de 226 ítems de excelencia', icon: Award },
         { id: 'jobs', label: 'Bolsa de Empleo Agremiada', desc: 'Ofertas laborales en sala, cocina y barismo', icon: Briefcase },
-        { id: 'academy', label: 'Academia & Expo 2027', desc: 'Alianza ULA, Hotel Escuela y formación', icon: GraduationCap },
+        { id: 'academy', label: 'Cursos & Academia Gastronómica', desc: 'Capacitaciones oficiales, talleres técnicos, Alianza ULA y Expo 2027', icon: GraduationCap },
         { id: 'legal', label: 'Marco Jurídico & SENIAT', desc: 'Normativas SAMAT, SACS y ordenanzas', icon: Scale },
         { id: 'admin', label: 'Portal Junta Directiva (Privado)', desc: 'Acceso privado de planificación, agenda y actas', icon: Lock },
       ]
