@@ -1535,7 +1535,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               <input
                 type="text"
                 required
-                placeholder="ej. cafe.kaffia@gmail.com o CGM-2026-001"
+                placeholder="ej. contacto@empresa.com o CGM-2026-000"
                 value={loginIdentifier}
                 onChange={(e) => setLoginIdentifier(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 focus:bg-white bg-slate-50 text-slate-800"
@@ -2524,7 +2524,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 <input
                   type="text"
                   required
-                  placeholder="Ej. Más que café: Alta cocina, banquetes, hamburguesas de autor, pizzas y cafés de especialidad"
+                  placeholder="Ej. Gastronomía de autor, cocina tradicional contemporánea y café de especialidad"
                   value={businessProfile.tagline}
                   onChange={(e) => setBusinessProfile({ ...businessProfile, tagline: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"

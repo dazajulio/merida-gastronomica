@@ -1367,7 +1367,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                 <input
                   type="text"
                   required
-                  placeholder="ej. Material publicitario para evento, Impresión de certificados..."
+                  placeholder="ej. Material logístico para eventos, Impresión de credenciales oficiales, Servicios..."
                   value={expenseFormData.concepto}
                   onChange={(e) => setExpenseFormData({ ...expenseFormData, concepto: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-rose-600"
@@ -1396,7 +1396,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                   <input
                     type="text"
                     required
-                    placeholder="ej. Impresores Los Andes C.A."
+                    placeholder="ej. Proveeduría & Servicios Gráficos Integrales C.A."
                     value={expenseFormData.beneficiario_proveedor}
                     onChange={(e) => setExpenseFormData({ ...expenseFormData, beneficiario_proveedor: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-rose-600"

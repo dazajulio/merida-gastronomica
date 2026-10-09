@@ -4021,7 +4021,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     required
                     value={memberFormData.nombre_establecimiento}
                     onChange={(e) => setMemberFormData({ ...memberFormData, nombre_establecimiento: e.target.value })}
-                    placeholder="ej: Kaffia Caffe / Cervecería Frailejón"
+                    placeholder="ej: Gran Bistro Internacional / Café Gourmet Central"
                     className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
                   />
                 </div>
@@ -4035,7 +4035,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     required
                     value={memberFormData.codigo_afiliado}
                     onChange={(e) => setMemberFormData({ ...memberFormData, codigo_afiliado: e.target.value })}
-                    placeholder="CGM-2026-001"
+                    placeholder="CGM-2026-000"
                     className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 font-mono font-bold text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
                   />
                 </div>
@@ -4066,7 +4066,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     required
                     value={memberFormData.representante_legal}
                     onChange={(e) => setMemberFormData({ ...memberFormData, representante_legal: e.target.value })}
-                    placeholder="ej: Carlos Mendoza"
+                    placeholder="ej: Alejandro Morales / María Gómez"
                     className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
                   />
                 </div>
@@ -4079,7 +4079,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     type="text"
                     value={memberFormData.rif_cedula}
                     onChange={(e) => setMemberFormData({ ...memberFormData, rif_cedula: e.target.value })}
-                    placeholder="ej: J-50123849-2 / V-14.281.902"
+                    placeholder="ej: J-12345678-0 / V-12.345.678"
                     className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
                   />
                 </div>
@@ -4095,7 +4095,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     required
                     value={memberFormData.telefono}
                     onChange={(e) => setMemberFormData({ ...memberFormData, telefono: e.target.value })}
-                    placeholder="+58 414-8817137"
+                    placeholder="ej: +58 414 0000000 / +58 424 0000000"
                     className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
                   />
                 </div>
@@ -4124,7 +4124,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     type="text"
                     value={memberFormData.direccion_completa}
                     onChange={(e) => setMemberFormData({ ...memberFormData, direccion_completa: e.target.value })}
-                    placeholder="ej: Av. 4 entre Calles 19 y 20, Centro Histórico"
+                    placeholder="ej: Av. Principal, Sector Casco Central, Edificio Gourmet, Local 1"
                     className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
                   />
                 </div>
@@ -5615,7 +5615,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     required
                     value={touristServiceFormData.contactWhatsapp}
                     onChange={(e) => setTouristServiceFormData({ ...touristServiceFormData, contactWhatsapp: e.target.value })}
-                    placeholder="ej: 04148817137"
+                    placeholder="ej: +58 414 0000000 / +58 424 0000000"
                     className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-purple-500 focus:bg-white"
                   />
                 </div>

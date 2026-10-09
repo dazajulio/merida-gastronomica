@@ -453,7 +453,7 @@ export function JobsSection({ t, setActiveTab }) {
                     <input
                       type="text"
                       required
-                      placeholder="Ej. Andrés Paredes"
+                      placeholder="Ej. Carlos Rodríguez"
                       className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500"
                     />
                   </div>
@@ -464,7 +464,7 @@ export function JobsSection({ t, setActiveTab }) {
                       <input
                         type="tel"
                         required
-                        placeholder="+58 414 1234567"
+                        placeholder="+58 414 0000000"
                         className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500"
                       />
                     </div>
@@ -473,7 +473,7 @@ export function JobsSection({ t, setActiveTab }) {
                       <input
                         type="email"
                         required
-                        placeholder="ejemplo@correo.com"
+                        placeholder="contacto@ejemplo.com"
                         className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500"
                       />
                     </div>
@@ -493,7 +493,7 @@ export function JobsSection({ t, setActiveTab }) {
                     <label className="block text-xs font-bold text-slate-700 mb-1">Formación Académica / Escuela</label>
                     <input
                       type="text"
-                      placeholder="Ej. ULA Gestión Gastronómica / Hotel Escuela / Autodidacta"
+                      placeholder="Ej. Grado / Diplomado en Artes Culinarias / Especialización Profesional"
                       className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500"
                     />
                   </div>
@@ -572,7 +572,7 @@ export function JobsSection({ t, setActiveTab }) {
                     <input
                       type="text"
                       required
-                      placeholder="Ej. Restaurante Los Portales Andinos"
+                      placeholder="Ej. Gran Restaurante & Bistró Gourmet"
                       className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500"
                     />
                   </div>
@@ -583,7 +583,7 @@ export function JobsSection({ t, setActiveTab }) {
                       <input
                         type="text"
                         required
-                        placeholder="Ej. CAM-MER-2026-042"
+                        placeholder="Ej. CGM-2026-000"
                         className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500"
                       />
                     </div>
@@ -621,7 +621,7 @@ export function JobsSection({ t, setActiveTab }) {
                       <label className="block text-xs font-bold text-slate-700 mb-1">Ubicación / Zona</label>
                       <input
                         type="text"
-                        placeholder="Ej. Mérida Centro / El Valle"
+                        placeholder="Ej. Casco Central / Zona Metropolitana"
                         className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500"
                       />
                     </div>

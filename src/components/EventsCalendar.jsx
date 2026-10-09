@@ -452,7 +452,7 @@ export function EventsCalendar({ t }) {
                   required 
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Ej. Valentina Morales" 
+                  placeholder="Ej. Juan Pérez / María Gómez" 
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:border-amber-500 focus:bg-white"
                 />
               </div>
@@ -476,7 +476,7 @@ export function EventsCalendar({ t }) {
                     required 
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+58 414..." 
+                    placeholder="+58 414 0000000" 
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:border-amber-500 focus:bg-white"
                   />
                 </div>
@@ -497,7 +497,7 @@ export function EventsCalendar({ t }) {
                         required
                         value={affiliateCode}
                         onChange={(e) => setAffiliateCode(e.target.value)}
-                        placeholder="Ej. CGM-2026-001" 
+                        placeholder="Ej. CGM-2026-000" 
                         className="w-full bg-white border border-emerald-300 rounded-xl px-3 py-2 text-slate-800 uppercase font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
@@ -558,7 +558,7 @@ export function EventsCalendar({ t }) {
                         required
                         value={paymentRef}
                         onChange={(e) => setPaymentRef(e.target.value)}
-                        placeholder="Ej. 123456" 
+                        placeholder="Ej. 12345678" 
                         className="w-full bg-white border border-amber-300 rounded-xl px-2.5 py-2 text-slate-800 text-xs font-mono font-bold focus:outline-none"
                       />
                     </div>

@@ -410,7 +410,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
                     required
                     value={resName}
                     onChange={(e) => setResName(e.target.value)}
-                    placeholder="Ej. Carlos Mendoza" 
+                    placeholder="Ej. Carlos Rodríguez / María Gómez" 
                     className="w-full bg-white border border-white/40 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-300"
                   />
                 </div>

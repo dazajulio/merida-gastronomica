@@ -458,7 +458,7 @@ export function SelloGastronomico({ t, setActiveTab }) {
                     <input
                       type="text"
                       required
-                      placeholder="Ej. Restaurante Valle Nevado"
+                      placeholder="Ej. Gran Restaurante & Salón Gourmet"
                       className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500"
                     />
                   </div>
@@ -469,7 +469,7 @@ export function SelloGastronomico({ t, setActiveTab }) {
                       <input
                         type="text"
                         required
-                        placeholder="J-12345678-9"
+                        placeholder="J-00000000-0"
                         className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500"
                       />
                     </div>
@@ -489,7 +489,7 @@ export function SelloGastronomico({ t, setActiveTab }) {
                       <input
                         type="text"
                         required
-                        placeholder="Ej. Roberto Méndez"
+                        placeholder="Ej. Alejandro Morales"
                         className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500"
                       />
                     </div>
@@ -498,7 +498,7 @@ export function SelloGastronomico({ t, setActiveTab }) {
                       <input
                         type="tel"
                         required
-                        placeholder="+58 424 7654321"
+                        placeholder="+58 414 0000000"
                         className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500"
                       />
                     </div>
@@ -508,7 +508,7 @@ export function SelloGastronomico({ t, setActiveTab }) {
                     <label className="block text-xs font-bold text-slate-700 mb-1">Dirección Física del Local</label>
                     <input
                       type="text"
-                      placeholder="Ej. Av. 3 con Calle 24, Casco Histórico, Mérida"
+                      placeholder="Ej. Av. Principal, Sector Casco Central, Local Comercial #1"
                       className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500"
                     />
                   </div>
