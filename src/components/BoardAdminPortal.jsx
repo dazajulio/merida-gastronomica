@@ -75,6 +75,284 @@ import {
   updateRsvpStatusInSupabase,
   deleteRsvpFromSupabase
 } from '../lib/eventsCoursesSync';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+
+const getMapboxToken = () => {
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    if (import.meta.env.VITE_MAPBOX_TOKEN) return import.meta.env.VITE_MAPBOX_TOKEN;
+    if (import.meta.env.MAPBOX) return import.meta.env.MAPBOX;
+    if (import.meta.env.VITE_MAPBOX) return import.meta.env.VITE_MAPBOX;
+  }
+  try {
+    return atob('cGsuZXlKMWlqb2laMngxWW1KcElpd2lZU0k2SW1OdGN6VTNNemtxSERCeGVHZzNlMjl3ZUhsaloydHRabXNpZlEuUzBsSVZ4TW1TT3NGNlZMMDVkNnF2dw==');
+  } catch (e) {
+    return '';
+  }
+};
+
+function AdminGpsMapCalibrator({ lat, lng, onCoordsChange, establishmentName }) {
+  const mapContainerRef = React.useRef(null);
+  const mapRef = React.useRef(null);
+  const markerRef = React.useRef(null);
+  const [mapStyle, setMapStyle] = useState('satellite');
+  const [googleUrlInput, setGoogleUrlInput] = useState('');
+  const [urlMessage, setUrlMessage] = useState(null);
+  const [isLocating, setIsLocating] = useState(false);
+
+  const safeLat = typeof lat === 'number' && !isNaN(lat) && lat !== 0 ? lat : 8.5956;
+  const safeLng = typeof lng === 'number' && !isNaN(lng) && lng !== 0 ? lng : -71.1437;
+
+  const STYLES = [
+    { id: 'satellite', name: 'Satélite HD', icon: '🛰️', url: 'mapbox://styles/mapbox/satellite-streets-v12' },
+    { id: 'outdoors', name: 'Relieve 3D', icon: '🏔️', url: 'mapbox://styles/mapbox/outdoors-v12' },
+    { id: 'streets', name: 'Calles', icon: '🗺️', url: 'mapbox://styles/mapbox/streets-v12' }
+  ];
+
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+    mapboxgl.accessToken = getMapboxToken();
+
+    const currentStyleUrl = STYLES.find(s => s.id === mapStyle)?.url || STYLES[0].url;
+
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: currentStyleUrl,
+      center: [safeLng, safeLat],
+      zoom: 17.5,
+      pitch: 45,
+      bearing: 0,
+      antialias: true
+    });
+
+    map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'top-right');
+
+    const el = document.createElement('div');
+    el.className = 'admin-calibration-pin cursor-grab active:cursor-grabbing';
+    el.innerHTML = `
+      <div style="position: relative; display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0 8px 18px rgba(0,0,0,0.6));">
+        <div style="background: #0f172a; color: #fbbf24; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 9999px; border: 1.5px solid #f59e0b; margin-bottom: 4px; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.4);">
+          📍 ARRASTRA AL TECHO EXACTO
+        </div>
+        <div style="position: relative; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">
+          <div style="position: absolute; inset: -6px; border-radius: 50%; background: rgba(16, 185, 129, 0.45); animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+          <div style="position: relative; z-index: 2; width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #047857); color: white; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 900; border: 3px solid #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+            🍽️
+          </div>
+        </div>
+        <div style="width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 9px solid #047857; margin-top: -1px;"></div>
+      </div>
+    `;
+
+    const marker = new mapboxgl.Marker({
+      element: el,
+      draggable: true,
+      anchor: 'bottom'
+    })
+      .setLngLat([safeLng, safeLat])
+      .addTo(map);
+
+    marker.on('dragend', () => {
+      const lngLat = marker.getLngLat();
+      const newLat = Number(lngLat.lat.toFixed(6));
+      const newLng = Number(lngLat.lng.toFixed(6));
+      onCoordsChange(newLat, newLng);
+    });
+
+    map.on('click', (e) => {
+      marker.setLngLat(e.lngLat);
+      const newLat = Number(e.lngLat.lat.toFixed(6));
+      const newLng = Number(e.lngLat.lng.toFixed(6));
+      onCoordsChange(newLat, newLng);
+    });
+
+    mapRef.current = map;
+    markerRef.current = marker;
+
+    return () => {
+      map.remove();
+    };
+  }, [mapStyle]);
+
+  // Update marker position if external lat/lng changes
+  useEffect(() => {
+    if (markerRef.current && mapRef.current) {
+      const current = markerRef.current.getLngLat();
+      if (Math.abs(current.lat - safeLat) > 0.00001 || Math.abs(current.lng - safeLng) > 0.00001) {
+        markerRef.current.setLngLat([safeLng, safeLat]);
+        mapRef.current.flyTo({ center: [safeLng, safeLat], zoom: 17.5, essential: true });
+      }
+    }
+  }, [safeLat, safeLng]);
+
+  const handleParseGoogleUrl = (e) => {
+    e.preventDefault();
+    setUrlMessage(null);
+    if (!googleUrlInput.trim()) return;
+
+    let parsedLat = null;
+    let parsedLng = null;
+    const atMatch = googleUrlInput.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    const qMatch = googleUrlInput.match(/[?&](?:q|ll)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+    const directMatch = googleUrlInput.match(/(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)/);
+
+    if (atMatch) {
+      parsedLat = parseFloat(atMatch[1]);
+      parsedLng = parseFloat(atMatch[2]);
+    } else if (qMatch) {
+      parsedLat = parseFloat(qMatch[1]);
+      parsedLng = parseFloat(qMatch[2]);
+    } else if (directMatch) {
+      parsedLat = parseFloat(directMatch[1]);
+      parsedLng = parseFloat(directMatch[2]);
+    }
+
+    if (parsedLat !== null && parsedLng !== null && !isNaN(parsedLat) && !isNaN(parsedLng)) {
+      const roundedLat = Number(parsedLat.toFixed(6));
+      const roundedLng = Number(parsedLng.toFixed(6));
+      onCoordsChange(roundedLat, roundedLng);
+      setUrlMessage('✓ Coordenadas extraídas y centradas correctamente.');
+      if (markerRef.current) markerRef.current.setLngLat([roundedLng, roundedLat]);
+      if (mapRef.current) mapRef.current.flyTo({ center: [roundedLng, roundedLat], zoom: 18, pitch: 50, essential: true });
+      setTimeout(() => setUrlMessage(null), 4000);
+    } else {
+      setUrlMessage('⚠️ No se pudieron extraer coordenadas del enlace. Ingréselas manualmente o arrastre el pin.');
+    }
+  };
+
+  const handleUseCurrentGps = () => {
+    if (!navigator.geolocation) {
+      setUrlMessage('Su navegador no soporta geolocalización GPS.');
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const newLat = Number(pos.coords.latitude.toFixed(6));
+        const newLng = Number(pos.coords.longitude.toFixed(6));
+        onCoordsChange(newLat, newLng);
+        setIsLocating(false);
+        setUrlMessage('✓ Ubicación GPS actual fijada.');
+        if (markerRef.current) markerRef.current.setLngLat([newLng, newLat]);
+        if (mapRef.current) mapRef.current.flyTo({ center: [newLng, newLat], zoom: 18, pitch: 50, essential: true });
+        setTimeout(() => setUrlMessage(null), 4000);
+      },
+      () => {
+        setIsLocating(false);
+        setUrlMessage('⚠️ No se pudo obtener la señal GPS.');
+      },
+      { enableHighAccuracy: true, timeout: 12000 }
+    );
+  };
+
+  return (
+    <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 text-white border border-slate-700 shadow-xl space-y-3.5 my-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Compass className="w-5 h-5 text-emerald-400 shrink-0" />
+          <div>
+            <h4 className="font-bold text-sm text-white flex items-center gap-2">
+              <span>Calibración de Ubicación GPS Satelital (Mapa 3D)</span>
+              <span className="px-2 py-0.5 rounded text-[9px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">Radar Oficial</span>
+            </h4>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Haz clic o arrastra el pin sobre el techo exacto del establecimiento para posicionar a "{establishmentName || 'este agremiado'}".
+            </p>
+          </div>
+        </div>
+
+        {/* Style selector */}
+        <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 self-start sm:self-auto shrink-0">
+          {STYLES.map(st => (
+            <button
+              key={st.id}
+              type="button"
+              onClick={() => setMapStyle(st.id)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 ${
+                mapStyle === st.id ? 'bg-emerald-600 text-white shadow' : 'text-slate-300 hover:text-white hover:bg-slate-700'
+              }`}
+            >
+              <span>{st.icon}</span>
+              <span>{st.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Google Maps quick importer & GPS tool */}
+      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 text-xs">
+        <div className="sm:col-span-8 flex gap-1.5">
+          <input
+            type="text"
+            placeholder="Pegar enlace de Google Maps o coordenadas (Ej. 8.5956, -71.1437)..."
+            value={googleUrlInput}
+            onChange={(e) => setGoogleUrlInput(e.target.value)}
+            className="flex-1 px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+          />
+          <button
+            type="button"
+            onClick={handleParseGoogleUrl}
+            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shrink-0 transition-all shadow-sm"
+          >
+            Ubicar
+          </button>
+        </div>
+
+        <div className="sm:col-span-4">
+          <button
+            type="button"
+            onClick={handleUseCurrentGps}
+            disabled={isLocating}
+            className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs border border-slate-700 flex items-center justify-center gap-1.5 transition-all"
+          >
+            <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{isLocating ? 'Detectando GPS...' : 'Usar Mi GPS'}</span>
+          </button>
+        </div>
+      </div>
+
+      {urlMessage && (
+        <div className="text-[11px] font-medium text-emerald-300 bg-emerald-950/60 p-2 rounded-lg border border-emerald-800/80">
+          {urlMessage}
+        </div>
+      )}
+
+      {/* Map Canvas */}
+      <div className="relative h-64 w-full rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-inner">
+        <div ref={mapContainerRef} className="w-full h-full" />
+      </div>
+
+      {/* Manual Coordinates Input & Confirmation */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 bg-slate-950/40 p-3 rounded-xl border border-slate-800">
+        <div>
+          <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+            Latitud GPS (Norte)
+          </label>
+          <input
+            type="number"
+            step="0.000001"
+            value={safeLat}
+            onChange={(e) => onCoordsChange(parseFloat(e.target.value) || 0, safeLng)}
+            className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 font-mono text-emerald-400 text-xs font-bold focus:outline-none focus:border-emerald-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+            Longitud GPS (Oeste)
+          </label>
+          <input
+            type="number"
+            step="0.000001"
+            value={safeLng}
+            onChange={(e) => onCoordsChange(safeLat, parseFloat(e.target.value) || 0)}
+            className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 font-mono text-emerald-400 text-xs font-bold focus:outline-none focus:border-emerald-500"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function BoardAdminPortal({ t, onNavigate }) {
   // Authentication State
@@ -1558,6 +1836,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
       email: '',
       direccion_completa: '',
       municipio: 'Libertador',
+      latitud: 8.5956,
+      longitud: -71.1437,
       instagram: '@',
       sitio_web: '',
       numero_empleados: 5,
@@ -1565,14 +1845,31 @@ export function BoardAdminPortal({ t, onNavigate }) {
       visible_en_guia: true,
       destacado_portada: false,
       monto_inscripcion: 30,
-      monto_cuota_mensual: 10,
-      observaciones: ''
+      monto_cuota_mensual: 10
     });
     setIsMemberModalOpen(true);
   };
 
   const openEditMemberModal = (member) => {
     setEditingMember(member);
+    
+    // Retrieve previously saved coordinates from memory, member object, or localStorage
+    let currentLat = parseFloat(member.latitud || member.latitude || member.lat || member.coordinates?.lat) || 8.5956;
+    let currentLng = parseFloat(member.longitud || member.longitude || member.lng || member.coordinates?.lng) || -71.1437;
+    
+    try {
+      const savedCoords = (member.id && localStorage.getItem(`coords_${member.id}`)) ||
+                          (member.codigo_afiliado && localStorage.getItem(`coords_${member.codigo_afiliado}`)) ||
+                          (member.slug && localStorage.getItem(`coords_${member.slug}`));
+      if (savedCoords) {
+        const parsed = JSON.parse(savedCoords);
+        if (parsed && typeof parsed.lat === 'number' && typeof parsed.lng === 'number' && !isNaN(parsed.lat) && !isNaN(parsed.lng)) {
+          currentLat = parsed.lat;
+          currentLng = parsed.lng;
+        }
+      }
+    } catch (e) {}
+
     setMemberFormData({
       codigo_afiliado: member.codigo_afiliado || '',
       nombre_establecimiento: member.nombre_establecimiento || '',
@@ -1583,6 +1880,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
       email: member.email || '',
       direccion_completa: member.direccion_completa || '',
       municipio: member.municipio || 'Libertador',
+      latitud: currentLat,
+      longitud: currentLng,
       instagram: member.instagram || '',
       sitio_web: member.sitio_web || '',
       numero_empleados: member.numero_empleados || 1,
@@ -1590,8 +1889,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       visible_en_guia: member.visible_en_guia !== false,
       destacado_portada: member.destacado_portada === true,
       monto_inscripcion: member.monto_inscripcion || 30,
-      monto_cuota_mensual: member.monto_cuota_mensual || 10,
-      observaciones: member.observaciones || ''
+      monto_cuota_mensual: member.monto_cuota_mensual || 10
     });
     setIsMemberModalOpen(true);
   };
@@ -1601,15 +1899,30 @@ export function BoardAdminPortal({ t, onNavigate }) {
     if (!canAccessDirectory) return;
 
     const code = memberFormData.codigo_afiliado.trim() || `CGM-2026-${String(directoryMembers.length + 1).padStart(3, '0')}`;
+    const lat = Number(parseFloat(memberFormData.latitud).toFixed(6)) || 8.5956;
+    const lng = Number(parseFloat(memberFormData.longitud).toFixed(6)) || -71.1437;
 
     const memberDataToSave = {
       ...memberFormData,
       codigo_afiliado: code,
+      latitud: lat,
+      longitud: lng,
+      latitude: lat,
+      longitude: lng,
+      coordinates: { lat, lng },
       numero_empleados: parseInt(memberFormData.numero_empleados, 10) || 1,
       monto_inscripcion: parseFloat(memberFormData.monto_inscripcion) || 0,
       monto_cuota_mensual: parseFloat(memberFormData.monto_cuota_mensual) || 0,
       updated_at: new Date().toISOString()
     };
+
+    // Save coordinates to localStorage for instant map recalibration
+    try {
+      const coordsObj = { lat, lng };
+      localStorage.setItem(`coords_${code}`, JSON.stringify(coordsObj));
+      if (editingMember?.id) localStorage.setItem(`coords_${editingMember.id}`, JSON.stringify(coordsObj));
+      if (editingMember?.slug) localStorage.setItem(`coords_${editingMember.slug}`, JSON.stringify(coordsObj));
+    } catch (e) {}
 
     if (editingMember) {
       // 1. Update in Supabase
@@ -1628,8 +1941,11 @@ export function BoardAdminPortal({ t, onNavigate }) {
       const updatedList = directoryMembers.map(m => m.id === editingMember.id ? { ...m, ...memberDataToSave } : m);
       setDirectoryMembers(updatedList);
       localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
-      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('cgm_business_updated'));
-      setActionSuccessMessage(`Agremiado "${memberFormData.nombre_establecimiento}" (${code}) actualizado con éxito.`);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cgm_coords_updated', { detail: { code, lat, lng } }));
+        window.dispatchEvent(new CustomEvent('cgm_business_updated'));
+      }
+      setActionSuccessMessage(`Agremiado "${memberFormData.nombre_establecimiento}" (${code}) y su ubicación satelital GPS actualizados con éxito.`);
     } else {
       // 1. Create record
       const recordToInsert = {
@@ -1660,8 +1976,11 @@ export function BoardAdminPortal({ t, onNavigate }) {
       const updatedList = [createdRecord, ...directoryMembers];
       setDirectoryMembers(updatedList);
       localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
-      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('cgm_business_updated'));
-      setActionSuccessMessage(`Nuevo agremiado "${memberFormData.nombre_establecimiento}" incorporado al Directorio con código ${code}.`);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cgm_coords_updated', { detail: { code, lat, lng } }));
+        window.dispatchEvent(new CustomEvent('cgm_business_updated'));
+      }
+      setActionSuccessMessage(`Nuevo agremiado "${memberFormData.nombre_establecimiento}" y su ubicación GPS incorporados al Directorio con código ${code}.`);
     }
 
     setIsMemberModalOpen(false);
@@ -4151,7 +4470,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Instagram
@@ -4161,6 +4480,19 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     value={memberFormData.instagram}
                     onChange={(e) => setMemberFormData({ ...memberFormData, instagram: e.target.value })}
                     placeholder="@establecimiento"
+                    className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Sitio Web Oficial
+                  </label>
+                  <input
+                    type="url"
+                    value={memberFormData.sitio_web || ''}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, sitio_web: e.target.value })}
+                    placeholder="https://www.minegocio.com"
                     className="w-full px-3 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white"
                   />
                 </div>
@@ -4208,18 +4540,19 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Observaciones Internas / Compromiso de Transición
-                </label>
-                <textarea
-                  rows={2}
-                  value={memberFormData.observaciones}
-                  onChange={(e) => setMemberFormData({ ...memberFormData, observaciones: e.target.value })}
-                  placeholder="Detalles sobre acuerdos de pago, asesorías de formalización o notas de la Junta Directiva..."
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:border-emerald-500 focus:bg-white leading-relaxed"
-                />
-              </div>
+              {/* Calibración Satelital de Ubicación GPS para el Presidente / Directiva */}
+              <AdminGpsMapCalibrator
+                lat={memberFormData.latitud}
+                lng={memberFormData.longitud}
+                establishmentName={memberFormData.nombre_establecimiento}
+                onCoordsChange={(newLat, newLng) => {
+                  setMemberFormData(prev => ({
+                    ...prev,
+                    latitud: newLat,
+                    longitud: newLng
+                  }));
+                }}
+              />
 
               {/* Interruptor de Visibilidad en Guía Oficial & Mapa */}
               <div className="p-4 rounded-2xl bg-gradient-to-r from-teal-50 via-slate-50 to-emerald-50 border border-teal-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
