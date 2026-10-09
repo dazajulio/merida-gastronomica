@@ -77,7 +77,9 @@ export const BOARD_MEMBERS_DATA = [
     passwordHash: "edreyesda1608",
     hasPasswordSet: true,
     isAdminLevel: false,
+    isTesorero: true,
     avatar: "/images/Tesorero Edixon Xavier Reyes Dávila.png",
+    phone: "+58 274 2528813",
     order: 5
   },
   {

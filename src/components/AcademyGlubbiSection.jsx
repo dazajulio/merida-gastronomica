@@ -22,6 +22,7 @@ import {
   CalendarDays
 } from 'lucide-react';
 import { ACADEMY_DATA } from '../data/academyData';
+import { fetchLiveCourses, saveCourseEnrollmentToSupabase } from '../lib/eventsCoursesSync';
 
 export function AcademyGlubbiSection({ t, setActiveTab }) {
   const [activeTabSub, setActiveTabSub] = useState('courses'); // courses | alliance | glubbi | expo
@@ -29,7 +30,7 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
   const [expoSuccess, setExpoSuccess] = useState(false);
   const [glubbiDemoActive, setGlubbiDemoActive] = useState(false);
 
-  // Official courses from Presidencia
+  // Official courses from Presidencia (Supabase Cloud + localStorage fallback)
   const [officialCourses, setOfficialCourses] = useState(() => {
     try {
       const saved = localStorage.getItem('cgem_official_courses');
@@ -42,6 +43,13 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
   });
 
   useEffect(() => {
+    // 1. Cargar desde Supabase Cloud al montar
+    fetchLiveCourses().then(live => {
+      if (Array.isArray(live) && live.length > 0) {
+        setOfficialCourses(live);
+      }
+    });
+
     const handleCoursesUpdate = () => {
       try {
         const saved = localStorage.getItem('cgem_official_courses');
@@ -86,6 +94,21 @@ export function AcademyGlubbiSection({ t, setActiveTab }) {
   const handleCourseEnrollSubmit = (e) => {
     e.preventDefault();
     setCourseEnrollSuccess(true);
+
+    // Guardar en Supabase Cloud
+    saveCourseEnrollmentToSupabase({
+      courseId: selectedCourseForEnroll?.id,
+      courseTitle: selectedCourseForEnroll?.title,
+      attendeeType: enrollAttendeeType,
+      fullName: enrollFullName,
+      email: enrollEmail,
+      phone: enrollPhone,
+      affiliateCode: enrollAffiliateCode,
+      paymentRef: enrollPaymentRef,
+      paymentBank: enrollPaymentBank,
+      status: enrollAttendeeType === 'afiliado' ? 'confirmado' : 'pendiente_conciliacion'
+    });
+
     setTimeout(() => {
       setCourseEnrollSuccess(false);
       setSelectedCourseForEnroll(null);

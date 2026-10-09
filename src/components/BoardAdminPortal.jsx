@@ -53,14 +53,28 @@ import {
   CreditCard,
   UploadCloud,
   Loader2,
-  PlusCircle
+  PlusCircle,
+  CircleDollarSign,
+  Landmark
 } from 'lucide-react';
 import { BOARD_MEMBERS_DATA, INITIAL_BOARD_AGENDA_DATA } from '../data/boardData';
 import { LEGAL_DATA } from '../data/legalData';
 import { INITIAL_DIRECTORY_DATA } from '../data/initialDirectoryData';
+import { TreasuryManagementModule } from './TreasuryManagementModule';
 import { sendBoardAttendanceEmail } from '../lib/emailService';
 import { supabase } from '../lib/supabaseClient';
 import { optimizeImage, formatBytes } from '../lib/imageOptimizer';
+import { 
+  fetchLiveEvents, 
+  saveEventToSupabase, 
+  deleteEventFromSupabase,
+  fetchLiveCourses, 
+  saveCourseToSupabase, 
+  deleteCourseFromSupabase,
+  fetchLiveEventRsvps,
+  updateRsvpStatusInSupabase,
+  deleteRsvpFromSupabase
+} from '../lib/eventsCoursesSync';
 
 export function BoardAdminPortal({ t, onNavigate }) {
   // Authentication State
@@ -105,8 +119,14 @@ export function BoardAdminPortal({ t, onNavigate }) {
     currentUser?.email?.toLowerCase() === 'margiovi@gmail.com' || 
     (currentUser?.role && currentUser?.role.toLowerCase().includes('ejecutivo'));
 
-  // Both President and Executive Director (and admin level) have full access to the Directorio de Agremiados
-  const canAccessDirectory = currentUser?.isAdminLevel || isPresident || isExecutiveDirector;
+  const isTesorero = currentUser?.id === 'dir-tesorero' || 
+    currentUser?.isTesorero ||
+    currentUser?.email?.toLowerCase() === 'edreyesda@gmail.com' || 
+    (currentUser?.role && currentUser?.role.toLowerCase().includes('tesorero'));
+
+  // President, Executive Director, Tesorero and Admin Level have full access to Directorio & Treasury
+  const canAccessDirectory = currentUser?.isAdminLevel || isPresident || isExecutiveDirector || isTesorero;
+  const canAccessTreasury = currentUser?.isAdminLevel || isPresident || isExecutiveDirector || isTesorero;
 
   // Legal Resources State (Synchronized with localStorage)
   const [legalCategories, setLegalCategories] = useState(() => {
@@ -345,6 +365,12 @@ export function BoardAdminPortal({ t, onNavigate }) {
   });
 
   useEffect(() => {
+    fetchLiveCourses().then(data => {
+      if (Array.isArray(data) && data.length > 0) setOfficialCourses(data);
+    });
+  }, []);
+
+  useEffect(() => {
     try {
       localStorage.setItem('cgem_official_courses', JSON.stringify(officialCourses));
       window.dispatchEvent(new Event('cgem_courses_updated'));
@@ -379,6 +405,12 @@ export function BoardAdminPortal({ t, onNavigate }) {
     } catch (e) {}
     return [];
   });
+
+  useEffect(() => {
+    fetchLiveEvents().then(data => {
+      if (Array.isArray(data) && data.length > 0) setOfficialEvents(data);
+    });
+  }, []);
 
   useEffect(() => {
     try {
@@ -429,6 +461,12 @@ export function BoardAdminPortal({ t, onNavigate }) {
   });
 
   useEffect(() => {
+    fetchLiveEventRsvps().then(data => {
+      if (Array.isArray(data) && data.length > 0) setEventRsvpsList(data);
+    });
+  }, []);
+
+  useEffect(() => {
     const handleRsvpsUpdate = () => {
       try {
         const saved = localStorage.getItem('cgem_event_rsvps');
@@ -446,6 +484,31 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const [selectedEventForRsvps, setSelectedEventForRsvps] = useState(null);
   const [rsvpSearchQuery, setRsvpSearchQuery] = useState('');
   const [rsvpStatusFilter, setRsvpStatusFilter] = useState('all'); // 'all' | 'confirmado' | 'pendiente_conciliacion'
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+
+  const handleManualSyncEventsCourses = async () => {
+    setIsSyncingCloud(true);
+    setActionSuccessMessage('Sincronizando con Supabase Cloud...');
+    try {
+      const [events, courses, rsvps] = await Promise.all([
+        fetchLiveEvents(),
+        fetchLiveCourses(),
+        fetchLiveEventRsvps()
+      ]);
+      if (events) setOfficialEvents(events);
+      if (courses) setOfficialCourses(courses);
+      if (rsvps) setEventRsvpsList(rsvps);
+      setActionSuccessMessage('¡Sincronización Cloud completada!');
+    } catch (e) {
+      setActionErrorMessage('Error al sincronizar con Supabase Cloud.');
+    } finally {
+      setIsSyncingCloud(false);
+    }
+    setTimeout(() => {
+      setActionSuccessMessage('');
+      setActionErrorMessage('');
+    }, 3500);
+  };
 
   // =========================================================================
   // 4. VINCULACIONES TURÍSTICAS & SERVICIOS STATE (PRESIDENCY)
@@ -809,8 +872,10 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const handleSaveCourse = (e) => {
     e.preventDefault();
     if (editingCourse) {
-      const updated = officialCourses.map(c => c.id === editingCourse.id ? { ...c, ...courseFormData } : c);
+      const updatedCourse = { ...editingCourse, ...courseFormData };
+      const updated = officialCourses.map(c => c.id === editingCourse.id ? updatedCourse : c);
       setOfficialCourses(updated);
+      saveCourseToSupabase(updatedCourse);
       setActionSuccessMessage(`Curso "${courseFormData.title}" actualizado exitosamente.`);
     } else {
       const newCourse = {
@@ -819,6 +884,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
         created_at: new Date().toISOString()
       };
       setOfficialCourses([newCourse, ...officialCourses]);
+      saveCourseToSupabase(newCourse);
       setActionSuccessMessage(`Nuevo curso "${courseFormData.title}" publicado en la Academia.`);
     }
     setIsCourseModalOpen(false);
@@ -829,6 +895,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const handleDeleteCourse = (courseId, title) => {
     if (window.confirm(`¿Está seguro de eliminar el curso "${title}"?`)) {
       setOfficialCourses(officialCourses.filter(c => c.id !== courseId));
+      deleteCourseFromSupabase(courseId);
       setActionSuccessMessage(`Curso "${title}" eliminado.`);
       setTimeout(() => setActionSuccessMessage(''), 4000);
     }
@@ -1161,8 +1228,10 @@ export function BoardAdminPortal({ t, onNavigate }) {
     };
 
     if (editingPublicEvent) {
-      const updated = officialEvents.map(ev => ev.id === editingPublicEvent.id ? { ...ev, ...payload } : ev);
+      const updatedEvent = { ...editingPublicEvent, ...payload };
+      const updated = officialEvents.map(ev => ev.id === editingPublicEvent.id ? updatedEvent : ev);
       setOfficialEvents(updated);
+      saveEventToSupabase(updatedEvent);
       setActionSuccessMessage(`Evento "${publicEventFormData.title}" actualizado con éxito.`);
     } else {
       const newEv = {
@@ -1171,6 +1240,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
         created_at: new Date().toISOString()
       };
       setOfficialEvents([newEv, ...officialEvents]);
+      saveEventToSupabase(newEv);
       setActionSuccessMessage(`Evento público "${publicEventFormData.title}" publicado en la Agenda Oficial.`);
     }
     setIsPublicEventModalOpen(false);
@@ -1182,6 +1252,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const handleDeletePublicEvent = (eventId, title) => {
     if (window.confirm(`¿Está seguro de eliminar el evento "${title}"?`)) {
       setOfficialEvents(officialEvents.filter(ev => ev.id !== eventId));
+      deleteEventFromSupabase(eventId);
       setActionSuccessMessage(`Evento "${title}" eliminado.`);
       setTimeout(() => setActionSuccessMessage(''), 4000);
     }
@@ -1191,9 +1262,10 @@ export function BoardAdminPortal({ t, onNavigate }) {
   // RSVP & ATTENDEES MANAGEMENT HANDLERS (PRESIDENCY)
   // =========================================================================
   const handleToggleRsvpStatus = (rsvpId) => {
+    let nextStatus = 'confirmado';
     const updated = eventRsvpsList.map(r => {
       if (r.id === rsvpId) {
-        const nextStatus = r.status === 'confirmado' ? 'pendiente_conciliacion' : 'confirmado';
+        nextStatus = r.status === 'confirmado' ? 'pendiente_conciliacion' : 'confirmado';
         return {
           ...r,
           status: nextStatus
@@ -1206,6 +1278,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       localStorage.setItem('cgem_event_rsvps', JSON.stringify(updated));
       window.dispatchEvent(new Event('cgem_rsvps_updated'));
     } catch (e) {}
+    updateRsvpStatusInSupabase(rsvpId, nextStatus);
     setActionSuccessMessage('Estado de acreditación actualizado.');
     setTimeout(() => setActionSuccessMessage(''), 3000);
   };
@@ -1218,6 +1291,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       localStorage.setItem('cgem_event_rsvps', JSON.stringify(updated));
       window.dispatchEvent(new Event('cgem_rsvps_updated'));
     } catch (e) {}
+    deleteRsvpFromSupabase(rsvpId);
     setActionSuccessMessage(`Registro de "${name}" eliminado.`);
     setTimeout(() => setActionSuccessMessage(''), 3000);
   };
@@ -2166,6 +2240,21 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     <span>Marco Jurídico ({totalLegalDocs})</span>
                   </button>
                 )}
+
+                {/* 9. MÓDULO DE TESORERÍA, CONCILIACIÓN & FINANZAS (Tesorero / Directiva) */}
+                {canAccessTreasury && (
+                  <button
+                    onClick={() => setViewMode('treasury')}
+                    className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
+                      viewMode === 'treasury'
+                        ? 'bg-teal-700 text-white shadow-sm font-extrabold ring-2 ring-teal-400/30'
+                        : 'text-teal-900 hover:text-teal-950 bg-teal-50 hover:bg-teal-100 border border-teal-200'
+                    }`}
+                  >
+                    <CircleDollarSign className={`w-3.5 h-3.5 ${viewMode === 'treasury' ? 'text-white' : 'text-teal-700'}`} />
+                    <span>TESORERÍA & FINANZAS</span>
+                  </button>
+                )}
               </div>
 
               {/* Year tabs (only in timeline view) */}
@@ -3091,6 +3180,15 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
                 <div className="flex flex-wrap items-center gap-3 font-sans">
                   <button
+                    onClick={handleManualSyncEventsCourses}
+                    disabled={isSyncingCloud}
+                    title="Sincronizar cursos y eventos con Supabase Cloud"
+                    className="py-3 px-4 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-serif font-black text-xs uppercase tracking-wider shadow-sm flex items-center gap-2 transition-all active:scale-98 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingCloud ? 'animate-spin' : ''}`} />
+                    <span>{isSyncingCloud ? 'Sincronizando...' : 'Sincronizar Cloud'}</span>
+                  </button>
+                  <button
                     onClick={openNewCourseModal}
                     className="py-3 px-5 rounded-xl bg-sky-500 hover:bg-sky-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider shadow-lg flex items-center gap-2 transition-all active:scale-98"
                   >
@@ -3261,6 +3359,15 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 font-sans">
+                  <button
+                    onClick={handleManualSyncEventsCourses}
+                    disabled={isSyncingCloud}
+                    title="Sincronizar eventos y cursos con Supabase Cloud"
+                    className="py-3 px-4 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-serif font-black text-xs uppercase tracking-wider shadow-sm flex items-center gap-2 transition-all active:scale-98 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingCloud ? 'animate-spin' : ''}`} />
+                    <span>{isSyncingCloud ? 'Sincronizando...' : 'Sincronizar Cloud'}</span>
+                  </button>
                   <button
                     onClick={openNewPublicEventModal}
                     className="py-3 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider shadow-lg flex items-center gap-2 transition-all active:scale-98"
@@ -3856,8 +3963,18 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 );
               })}
             </div>
-
           </div>
+        )}
+
+        {/* =========================================================================
+            VIEW MODE 5: TESORERÍA, CONCILIACIÓN & FINANZAS (TESORERO / DIRECTIVA)
+            ========================================================================= */}
+        {viewMode === 'treasury' && canAccessTreasury && (
+          <TreasuryManagementModule
+            currentUser={currentUser}
+            directoryMembers={directoryMembers}
+            onDirectoryUpdate={(updated) => setDirectoryMembers(updated)}
+          />
         )}
 
       </div>

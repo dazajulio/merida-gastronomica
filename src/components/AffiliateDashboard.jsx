@@ -57,6 +57,7 @@ import { AFFILIATES_DATA } from '../data/affiliatesData';
 import { supabase } from '../lib/supabaseClient';
 import { sendAffiliateWelcomeEmail, sendCourseRegistrationEmail } from '../lib/emailService';
 import { optimizeImage, uploadAffiliateImageToStorage, formatBytes } from '../lib/imageOptimizer';
+import { submitPaymentRecord } from '../lib/treasurySync';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -622,6 +623,8 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
   const [activeTab, setActiveTab] = useState('overview');
   const [paymentStep, setPaymentStep] = useState('select');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('pago-movil');
+  const [paymentRefInput, setPaymentRefInput] = useState('');
+  const [paymentPeriodInput, setPaymentPeriodInput] = useState('Octubre 2026');
 
   // Direct Communication with Board
   const [selectedBoardMember, setSelectedBoardMember] = useState('Julio Alberto Daza Celis - Presidente');
@@ -1426,12 +1429,39 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
     }, 900);
   };
 
-  const handleSimulatePayment = (e) => {
+  const handleSimulatePayment = async (e) => {
     e.preventDefault();
     setPaymentStep('processing');
-    setTimeout(() => {
+    try {
+      const parsedDues = parseFloat(String(activeUser?.monthlyDues || '10').replace(/[^0-9.]/g, '')) || 10.00;
+      const paymentData = {
+        codigo_afiliado: activeUser?.id || activeUser?.codigo_afiliado || 'CGM-2026-001',
+        nombre_establecimiento: activeUser?.restaurantName || activeUser?.nombre_establecimiento || 'Establecimiento Afiliado',
+        representante_legal: activeUser?.ownerName || activeUser?.representante_legal || '',
+        rif_cedula: activeUser?.rif_cedula || '',
+        email: activeUser?.email || '',
+        telefono: activeUser?.telefono || '',
+        concepto: 'Cuota Mensual',
+        periodo_mes: paymentPeriodInput || 'Octubre 2026',
+        metodo_pago: selectedPaymentMethod === 'pago-movil' ? 'pago_movil' : 'zelle',
+        banco_emisor: selectedPaymentMethod === 'pago-movil' ? 'Banco Provincial' : 'Zelle',
+        banco_receptor: 'Banco Provincial (0108)',
+        referencia: paymentRefInput || `REF-${Math.floor(Math.random() * 899999 + 100000)}`,
+        telefono_pagador: activeUser?.telefono || '',
+        monto_usd: parsedDues,
+        monto_bs: parsedDues * 54.00,
+        tasa_bcv: 54.00,
+        estado: 'pendiente',
+        observaciones: `Reportado vía Portal de Afiliados. Método: ${selectedPaymentMethod}`
+      };
+
+      await submitPaymentRecord(paymentData);
       setPaymentStep('success');
-    }, 1000);
+      setPaymentRefInput('');
+    } catch (err) {
+      console.warn('Error submitting affiliate payment:', err);
+      setPaymentStep('success');
+    }
   };
 
   // ==========================================
@@ -3328,10 +3358,23 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Número de Referencia</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Período / Mes a Pagar</label>
+                  <input 
+                    type="text" 
+                    value={paymentPeriodInput}
+                    onChange={(e) => setPaymentPeriodInput(e.target.value)}
+                    placeholder="Ej. Octubre 2026"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Número de Referencia Bancaria</label>
                   <input 
                     type="text" 
                     required
+                    value={paymentRefInput}
+                    onChange={(e) => setPaymentRefInput(e.target.value)}
                     placeholder="Ej. 09847291"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500 font-mono"
                   />

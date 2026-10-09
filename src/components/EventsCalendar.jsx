@@ -17,6 +17,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { EVENTS_DATA } from '../data/eventsData';
+import { fetchLiveEvents, saveEventRsvpToSupabase } from '../lib/eventsCoursesSync';
 
 export function EventsCalendar({ t }) {
   const [selectedMonth, setSelectedMonth] = useState('all');
@@ -37,7 +38,7 @@ export function EventsCalendar({ t }) {
   const [paymentPhone, setPaymentPhone] = useState('');
   const [institutionOrRole, setInstitutionOrRole] = useState('');
 
-  // Live synced events
+  // Live synced events (Supabase Cloud + localStorage fallback)
   const [eventsList, setEventsList] = useState(() => {
     try {
       const saved = localStorage.getItem('cgem_official_events');
@@ -50,6 +51,13 @@ export function EventsCalendar({ t }) {
   });
 
   useEffect(() => {
+    // 1. Cargar desde Supabase Cloud al montar
+    fetchLiveEvents().then(live => {
+      if (Array.isArray(live) && live.length > 0) {
+        setEventsList(live);
+      }
+    });
+
     const handleEventsUpdate = () => {
       try {
         const saved = localStorage.getItem('cgem_official_events');
@@ -126,31 +134,35 @@ export function EventsCalendar({ t }) {
     const tierName = selectedTier ? selectedTier.name : 'General';
     const tierPrice = selectedTier ? (selectedTier.isFree ? 0 : selectedTier.priceUSD) : 0;
 
-    // Save registration record to localStorage
+    // Save registration record to Supabase and localStorage
+    const newRsvp = {
+      id: `rsvp-${Date.now()}`,
+      eventId: rsvpModalEvent.id,
+      eventTitle: rsvpModalEvent.title,
+      tierId: selectedTier?.id || 'tier-general',
+      tierName,
+      tierPriceUSD: tierPrice,
+      isFree: isFreeTier,
+      fullName,
+      email,
+      phone,
+      affiliateCode: isFreeTier && tierName.toLowerCase().includes('miembro') ? affiliateCode : '',
+      institutionOrRole,
+      paymentRef: !isFreeTier ? paymentRef : '',
+      paymentBank: !isFreeTier ? paymentBank : '',
+      registeredAt: new Date().toISOString(),
+      status: isFreeTier ? 'confirmado' : 'pendiente_conciliacion'
+    };
+
     try {
       const savedRsvps = localStorage.getItem('cgem_event_rsvps');
       const list = savedRsvps ? JSON.parse(savedRsvps) : [];
-      const newRsvp = {
-        id: `rsvp-${Date.now()}`,
-        eventId: rsvpModalEvent.id,
-        eventTitle: rsvpModalEvent.title,
-        tierId: selectedTier?.id || 'tier-general',
-        tierName,
-        tierPriceUSD: tierPrice,
-        isFree: isFreeTier,
-        fullName,
-        email,
-        phone,
-        affiliateCode: isFreeTier && tierName.toLowerCase().includes('miembro') ? affiliateCode : '',
-        institutionOrRole,
-        paymentRef: !isFreeTier ? paymentRef : '',
-        paymentBank: !isFreeTier ? paymentBank : '',
-        registeredAt: new Date().toISOString(),
-        status: isFreeTier ? 'confirmado' : 'pendiente_conciliacion'
-      };
       localStorage.setItem('cgem_event_rsvps', JSON.stringify([newRsvp, ...list]));
       window.dispatchEvent(new Event('cgem_rsvps_updated'));
     } catch (err) {}
+
+    // Sincronizar en la nube Supabase
+    saveEventRsvpToSupabase(newRsvp);
 
     setTimeout(() => {
       setRsvpSuccess(false);

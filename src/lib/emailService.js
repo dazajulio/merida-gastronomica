@@ -456,5 +456,91 @@ export async function sendCourseRegistrationEmail({
   });
 }
 
+/**
+ * Notificación de Recibo Oficial de Pago y Conciliación Gremial (Tesorería CGEM)
+ */
+export async function sendPaymentReceiptEmail({
+  recipientEmail,
+  receiptNumber,
+  establishmentName,
+  ownerName,
+  affiliateCode,
+  rif,
+  concept,
+  period,
+  paymentMethod,
+  bankName,
+  referenceNumber,
+  amountUsd,
+  amountBs,
+  paymentDate,
+  reconciledBy,
+  newExpiryDate
+}) {
+  const subject = `Recibo Oficial de Pago [${receiptNumber}] - ${establishmentName} | Cámara Gastronómica de Mérida`;
+
+  const content = `
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span style="display: inline-block; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
+        ✓ Pago Conciliado & Aprobado
+      </span>
+      <h2 style="color: #0f172a; margin: 12px 0 4px 0; font-size: 20px;">Recibo Oficial de Tesorería</h2>
+      <p style="margin: 0; font-family: monospace; font-size: 14px; font-weight: bold; color: #b45309;">
+        ${receiptNumber}
+      </p>
+    </div>
+
+    <p>Estimado(a) <strong>${ownerName || establishmentName}</strong>,</p>
+    <p>La Dirección de Tesorería de la <strong>Cámara Gastronómica del Estado Mérida</strong> ha verificado y conciliado satisfactoriamente su pago en la cuenta oficial bancaria.</p>
+
+    <div class="info-box" style="background-color: #f8fafc; border-left: 4px solid #0d9488; padding: 16px; border-radius: 8px; margin: 18px 0;">
+      <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">Detalles de la Transacción</h3>
+      
+      <p style="margin: 4px 0;"><strong>Establecimiento:</strong> ${establishmentName}</p>
+      <p style="margin: 4px 0;"><strong>Titular / Representante:</strong> ${ownerName || 'Representante Legal'}</p>
+      <p style="margin: 4px 0;"><strong>Código Afiliado / RIF:</strong> <span style="font-family: monospace; font-weight: bold;">${affiliateCode || 'N/A'}</span> ${rif ? `• ${rif}` : ''}</p>
+      <p style="margin: 4px 0;"><strong>Concepto Liquidado:</strong> <span style="color: #b45309; font-weight: bold;">${concept}</span></p>
+      <p style="margin: 4px 0;"><strong>Período Correspondiente:</strong> ${period || 'Mes en curso'}</p>
+      <p style="margin: 4px 0;"><strong>Método de Pago:</strong> ${paymentMethod === 'pago_movil' ? 'Pago Móvil Banco Provincial (0108)' : (paymentMethod === 'zelle' ? 'Zelle' : 'Transferencia Bancaria')}</p>
+      <p style="margin: 4px 0;"><strong>N° Referencia Bancaria:</strong> <span style="font-family: monospace; font-weight: bold; color: #0f172a;">${referenceNumber}</span></p>
+      <p style="margin: 4px 0;"><strong>Fecha de Pago:</strong> ${paymentDate ? new Date(paymentDate).toLocaleString('es-VE') : new Date().toLocaleDateString('es-VE')}</p>
+      
+      <div style="margin-top: 14px; padding: 12px; background-color: #134e4a; color: #ffffff; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 11px; text-transform: uppercase; font-weight: bold; color: #99f6e4;">Monto Total Conciliado:</span>
+        <span style="font-size: 18px; font-weight: 900; color: #fbbf24; margin-left: auto;">
+          $${parseFloat(amountUsd || 0).toFixed(2)} USD ${amountBs ? `<span style="font-size: 12px; font-weight: normal; color: #e2e8f0;">(Bs. ${parseFloat(amountBs).toFixed(2)})</span>` : ''}
+        </span>
+      </div>
+    </div>
+
+    <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 12px; margin: 16px 0; text-align: center;">
+      <p style="margin: 0; font-size: 13px; color: #065f46; font-weight: bold;">
+        ✓ Estatus Gremial: SOLVENTE (ACTIVO)
+      </p>
+      ${newExpiryDate ? `<p style="margin: 4px 0 0 0; font-size: 11px; color: #047857;">Próximo corte de cuota: ${new Date(newExpiryDate).toLocaleDateString('es-VE')}</p>` : ''}
+    </div>
+
+    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center;">
+      <p style="margin: 0; font-size: 12px; font-weight: bold; color: #0f172a;">${reconciledBy || 'Edixon Xavier Reyes Dávila'}</p>
+      <p style="margin: 2px 0 0 0; font-size: 11px; color: #64748b;">Tesorero de la Junta Directiva</p>
+      <p style="margin: 2px 0 0 0; font-size: 10px; color: #0d9488; font-weight: bold; text-transform: uppercase;">Cámara Gastronómica del Estado Mérida (CGEM)</p>
+    </div>
+  `;
+
+  if (!recipientEmail || !recipientEmail.includes('@')) {
+    console.warn('sendPaymentReceiptEmail: No valid recipientEmail provided:', recipientEmail);
+    return { success: false, error: 'No recipient email' };
+  }
+
+  return sendEmail({
+    to: recipientEmail,
+    replyTo: 'tesoreria@meridagastronomica.com',
+    subject,
+    html: getEmailBaseTemplate(subject, content),
+    text: `Recibo Oficial de Pago ${receiptNumber} para ${establishmentName}. Monto: $${amountUsd} USD (Ref: ${referenceNumber}). Conciliado por ${reconciledBy}.`
+  });
+}
+
+
 
 
