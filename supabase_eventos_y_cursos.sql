@@ -82,14 +82,34 @@ CREATE TABLE IF NOT EXISTS public.cursos_academia (
     location TEXT DEFAULT 'Sede CGEM / Laboratorio ULA',
     is_online BOOLEAN DEFAULT false,
     category TEXT DEFAULT 'Formación Gastronómica',
+    badge TEXT DEFAULT 'Certificación Oficial 2026',
+    access_type TEXT DEFAULT 'mixed', -- 'free' | 'paid' | 'mixed'
+    price_tiers JSONB DEFAULT '[]'::jsonb,
+    ticket_price TEXT,
+    is_pago_movil_enabled BOOLEAN DEFAULT true,
+    pago_movil_bank TEXT DEFAULT '0108 - Banco Provincial',
+    pago_movil_ci TEXT DEFAULT 'V-12517086',
+    pago_movil_phone TEXT DEFAULT '0414-8817137',
     description TEXT,
     spots INTEGER DEFAULT 25,
     price_member_text TEXT DEFAULT 'Gratuito para Miembros Solventes',
     price_general_usd NUMERIC(10,2) DEFAULT 35.00,
     image TEXT,
+    image_aspect TEXT DEFAULT '9:16',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- MIGRACIÓN / ACTUALIZACIÓN: Si la tabla ya fue creada previamente, ejecutar estas líneas:
+ALTER TABLE public.cursos_academia ADD COLUMN IF NOT EXISTS badge TEXT DEFAULT 'Certificación Oficial 2026';
+ALTER TABLE public.cursos_academia ADD COLUMN IF NOT EXISTS access_type TEXT DEFAULT 'mixed';
+ALTER TABLE public.cursos_academia ADD COLUMN IF NOT EXISTS price_tiers JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.cursos_academia ADD COLUMN IF NOT EXISTS ticket_price TEXT;
+ALTER TABLE public.cursos_academia ADD COLUMN IF NOT EXISTS is_pago_movil_enabled BOOLEAN DEFAULT true;
+ALTER TABLE public.cursos_academia ADD COLUMN IF NOT EXISTS pago_movil_bank TEXT DEFAULT '0108 - Banco Provincial';
+ALTER TABLE public.cursos_academia ADD COLUMN IF NOT EXISTS pago_movil_ci TEXT DEFAULT 'V-12517086';
+ALTER TABLE public.cursos_academia ADD COLUMN IF NOT EXISTS pago_movil_phone TEXT DEFAULT '0414-8817137';
+ALTER TABLE public.cursos_academia ADD COLUMN IF NOT EXISTS image_aspect TEXT DEFAULT '9:16';
 
 CREATE INDEX IF NOT EXISTS idx_cursos_category ON public.cursos_academia(category);
 CREATE INDEX IF NOT EXISTS idx_cursos_created ON public.cursos_academia(created_at DESC);

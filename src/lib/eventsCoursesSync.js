@@ -234,16 +234,50 @@ export async function fetchLiveCourses() {
 }
 
 export async function saveCourseToSupabase(course) {
-  const payload = formatCourseForSupabase(course);
+  const fullPayload = formatCourseForSupabase(course);
   if (supabase) {
     try {
       const { data, error } = await supabase
         .from('cursos_academia')
-        .upsert(payload, { onConflict: 'id' })
+        .upsert(fullPayload, { onConflict: 'id' })
         .select();
 
-      if (error) console.warn('Supabase save course warning:', error.message);
-      return { success: !error, data };
+      if (!error) {
+        return { success: true, data };
+      }
+
+      console.warn('Supabase save course warning (retrying with legacy columns fallback):', error.message);
+
+      // Fallback: If table in Supabase has not yet run the migration for access_type / price_tiers
+      const basicPayload = {
+        id: course.id,
+        title: course.title,
+        hours: course.hours || '16 Horas Académicas',
+        dates: course.dates || '',
+        schedule: course.schedule || '09:00 AM - 01:00 PM',
+        instructor: course.instructor || '',
+        location: course.location || 'Sede CGEM / Laboratorio ULA',
+        is_online: !!course.isOnline,
+        category: course.category || 'Formación Gastronómica',
+        description: course.description || '',
+        spots: parseInt(course.spots, 10) || 25,
+        price_member_text: course.priceMemberText || (course.accessType === 'free' ? 'Gratuito para todo público' : 'Gratuito para Miembros Solventes'),
+        price_general_usd: parseFloat(course.priceGeneralUSD) || 35.00,
+        image: course.image || '',
+        updated_at: new Date().toISOString()
+      };
+
+      const fallbackResult = await supabase
+        .from('cursos_academia')
+        .upsert(basicPayload, { onConflict: 'id' })
+        .select();
+
+      if (fallbackResult.error) {
+        console.warn('Supabase fallback save course error:', fallbackResult.error.message);
+        return { success: false, error: fallbackResult.error };
+      }
+
+      return { success: true, data: fallbackResult.data, mode: 'legacy_schema' };
     } catch (err) {
       console.warn('Supabase save course err:', err);
       return { success: false, error: err };
