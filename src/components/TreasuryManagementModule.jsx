@@ -29,7 +29,11 @@ import {
   FileText, 
   ExternalLink,
   ChevronRight,
-  Info
+  Info,
+  Mail,
+  Send,
+  Sparkles,
+  ArrowUpRight
 } from 'lucide-react';
 import { 
   fetchLivePayments, 
@@ -53,10 +57,14 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
   const [isLoading, setIsLoading] = useState(true);
   const [treasuryTab, setTreasuryTab] = useState('conciliacion'); // 'conciliacion' | 'cuotas' | 'egresos' | 'recibos'
   
-  // Filters
+  // Filters & Search
   const [paymentFilter, setPaymentFilter] = useState('todos'); // 'todos' | 'pendiente' | 'conciliado' | 'rechazado'
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Notification Toast
+  const [toastMessage, setToastMessage] = useState(null);
+  const [isSendingReceiptEmail, setIsSendingReceiptEmail] = useState(false);
+
   // Modals
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -73,16 +81,18 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
     rif_cedula: '',
     telefono: '',
     email: '',
-    concepto: 'Cuota Mensual',
+    concepto: 'Inscripción + 1er Mes de Membresía',
     periodo_mes: 'Octubre 2026',
+    monto_inscripcion_usd: 20,
+    monto_cuota_mes_usd: 10,
+    monto_usd: 30,
+    monto_bs: 26241.96,
+    tasa_bcv: 874.73,
     metodo_pago: 'pago_movil',
     banco_emisor: 'Banco Provincial',
     banco_receptor: 'Banco Provincial (0108)',
     referencia: '',
     telefono_pagador: '',
-    monto_usd: 10,
-    monto_bs: 540,
-    tasa_bcv: 54.00,
     estado: 'conciliado',
     observaciones: 'Pago verificado y registrado directamente por Tesorería'
   });
@@ -91,15 +101,23 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
   const [expenseFormData, setExpenseFormData] = useState({
     concepto: '',
     categoria: 'Eventos & Logística',
-    monto_usd: 20,
-    monto_bs: 1080,
+    monto_usd: 0,
+    monto_bs: 0,
     metodo_pago: 'transferencia',
     referencia_comprobante: '',
     beneficiario_proveedor: '',
     observaciones: ''
   });
 
-  // Load Initial Data
+  // Helper to show Toast
+  const showToast = (msg, type = 'success') => {
+    setToastMessage({ msg, type });
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4500);
+  };
+
+  // Load Real Data
   const loadTreasuryData = async () => {
     try {
       setIsLoading(true);
@@ -123,7 +141,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
       }
 
       setPayments(finalPayments);
-      setExpenses(expensesData);
+      setExpenses(expensesData || []);
     } catch (err) {
       console.warn('Error loading treasury data:', err);
     } finally {
@@ -135,33 +153,53 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
     loadTreasuryData();
   }, [directoryMembers]);
 
-  // Recalculate KPIs
-  const totalIncomeUSD = useMemo(() => {
-    return payments
-      .filter(p => p.estado === 'conciliado')
-      .reduce((sum, p) => sum + (parseFloat(p.monto_usd) || 0), 0);
-  }, [payments]);
+  // KPIs Calculations with Real Discrimination
+  const reconciledPayments = useMemo(() => payments.filter(p => p.estado === 'conciliado'), [payments]);
+  const pendingPayments = useMemo(() => payments.filter(p => p.estado === 'pendiente'), [payments]);
 
-  const totalIncomeBS = useMemo(() => {
-    return payments
-      .filter(p => p.estado === 'conciliado')
-      .reduce((sum, p) => sum + (parseFloat(p.monto_bs) || 0), 0);
-  }, [payments]);
+  // Recaudación Conciliada
+  const totalReconciledUSD = useMemo(() => {
+    return reconciledPayments.reduce((sum, p) => sum + (parseFloat(p.monto_usd) || 0), 0);
+  }, [reconciledPayments]);
 
-  const totalExpensesUSD = useMemo(() => {
-    return expenses.reduce((sum, e) => sum + (parseFloat(e.monto_usd) || 0), 0);
-  }, [expenses]);
+  const totalReconciledBS = useMemo(() => {
+    return reconciledPayments.reduce((sum, p) => sum + (parseFloat(p.monto_bs) || 0), 0);
+  }, [reconciledPayments]);
 
-  const totalExpensesBS = useMemo(() => {
-    return expenses.reduce((sum, e) => sum + (parseFloat(e.monto_bs) || 0), 0);
-  }, [expenses]);
+  const reconciledInscripcionUSD = useMemo(() => {
+    return reconciledPayments.reduce((sum, p) => sum + (parseFloat(p.monto_inscripcion_usd) || (p.monto_usd > 20 ? 20 : 10)), 0);
+  }, [reconciledPayments]);
 
-  const netBalanceUSD = totalIncomeUSD - totalExpensesUSD;
+  const reconciledCuotaUSD = useMemo(() => {
+    return reconciledPayments.reduce((sum, p) => sum + (parseFloat(p.monto_cuota_mes_usd) || 10), 0);
+  }, [reconciledPayments]);
 
-  const pendingPayments = useMemo(() => {
-    return payments.filter(p => p.estado === 'pendiente');
-  }, [payments]);
+  // Por Conciliar
+  const totalPendingUSD = useMemo(() => {
+    return pendingPayments.reduce((sum, p) => sum + (parseFloat(p.monto_usd) || 0), 0);
+  }, [pendingPayments]);
 
+  const totalPendingBS = useMemo(() => {
+    return pendingPayments.reduce((sum, p) => sum + (parseFloat(p.monto_bs) || 0), 0);
+  }, [pendingPayments]);
+
+  const pendingInscripcionUSD = useMemo(() => {
+    return pendingPayments.reduce((sum, p) => sum + (parseFloat(p.monto_inscripcion_usd) || (p.monto_usd > 20 ? 20 : 10)), 0);
+  }, [pendingPayments]);
+
+  const pendingCuotaUSD = useMemo(() => {
+    return pendingPayments.reduce((sum, p) => sum + (parseFloat(p.monto_cuota_mes_usd) || 10), 0);
+  }, [pendingPayments]);
+
+  // Total Global (Cartera)
+  const totalGlobalUSD = useMemo(() => payments.reduce((sum, p) => sum + (parseFloat(p.monto_usd) || 0), 0), [payments]);
+  const totalGlobalBS = useMemo(() => payments.reduce((sum, p) => sum + (parseFloat(p.monto_bs) || 0), 0), [payments]);
+
+  // Egresos
+  const totalExpensesUSD = useMemo(() => expenses.reduce((sum, e) => sum + (parseFloat(e.monto_usd) || 0), 0), [expenses]);
+  const totalExpensesBS = useMemo(() => expenses.reduce((sum, e) => sum + (parseFloat(e.monto_bs) || 0), 0), [expenses]);
+
+  // Solvencias
   const solventMembersCount = useMemo(() => {
     return directoryMembers.filter(m => (m.estado_solvencia || '').toLowerCase().includes('solvente')).length;
   }, [directoryMembers]);
@@ -179,15 +217,20 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
         (p.codigo_afiliado || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.referencia || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.numero_recibo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.representante_legal || '').toLowerCase().includes(searchTerm.toLowerCase());
+        (p.representante_legal || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.rif_cedula || '').toLowerCase().includes(searchTerm.toLowerCase());
       return matchFilter && matchSearch;
     });
   }, [payments, paymentFilter, searchTerm]);
 
-  // Handle Select Member in Manual Payment Form
+  // Handle Select Member for Manual Payment
   const handleSelectMemberForManualPayment = (memberCode) => {
     const found = directoryMembers.find(m => m.codigo_afiliado === memberCode);
     if (found) {
+      const totalUsd = parseFloat(found.monto_inscripcion) || 30;
+      const inscripcion = totalUsd > 20 ? 20 : 10;
+      const cuota = 10;
+      const tasa = 874.73;
       setManualFormData(prev => ({
         ...prev,
         codigo_afiliado: found.codigo_afiliado,
@@ -197,9 +240,50 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
         telefono: found.telefono || '',
         email: found.email || '',
         telefono_pagador: found.telefono || '',
-        monto_usd: found.monto_cuota_mensual || 10,
-        monto_bs: (found.monto_cuota_mensual || 10) * (prev.tasa_bcv || 54)
+        monto_inscripcion_usd: inscripcion,
+        monto_cuota_mes_usd: cuota,
+        monto_usd: totalUsd,
+        monto_bs: totalUsd === 30 ? 26241.96 : 17494.64,
+        tasa_bcv: tasa
       }));
+    }
+  };
+
+  // SEND RECEIPT EMAIL ACTION (EXPLICIT DIRECT BUTTON)
+  const handleSendReceiptDirectly = async (payment) => {
+    const targetEmail = payment.email || directoryMembers.find(m => m.codigo_afiliado === payment.codigo_afiliado)?.email;
+    if (!targetEmail || !targetEmail.includes('@')) {
+      alert(`El establecimiento "${payment.nombre_establecimiento}" no tiene un correo electrónico válido registrado.`);
+      return;
+    }
+
+    try {
+      setIsSendingReceiptEmail(true);
+      const conciliator = currentUser?.name ? `${currentUser.name} (Tesorero)` : 'Edixon Xavier Reyes Dávila (Tesorero)';
+
+      await sendPaymentReceiptEmail({
+        recipientEmail: targetEmail,
+        receiptNumber: payment.numero_recibo,
+        establishmentName: payment.nombre_establecimiento,
+        ownerName: payment.representante_legal,
+        affiliateCode: payment.codigo_afiliado,
+        rif: payment.rif_cedula,
+        concept: payment.concepto || 'Inscripción + 1er Mes de Membresía',
+        period: payment.periodo_mes || 'Octubre 2026',
+        paymentMethod: payment.metodo_pago,
+        referenceNumber: payment.referencia,
+        amountUsd: payment.monto_usd,
+        amountBs: payment.monto_bs,
+        paymentDate: payment.fecha_pago,
+        reconciledBy: conciliator,
+        newExpiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      });
+
+      showToast(`✓ Recibo ${payment.numero_recibo} enviado exitosamente a ${targetEmail}`);
+    } catch (err) {
+      alert('Error al enviar correo: ' + err.message);
+    } finally {
+      setIsSendingReceiptEmail(false);
     }
   };
 
@@ -217,7 +301,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
         conciliado_por: conciliator
       } : p));
 
-      // Also update member in directory to 'Solvente (Activo)'
+      // Update member in directory to 'Solvente (Activo)'
       if (payment.codigo_afiliado || payment.email) {
         try {
           const localSaved = localStorage.getItem('cgem_directorio_agremiados');
@@ -254,27 +338,9 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
         }
       }
 
-      // Automatic Email Receipt Dispatch to registered user
-      const targetEmail = payment.email || directoryMembers.find(m => m.codigo_afiliado === payment.codigo_afiliado)?.email;
-      if (targetEmail && targetEmail.includes('@')) {
-        sendPaymentReceiptEmail({
-          recipientEmail: targetEmail,
-          receiptNumber: payment.numero_recibo,
-          establishmentName: payment.nombre_establecimiento,
-          ownerName: payment.representante_legal,
-          affiliateCode: payment.codigo_afiliado,
-          rif: payment.rif_cedula,
-          concept: payment.concepto,
-          period: payment.periodo_mes,
-          paymentMethod: payment.metodo_pago,
-          referenceNumber: payment.referencia,
-          amountUsd: payment.monto_usd,
-          amountBs: payment.monto_bs,
-          paymentDate: payment.fecha_pago,
-          reconciledBy: conciliator,
-          newExpiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        }).catch(err => console.warn('Automated receipt email dispatch notice:', err));
-      }
+      // Automatically dispatch email receipt
+      handleSendReceiptDirectly(payment);
+      showToast(`✓ Pago conciliado y registrado como Solvente: ${payment.nombre_establecimiento}`);
     } catch (err) {
       alert('Error al conciliar pago: ' + err.message);
     }
@@ -303,6 +369,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
 
       setIsRejectModalOpen(false);
       setRejectingPayment(null);
+      showToast(`Pago rechazado con observación registrada.`, 'warning');
     } catch (err) {
       alert('Error al rechazar pago: ' + err.message);
     }
@@ -347,30 +414,9 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
         }
       }
 
-      // Send automated receipt email
-      const targetEmail = record.email || directoryMembers.find(m => m.codigo_afiliado === record.codigo_afiliado)?.email;
-      if (targetEmail && targetEmail.includes('@')) {
-        sendPaymentReceiptEmail({
-          recipientEmail: targetEmail,
-          receiptNumber: saved.numero_recibo,
-          establishmentName: saved.nombre_establecimiento,
-          ownerName: saved.representante_legal,
-          affiliateCode: saved.codigo_afiliado,
-          rif: saved.rif_cedula,
-          concept: saved.concepto,
-          period: saved.periodo_mes,
-          paymentMethod: saved.metodo_pago,
-          referenceNumber: saved.referencia,
-          amountUsd: saved.monto_usd,
-          amountBs: saved.monto_bs,
-          paymentDate: saved.fecha_pago,
-          reconciledBy: conciliator,
-          newExpiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        }).catch(err => console.warn('Automated receipt email dispatch notice:', err));
-      }
-
       setIsManualModalOpen(false);
-      setSelectedReceipt(saved); // Open receipt
+      setSelectedReceipt(saved);
+      handleSendReceiptDirectly(saved);
     } catch (err) {
       alert('Error al guardar pago: ' + err.message);
     }
@@ -393,13 +439,14 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
       setExpenseFormData({
         concepto: '',
         categoria: 'Eventos & Logística',
-        monto_usd: 20,
-        monto_bs: 1080,
+        monto_usd: 0,
+        monto_bs: 0,
         metodo_pago: 'transferencia',
         referencia_comprobante: '',
         beneficiario_proveedor: '',
         observaciones: ''
       });
+      showToast('✓ Egreso registrado en el libro contable');
     } catch (err) {
       alert('Error al guardar egreso: ' + err.message);
     }
@@ -411,6 +458,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
     try {
       await deleteExpenseRecord(expenseId);
       setExpenses(prev => prev.filter(e => e.id !== expenseId));
+      showToast('Egreso eliminado.');
     } catch (err) {
       alert('Error al eliminar egreso: ' + err.message);
     }
@@ -418,7 +466,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
 
   // Send WhatsApp Reminder
   const handleSendWhatsAppReminder = (member) => {
-    const text = `*CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA (CGEM)*%0A%0AEstimado(a) *${member.representante_legal || member.nombre_establecimiento}*, le saludamos cordialmente desde la Dirección de Tesorería de la Cámara Gastronómica.%0A%0ALe recordamos amablemente la cuota gremial mensual correspondiente a *${member.nombre_establecimiento}* por un monto de *$${member.monto_cuota_mensual || 10}.00 USD* (al cambio oficial BCV).%0A%0A*Datos Oficiales para Pago Móvil:*%0ABanco: *Provincial (0108)*%0ARIF/Cédula: *V-12517086*%0ATeléfono: *04148817137*%0AConcepto: Cuota ${member.codigo_afiliado || member.nombre_establecimiento}%0A%0AUna vez realizado, puede reportarlo directamente por el portal web o respondernos con su comprobante para emitir su solvencia digital oficial.%0A%0A_Atentamente: Edixon Xavier Reyes Dávila (Tesorero)_`;
+    const text = `*CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA (CGEM)*%0A%0AEstimado(a) *${member.representante_legal || member.nombre_establecimiento}*, le saludamos cordialmente desde la Dirección de Tesorería de la Cámara Gastronómica.%0A%0ALe recordamos amablemente la cuota gremial mensual correspondiente a *${member.nombre_establecimiento}* por un monto de *$${member.monto_cuota_mensual || 10}.00 USD* (al cambio oficial BCV fijado al día del pago).%0A%0A*Datos Oficiales para Pago Móvil:*%0ABanco: *Provincial (0108)*%0ARIF/Cédula: *V-12517086*%0ATeléfono: *04148817137*%0AConcepto: Cuota ${member.codigo_afiliado || member.nombre_establecimiento}%0A%0AUna vez realizado, puede reportarlo directamente por el portal web o respondernos con su comprobante para emitir su recibo y solvencia digital oficial.%0A%0A_Atentamente: Edixon Xavier Reyes Dávila (Tesorero)_`;
     const cleanPhone = (member.telefono || '').replace(/\D/g, '');
     let finalPhone = cleanPhone;
     if (cleanPhone.startsWith('04')) {
@@ -430,8 +478,22 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
   return (
     <div className="space-y-8 font-sans">
       
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 animate-bounce">
+          <div className={`py-3 px-5 rounded-2xl shadow-2xl border text-xs font-bold flex items-center gap-2 ${
+            toastMessage.type === 'warning' 
+              ? 'bg-amber-900 text-amber-100 border-amber-500'
+              : 'bg-emerald-900 text-emerald-100 border-emerald-400'
+          }`}>
+            <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+            <span>{toastMessage.msg}</span>
+          </div>
+        </div>
+      )}
+
       {/* Header Banner */}
-      <div className="bg-gradient-to-br from-slate-900 via-teal-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-teal-800/40 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-teal-950 text-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-teal-800/40 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
         
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -444,15 +506,15 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
             <h1 className="font-serif font-black text-2xl sm:text-3xl text-white tracking-wide">
               Panel de Control Financiero & Conciliación Gremial
             </h1>
-            <p className="text-xs sm:text-sm text-slate-300 mt-2 max-w-2xl leading-relaxed">
-              Gestión oficial y conciliación de cuotas, membresías, eventos y egresos de la Cámara Gastronómica del Estado Mérida. A cargo de <strong>Edixon Xavier Reyes Dávila (Tesorero)</strong>.
+            <p className="text-xs sm:text-sm text-slate-300 mt-2 max-w-3xl leading-relaxed">
+              Gestión contable oficial de la Cámara Gastronómica del Estado Mérida. Todos los pagos en bolívares quedan <strong>fijados según la tasa oficial BCV del día de cada comprobante bancario</strong>. Gestión a cargo de <strong>Edixon Xavier Reyes Dávila (Tesorero)</strong>.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => setIsManualModalOpen(true)}
-              className="py-3 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-bold text-xs uppercase tracking-wider shadow-lg flex items-center gap-2 transition-all"
+              className="py-3 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-bold text-xs uppercase tracking-wider shadow-lg flex items-center gap-2 transition-all active:scale-98"
             >
               <Plus className="w-4 h-4 text-slate-950" />
               <span>Registrar Cobro Manual</span>
@@ -460,18 +522,18 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
 
             <button
               onClick={() => setIsExpenseModalOpen(true)}
-              className="py-3 px-4 rounded-2xl bg-rose-600/90 hover:bg-rose-700 text-white font-serif font-bold text-xs uppercase tracking-wider shadow-lg flex items-center gap-2 transition-all border border-rose-400/30"
+              className="py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-serif font-bold text-xs uppercase tracking-wider shadow-md flex items-center gap-2 transition-all border border-slate-700"
             >
-              <TrendingDown className="w-4 h-4 text-white" />
+              <TrendingDown className="w-4 h-4 text-rose-400" />
               <span>Registrar Egreso</span>
             </button>
 
             <button
               onClick={() => exportTreasuryCSV(payments, expenses)}
-              className="py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-serif font-bold text-xs uppercase tracking-wider shadow-sm flex items-center gap-2 transition-all border border-slate-700"
-              title="Descargar reporte completo en Excel / CSV"
+              className="py-3 px-4 rounded-2xl bg-teal-900 hover:bg-teal-800 text-teal-100 font-serif font-bold text-xs uppercase tracking-wider shadow-sm flex items-center gap-2 transition-all border border-teal-700"
+              title="Descargar informe contable en Excel / CSV con discriminado de cuotas"
             >
-              <FileSpreadsheet className="w-4 h-4 text-teal-400" />
+              <FileSpreadsheet className="w-4 h-4 text-teal-300" />
               <span>Exportar CSV</span>
             </button>
           </div>
@@ -504,84 +566,99 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
               <UserCheck className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] text-teal-300 font-bold uppercase block">Responsable de Conciliación</span>
-              <span className="font-semibold text-white">Edixon Reyes (Tesorero)</span>
+              <span className="text-[10px] text-teal-300 font-bold uppercase block">Tesorero Responsable</span>
+              <span className="font-semibold text-white">Edixon Xavier Reyes Dávila</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* KPI Financial Cards */}
+      {/* KPI Financial Cards (Real & Discriminado) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        {/* KPI 1: Ingresos Totales */}
+        {/* KPI 1: Recaudación Conciliada */}
         <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Recaudación Total</span>
-            <div className="w-9 h-9 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Recaudación Conciliada</span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
           <div className="font-serif font-black text-2xl text-slate-900">
-            ${totalIncomeUSD.toFixed(2)} <span className="text-xs font-normal text-slate-500">USD</span>
+            ${totalReconciledUSD.toFixed(2)} <span className="text-xs font-normal text-slate-500">USD</span>
           </div>
-          <p className="text-xs text-emerald-700 font-medium mt-1">
-            Bs. {totalIncomeBS.toLocaleString('es-VE', { minimumFractionDigits: 2 })} al cambio
-          </p>
+          <div className="text-[11px] text-emerald-700 font-semibold mt-1">
+            Bs. {totalReconciledBS.toLocaleString('es-VE', { minimumFractionDigits: 2 })} fijados al BCV
+          </div>
+          <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
+            <span>Inscripciones: <strong>${reconciledInscripcionUSD}</strong></span>
+            <span>Cuotas 1er Mes: <strong>${reconciledCuotaUSD}</strong></span>
+          </div>
         </div>
 
         {/* KPI 2: Pagos Pendientes por Conciliar */}
         <div className={`p-5 rounded-3xl border shadow-sm relative overflow-hidden transition-all ${
           pendingPayments.length > 0 
-            ? 'bg-amber-50/70 border-amber-300 ring-2 ring-amber-400/20' 
+            ? 'bg-amber-50/80 border-amber-300 ring-2 ring-amber-400/20' 
             : 'bg-white border-slate-200'
         }`}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-900">Por Conciliar</span>
-            <div className={`w-9 h-9 rounded-2xl flex items-center justify-center ${
+            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-900">Por Conciliar en Banco</span>
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
               pendingPayments.length > 0 ? 'bg-amber-500 text-slate-950 animate-pulse' : 'bg-slate-100 text-slate-600'
             }`}>
-              <Clock className="w-5 h-5" />
+              <Clock className="w-4 h-4" />
             </div>
           </div>
           <div className="font-serif font-black text-2xl text-slate-900">
-            {pendingPayments.length} <span className="text-xs font-normal text-slate-500">pagos en espera</span>
+            ${totalPendingUSD.toFixed(2)} <span className="text-xs font-normal text-slate-500">USD ({pendingPayments.length} pagos)</span>
           </div>
-          <p className="text-xs text-amber-800 font-medium mt-1">
-            {pendingPayments.length > 0 ? 'Requiere verificación en extracto bancario' : 'Bandeja de verificación al día'}
-          </p>
+          <div className="text-[11px] text-amber-800 font-semibold mt-1">
+            Bs. {totalPendingBS.toLocaleString('es-VE', { minimumFractionDigits: 2 })} en extracto
+          </div>
+          <div className="mt-2 pt-2 border-t border-amber-200/60 flex items-center justify-between text-[10px] text-slate-600">
+            <span>Inscripciones: <strong>${pendingInscripcionUSD}</strong></span>
+            <span>Cuotas: <strong>${pendingCuotaUSD}</strong></span>
+          </div>
         </div>
 
-        {/* KPI 3: Total Egresos */}
+        {/* KPI 3: Recaudación Global Total */}
         <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Egresos</span>
-            <div className="w-9 h-9 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center">
-              <TrendingDown className="w-5 h-5" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Cartera Global Reportada</span>
+            <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4" />
             </div>
           </div>
-          <div className="font-serif font-black text-2xl text-slate-900">
-            ${totalExpensesUSD.toFixed(2)} <span className="text-xs font-normal text-slate-500">USD</span>
+          <div className="font-serif font-black text-2xl text-teal-900">
+            ${totalGlobalUSD.toFixed(2)} <span className="text-xs font-normal text-slate-500">USD ({payments.length} miembros)</span>
           </div>
-          <p className="text-xs text-rose-700 font-medium mt-1">
-            {expenses.length} gastos operativos registrados
-          </p>
+          <div className="text-[11px] text-teal-700 font-semibold mt-1">
+            Bs. {totalGlobalBS.toLocaleString('es-VE', { minimumFractionDigits: 2 })} en total
+          </div>
+          <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
+            <span>{solventMembersCount} Solventes</span>
+            <span>{pendingMembersCount} En Trámite</span>
+          </div>
         </div>
 
-        {/* KPI 4: Balance Neto & Solvencia */}
+        {/* KPI 4: Egresos & Superávit */}
         <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Superávit / Balance</span>
-            <div className="w-9 h-9 rounded-2xl bg-teal-100 text-teal-700 flex items-center justify-center">
-              <CircleDollarSign className="w-5 h-5" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Egresos & Balance</span>
+            <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center">
+              <CircleDollarSign className="w-4 h-4" />
             </div>
           </div>
-          <div className={`font-serif font-black text-2xl ${netBalanceUSD >= 0 ? 'text-teal-700' : 'text-rose-700'}`}>
-            ${netBalanceUSD.toFixed(2)} <span className="text-xs font-normal text-slate-500">USD</span>
+          <div className="font-serif font-black text-2xl text-emerald-700">
+            ${totalExpensesUSD.toFixed(2)} <span className="text-xs font-normal text-slate-500">USD Egresos</span>
           </div>
-          <p className="text-xs text-slate-600 font-medium mt-1">
-            {solventMembersCount} agremiados solventes ({pendingMembersCount} pendientes)
-          </p>
+          <div className="text-[11px] text-emerald-700 font-semibold mt-1">
+            Superávit Neto: ${totalReconciledUSD.toFixed(2)} USD
+          </div>
+          <div className="mt-2 pt-2 border-t border-slate-100 text-[10px] text-slate-500">
+            {expenses.length === 0 ? 'Sin egresos registrados a la fecha' : `${expenses.length} egresos en libro`}
+          </div>
         </div>
       </div>
 
@@ -591,20 +668,20 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
           onClick={() => setTreasuryTab('conciliacion')}
           className={`py-2.5 px-5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
             treasuryTab === 'conciliacion'
-              ? 'bg-teal-700 text-white shadow-sm font-extrabold'
-              : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-teal-700 text-white shadow-sm font-extrabold ring-2 ring-teal-400/20'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white'
           }`}
         >
           <Clock className="w-4 h-4" />
-          <span>Bandeja de Conciliación ({pendingPayments.length})</span>
+          <span>Bandeja de Conciliación ({pendingPayments.length} Pendientes)</span>
         </button>
 
         <button
           onClick={() => setTreasuryTab('cuotas')}
           className={`py-2.5 px-5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
             treasuryTab === 'cuotas'
-              ? 'bg-teal-700 text-white shadow-sm font-extrabold'
-              : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-teal-700 text-white shadow-sm font-extrabold ring-2 ring-teal-400/20'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white'
           }`}
         >
           <Building2 className="w-4 h-4" />
@@ -615,60 +692,60 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
           onClick={() => setTreasuryTab('egresos')}
           className={`py-2.5 px-5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
             treasuryTab === 'egresos'
-              ? 'bg-teal-700 text-white shadow-sm font-extrabold'
-              : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-teal-700 text-white shadow-sm font-extrabold ring-2 ring-teal-400/20'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white'
           }`}
         >
           <TrendingDown className="w-4 h-4" />
-          <span>Gastos & Egresos ({expenses.length})</span>
+          <span>Libro de Egresos ({expenses.length})</span>
         </button>
 
         <button
           onClick={() => setTreasuryTab('recibos')}
           className={`py-2.5 px-5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
             treasuryTab === 'recibos'
-              ? 'bg-teal-700 text-white shadow-sm font-extrabold'
-              : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-teal-700 text-white shadow-sm font-extrabold ring-2 ring-teal-400/20'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white'
           }`}
         >
           <Receipt className="w-4 h-4" />
-          <span>Emisión de Recibos Digitales</span>
+          <span>Recibos Digitales Emitidos ({reconciledPayments.length})</span>
         </button>
       </div>
 
       {/* =========================================================================
-          TAB 1: BANDEJA DE CONCILIACIÓN (INBOX DE PAGOS)
+          TAB 1: BANDEJA DE CONCILIACIÓN & ENLACE DE RECIBOS
           ========================================================================= */}
       {treasuryTab === 'conciliacion' && (
         <div className="space-y-6">
           
           {/* Controls: Search and Filters */}
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
-            <div className="relative w-full md:w-80">
+            <div className="relative w-full md:w-96">
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por comercio, titular o referencia..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-2 text-xs text-slate-800 focus:outline-none focus:border-teal-600"
+                placeholder="Buscar por comercio, titular, código, RIF o referencia..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-teal-600 focus:bg-white font-medium"
               />
             </div>
 
             <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1">Filtrar Estado:</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1">Filtrar:</span>
               {[
-                { id: 'todos', label: 'Todos' },
+                { id: 'todos', label: `Todos (${payments.length})` },
                 { id: 'pendiente', label: `Pendientes (${pendingPayments.length})` },
-                { id: 'conciliado', label: 'Conciliados' },
+                { id: 'conciliado', label: `Conciliados (${reconciledPayments.length})` },
                 { id: 'rechazado', label: 'Rechazados' }
               ].map(f => (
                 <button
                   key={f.id}
                   onClick={() => setPaymentFilter(f.id)}
-                  className={`py-1.5 px-3 rounded-xl text-xs font-bold transition-all ${
+                  className={`py-2 px-3.5 rounded-xl text-xs font-bold transition-all ${
                     paymentFilter === f.id
-                      ? 'bg-slate-900 text-white shadow-sm'
+                      ? 'bg-slate-950 text-white shadow-sm font-extrabold'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
@@ -684,13 +761,13 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
               <table className="w-full text-left text-xs text-slate-600 border-collapse">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
                   <tr>
-                    <th className="py-3.5 px-4">Recibo / Fecha</th>
-                    <th className="py-3.5 px-4">Establecimiento / Titular</th>
-                    <th className="py-3.5 px-4">Concepto / Periodo</th>
-                    <th className="py-3.5 px-4">Método & Ref.</th>
-                    <th className="py-3.5 px-4">Monto (USD / Bs.)</th>
-                    <th className="py-3.5 px-4 text-center">Estado</th>
-                    <th className="py-3.5 px-4 text-right">Acciones Tesorería</th>
+                    <th className="py-4 px-4">Recibo / Fecha</th>
+                    <th className="py-4 px-4">Establecimiento / Titular</th>
+                    <th className="py-4 px-4">Discriminado de Pago</th>
+                    <th className="py-4 px-4">Monto Bs. (Fijado BCV)</th>
+                    <th className="py-4 px-4">Comprobante Bancario</th>
+                    <th className="py-4 px-4 text-center">Estatus</th>
+                    <th className="py-4 px-4 text-right">Acciones de Tesorería</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -706,100 +783,139 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                       const isPending = p.estado === 'pendiente';
                       const isApproved = p.estado === 'conciliado';
                       const isRejected = p.estado === 'rechazado';
+                      const inscripcionUsd = p.monto_inscripcion_usd || (p.monto_usd > 20 ? 20 : 10);
+                      const cuotaUsd = p.monto_cuota_mes_usd || 10;
 
                       return (
-                        <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-3.5 px-4">
-                            <span className="font-mono font-bold text-slate-900 block">{p.numero_recibo}</span>
-                            <span className="text-[10px] text-slate-400">
-                              {p.fecha_pago ? new Date(p.fecha_pago).toLocaleDateString() : 'N/A'}
+                        <tr key={p.id} className="hover:bg-slate-50/90 transition-colors">
+                          
+                          {/* Recibo & Fecha */}
+                          <td className="py-4 px-4">
+                            <span className="font-mono font-black text-teal-900 bg-teal-50 px-2 py-0.5 rounded border border-teal-200 text-[11px] block w-fit mb-1">
+                              {p.numero_recibo}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block font-medium">
+                              {p.fecha_pago ? new Date(p.fecha_pago).toLocaleDateString('es-VE') : 'N/A'}
                             </span>
                           </td>
 
-                          <td className="py-3.5 px-4">
-                            <span className="font-bold text-slate-900 block">{p.nombre_establecimiento}</span>
-                            <span className="text-[10px] text-slate-500">
-                              {p.representante_legal || 'Representante'} &bull; {p.codigo_afiliado || 'Web'}
+                          {/* Establecimiento & Titular */}
+                          <td className="py-4 px-4">
+                            <span className="font-bold text-slate-900 text-sm block">{p.nombre_establecimiento}</span>
+                            <span className="text-[11px] text-slate-500 block">
+                              {p.representante_legal} &bull; <strong className="text-slate-700 font-mono">{p.codigo_afiliado}</strong>
+                            </span>
+                            {p.rif_cedula && (
+                              <span className="text-[10px] text-slate-400 block">{p.rif_cedula}</span>
+                            )}
+                          </td>
+
+                          {/* Discriminado de Pago */}
+                          <td className="py-4 px-4">
+                            <div className="font-serif font-black text-base text-slate-900 mb-0.5">
+                              ${parseFloat(p.monto_usd || 0).toFixed(2)} USD
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1 text-[10px]">
+                              <span className="bg-amber-50 text-amber-900 px-1.5 py-0.5 rounded border border-amber-200 font-bold">
+                                Inscripción: ${inscripcionUsd}
+                              </span>
+                              <span className="bg-sky-50 text-sky-900 px-1.5 py-0.5 rounded border border-sky-200 font-bold">
+                                1er Mes: ${cuotaUsd}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Monto Bs y Tasa BCV */}
+                          <td className="py-4 px-4">
+                            <span className="font-mono font-black text-slate-900 text-xs block">
+                              Bs. {parseFloat(p.monto_bs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block font-medium">
+                              Tasa BCV: {p.tasa_bcv ? `${p.tasa_bcv} Bs/$` : 'Fijada'}
                             </span>
                           </td>
 
-                          <td className="py-3.5 px-4">
-                            <span className="font-medium text-slate-800 block">{p.concepto}</span>
-                            <span className="text-[10px] text-amber-800 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                              {p.periodo_mes || 'Mes en curso'}
-                            </span>
-                          </td>
-
-                          <td className="py-3.5 px-4">
-                            <div className="font-mono text-slate-900 font-bold flex items-center gap-1">
+                          {/* Comprobante Bancario */}
+                          <td className="py-4 px-4">
+                            <div className="font-mono text-slate-900 font-bold text-xs flex items-center gap-1">
                               <span>Ref: {p.referencia}</span>
                             </div>
-                            <span className="text-[10px] text-slate-500 block">
-                              {p.banco_emisor || 'Provincial'} &bull; {p.metodo_pago === 'pago_movil' ? 'Pago Móvil' : 'Transf.'}
+                            <span className="text-[11px] text-slate-600 font-medium block">
+                              {p.banco_emisor} &bull; {p.metodo_pago === 'pago_movil' ? 'Pago Móvil' : 'Transf.'}
                             </span>
+                            {p.telefono_pagador && (
+                              <span className="text-[10px] text-slate-400 block">Tel: {p.telefono_pagador}</span>
+                            )}
                           </td>
 
-                          <td className="py-3.5 px-4">
-                            <span className="font-serif font-black text-sm text-slate-900 block">
-                              ${parseFloat(p.monto_usd || 0).toFixed(2)} USD
-                            </span>
-                            <span className="text-[10px] text-slate-500">
-                              Bs. {parseFloat(p.monto_bs || 0).toFixed(2)}
-                            </span>
-                          </td>
-
-                          <td className="py-3.5 px-4 text-center">
+                          {/* Estatus */}
+                          <td className="py-4 px-4 text-center">
                             {isPending && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-sm">
                                 <Clock className="w-3 h-3 text-amber-600" />
                                 Pendiente
                               </span>
                             )}
                             {isApproved && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-sm">
                                 <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                                 Conciliado
                               </span>
                             )}
                             {isRejected && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-900 border border-rose-300" title={p.motivo_rechazo}>
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-900 border border-rose-300" title={p.motivo_rechazo}>
                                 <AlertCircle className="w-3 h-3 text-rose-600" />
                                 Rechazado
                               </span>
                             )}
                           </td>
 
-                          <td className="py-3.5 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
+                          {/* Acciones de Tesorería */}
+                          <td className="py-4 px-4 text-right">
+                            <div className="flex flex-wrap items-center justify-end gap-1.5">
+                              
+                              {/* 1. Botón Conciliar */}
                               {isPending && (
-                                <>
-                                  <button
-                                    onClick={() => handleApprovePayment(p)}
-                                    className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-sm transition-all"
-                                    title="Aprobar y Conciliar Pago (Actualiza Solvencia del Agremiado)"
-                                  >
-                                    <Check className="w-3.5 h-3.5" />
-                                    <span>Conciliar</span>
-                                  </button>
-
-                                  <button
-                                    onClick={() => handleOpenRejectModal(p)}
-                                    className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold transition-all"
-                                    title="Rechazar / Observar Reporte"
-                                  >
-                                    <X className="w-3.5 h-3.5" />
-                                  </button>
-                                </>
+                                <button
+                                  onClick={() => handleApprovePayment(p)}
+                                  className="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-sm transition-all active:scale-98"
+                                  title="Aprobar pago y actualizar solvencia a 'Solvente (Activo)'"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Conciliar</span>
+                                </button>
                               )}
 
+                              {/* 2. BOTÓN PROMINENTE: ENVIAR RECIBO */}
+                              <button
+                                onClick={() => handleSendReceiptDirectly(p)}
+                                disabled={isSendingReceiptEmail}
+                                className="py-1.5 px-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-[11px] font-extrabold flex items-center gap-1 shadow-sm transition-all active:scale-98 border border-teal-500/40"
+                                title={`Enviar recibo digital oficial al correo: ${p.email || 'registrado'}`}
+                              >
+                                <Send className="w-3.5 h-3.5 text-amber-300" />
+                                <span>ENVIAR RECIBO</span>
+                              </button>
+
+                              {/* 3. Ver Recibo Modal */}
                               <button
                                 onClick={() => setSelectedReceipt(p)}
-                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold flex items-center gap-1 transition-all"
-                                title="Ver / Imprimir Recibo Oficial Digital"
+                                className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition-all"
+                                title="Visualizar e Imprimir Recibo Oficial Digital"
                               >
-                                <Receipt className="w-3.5 h-3.5 text-teal-700" />
-                                <span>Recibo</span>
+                                <Receipt className="w-4 h-4 text-slate-700" />
                               </button>
+
+                              {/* 4. Rechazar (si está pendiente) */}
+                              {isPending && (
+                                <button
+                                  onClick={() => handleOpenRejectModal(p)}
+                                  className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold transition-all"
+                                  title="Rechazar con observación"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -825,16 +941,16 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                   Matriz de Control de Cuotas Ordinarias & Solvencias
                 </h3>
                 <p className="text-xs text-slate-600">
-                  Monitoreo individual de estado de cuenta, cuota asignada y recordatorios de cobranza para cada agremiado.
+                  Supervisión de aportes gremiales, montos mensuales y recordatorios directos por WhatsApp.
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200">
-                  {solventMembersCount} Solventes
+                  {solventMembersCount} Solventes (Activos)
                 </span>
                 <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200">
-                  {pendingMembersCount} Pendientes / En Trámite
+                  {pendingMembersCount} En Trámite / Pendientes
                 </span>
               </div>
             </div>
@@ -843,12 +959,12 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
               <table className="w-full text-left text-xs text-slate-600 border-collapse">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
                   <tr>
-                    <th className="py-3 px-4">Código / RIF</th>
-                    <th className="py-3 px-4">Establecimiento</th>
-                    <th className="py-3 px-4">Representante & Teléfono</th>
-                    <th className="py-3 px-4">Cuota Mensual</th>
-                    <th className="py-3 px-4 text-center">Solvencia</th>
-                    <th className="py-3 px-4 text-right">Gestión de Cobranza</th>
+                    <th className="py-3.5 px-4">Código / RIF</th>
+                    <th className="py-3.5 px-4">Establecimiento</th>
+                    <th className="py-3.5 px-4">Titular & Contacto</th>
+                    <th className="py-3.5 px-4">Cuota Mensual</th>
+                    <th className="py-3.5 px-4 text-center">Solvencia</th>
+                    <th className="py-3.5 px-4 text-right">Gestión Directa</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -876,7 +992,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                           <span className="font-serif font-black text-sm text-slate-900 block">
                             ${member.monto_cuota_mensual || 10}.00 USD
                           </span>
-                          <span className="text-[10px] text-slate-400">Mensual</span>
+                          <span className="text-[10px] text-slate-400">Cuota Mensual</span>
                         </td>
 
                         <td className="py-3.5 px-4 text-center">
@@ -927,7 +1043,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
       )}
 
       {/* =========================================================================
-          TAB 3: GESTIÓN DE EGRESOS & GASTOS OPERATIVOS
+          TAB 3: LIBRO DE EGRESOS & GASTOS OPERATIVOS
           ========================================================================= */}
       {treasuryTab === 'egresos' && (
         <div className="space-y-6">
@@ -937,7 +1053,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                 Libro de Egresos & Gastos Operativos
               </h3>
               <p className="text-xs text-slate-600">
-                Registro y control presupuestario de compras, logística, eventos y servicios de la Cámara.
+                Registro contable oficial de facturas, compras, logística y servicios de la Cámara.
               </p>
             </div>
 
@@ -968,7 +1084,8 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                   <tr>
                     <td colSpan="7" className="py-12 text-center text-slate-400">
                       <TrendingDown className="w-8 h-8 mx-auto mb-2 opacity-40 text-slate-400" />
-                      <span>No hay egresos registrados actualmente.</span>
+                      <p className="font-bold text-slate-600">No hay egresos registrados a la fecha.</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Utilice el botón "Nuevo Gasto" para asentar facturas y comprobantes reales.</p>
                     </td>
                   </tr>
                 ) : (
@@ -976,7 +1093,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                     <tr key={e.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 px-4">
                         <span className="font-medium text-slate-900 block">
-                          {e.fecha_gasto ? new Date(e.fecha_gasto).toLocaleDateString() : 'N/A'}
+                          {e.fecha_gasto ? new Date(e.fecha_gasto).toLocaleDateString('es-VE') : 'N/A'}
                         </span>
                         <span className="font-mono text-[10px] text-slate-400">{e.referencia_comprobante || 'S/R'}</span>
                       </td>
@@ -1006,14 +1123,14 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <span className="text-[11px] text-slate-700">{e.aprobado_por || 'Tesorero'}</span>
+                        <span className="text-[11px] text-slate-700">{e.aprobado_por || 'Edixon Reyes (Tesorero)'}</span>
                       </td>
 
                       <td className="py-3.5 px-4 text-right">
                         <button
                           onClick={() => handleDeleteExpense(e.id)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                          title="Eliminar registro"
+                          title="Eliminar registro de egreso"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -1028,7 +1145,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
       )}
 
       {/* =========================================================================
-          TAB 4: EMISIÓN & VISTA DE RECIBOS DIGITALES
+          TAB 4: RECIBOS DIGITALES EMITIDOS
           ========================================================================= */}
       {treasuryTab === 'recibos' && (
         <div className="space-y-6">
@@ -1037,36 +1154,54 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
               Control & Emisión de Recibos Correlativos
             </h3>
             <p className="text-xs text-slate-600 mb-6">
-              Todos los pagos conciliados generan automáticamente un recibo digital oficial con numeración única fiscal y sello de Tesorería.
+              Todos los pagos conciliados generan automáticamente un comprobante digital oficial con numeración única fiscal y sello de Tesorería.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {payments.filter(p => p.estado === 'conciliado').map((p) => (
                 <div 
                   key={p.id}
-                  onClick={() => setSelectedReceipt(p)}
-                  className="p-5 rounded-3xl border border-slate-200 hover:border-teal-500 hover:shadow-md transition-all cursor-pointer bg-gradient-to-br from-white to-slate-50/50 space-y-3"
+                  className="p-5 rounded-3xl border border-slate-200 hover:border-teal-500 hover:shadow-md transition-all bg-gradient-to-br from-white to-slate-50/50 space-y-3"
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-xs font-black text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
                       {p.numero_recibo}
                     </span>
                     <span className="text-[10px] text-slate-400">
-                      {p.fecha_conciliacion ? new Date(p.fecha_conciliacion).toLocaleDateString() : ''}
+                      {p.fecha_conciliacion ? new Date(p.fecha_conciliacion).toLocaleDateString('es-VE') : ''}
                     </span>
                   </div>
 
                   <div>
                     <h4 className="font-bold text-sm text-slate-900">{p.nombre_establecimiento}</h4>
                     <p className="text-xs text-slate-500">{p.concepto} &bull; {p.periodo_mes}</p>
+                    <p className="text-[11px] font-mono text-slate-400">Ref: {p.referencia}</p>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                    <span className="font-serif font-black text-base text-slate-900">${p.monto_usd}.00 USD</span>
-                    <span className="text-[10px] font-bold text-teal-700 flex items-center gap-1">
-                      <Receipt className="w-3.5 h-3.5" />
-                      <span>Ver Recibo</span>
-                    </span>
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                    <div>
+                      <span className="font-serif font-black text-base text-slate-900 block">${p.monto_usd}.00 USD</span>
+                      <span className="text-[10px] text-slate-400">Bs. {parseFloat(p.monto_bs || 0).toLocaleString('es-VE')}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleSendReceiptDirectly(p)}
+                        className="p-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-[10px] font-bold flex items-center gap-1 transition-all"
+                        title="Enviar por correo"
+                      >
+                        <Send className="w-3 h-3 text-amber-300" />
+                        <span>Enviar</span>
+                      </button>
+
+                      <button
+                        onClick={() => setSelectedReceipt(p)}
+                        className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold transition-all"
+                        title="Ver / Imprimir"
+                      >
+                        <Receipt className="w-3.5 h-3.5 text-teal-700" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1076,7 +1211,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
       )}
 
       {/* =========================================================================
-          MODAL 1: VISOR DE RECIBO DIGITAL OFICIAL (IMPRIMIR / DESCARGAR)
+          MODAL 1: VISOR DE RECIBO DIGITAL OFICIAL (IMPRIMIR / ENVIAR)
           ========================================================================= */}
       {selectedReceipt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
@@ -1126,6 +1261,12 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                   <span className="font-bold text-slate-900">{selectedReceipt.concepto}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-slate-500">Desglose:</span>
+                  <span className="font-medium text-slate-800">
+                    Inscripción: ${selectedReceipt.monto_inscripcion_usd || (selectedReceipt.monto_usd > 20 ? 20 : 10)} USD + Cuota 1er Mes: ${selectedReceipt.monto_cuota_mes_usd || 10} USD
+                  </span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-slate-500">Período / Mes:</span>
                   <span className="font-bold text-slate-900">{selectedReceipt.periodo_mes || 'Mes en curso'}</span>
                 </div>
@@ -1139,15 +1280,15 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Fecha de Pago:</span>
-                  <span className="text-slate-900 font-semibold">{selectedReceipt.fecha_pago ? new Date(selectedReceipt.fecha_pago).toLocaleString() : ''}</span>
+                  <span className="text-slate-900 font-semibold">{selectedReceipt.fecha_pago ? new Date(selectedReceipt.fecha_pago).toLocaleString('es-VE') : ''}</span>
                 </div>
               </div>
 
               {/* Amount Box */}
               <div className="p-4 rounded-2xl bg-teal-900 text-white flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-teal-300 block">Total Recibido</span>
-                  <span className="text-xs text-slate-300">Bs. {parseFloat(selectedReceipt.monto_bs || 0).toFixed(2)} (BCV)</span>
+                  <span className="text-[10px] uppercase font-bold text-teal-300 block">Total Recibido (Fijado BCV)</span>
+                  <span className="text-xs text-slate-300">Bs. {parseFloat(selectedReceipt.monto_bs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <span className="font-serif font-black text-2xl text-amber-400">
                   ${parseFloat(selectedReceipt.monto_usd || 0).toFixed(2)} USD
@@ -1168,8 +1309,16 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
             {/* Modal Actions */}
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
+                onClick={() => handleSendReceiptDirectly(selectedReceipt)}
+                className="py-2.5 px-4 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+              >
+                <Send className="w-3.5 h-3.5 text-amber-300" />
+                <span>ENVIAR RECIBO POR EMAIL</span>
+              </button>
+
+              <button
                 onClick={() => window.print()}
-                className="py-2 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 transition-all"
+                className="py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 transition-all"
               >
                 <Printer className="w-3.5 h-3.5" />
                 <span>Imprimir / PDF</span>
@@ -1201,7 +1350,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                 Registrar Cobro / Pago Manual
               </h3>
               <p className="text-xs text-slate-600">
-                Utilice este formulario para registrar pagos directos verificados en extracto o cobros en efectivo.
+                Utilice este formulario para asentar pagos directos verificados en el extracto del Banco Provincial.
               </p>
             </div>
 
@@ -1213,12 +1362,12 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                 <select
                   value={manualFormData.codigo_afiliado}
                   onChange={(e) => handleSelectMemberForManualPayment(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-teal-600"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-teal-600"
                 >
-                  <option value="">-- Seleccione un establecimiento o ingrese datos manuales --</option>
+                  <option value="">-- Seleccione un establecimiento --</option>
                   {directoryMembers.map(m => (
                     <option key={m.codigo_afiliado} value={m.codigo_afiliado}>
-                      {m.codigo_afiliado} - {m.nombre_establecimiento} (${m.monto_cuota_mensual || 10}/mes)
+                      {m.codigo_afiliado} - {m.nombre_establecimiento} (${m.monto_inscripcion || 30} USD)
                     </option>
                   ))}
                 </select>
@@ -1247,53 +1396,9 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Concepto *</label>
-                  <select
-                    value={manualFormData.concepto}
-                    onChange={(e) => setManualFormData({ ...manualFormData, concepto: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-teal-600"
-                  >
-                    <option value="Cuota Mensual">Cuota Mensual Ordinaria</option>
-                    <option value="Inscripción + 1er Mes">Inscripción + 1er Mes de Membresía</option>
-                    <option value="Taller / Formación">Taller / Curso de la Academia</option>
-                    <option value="Entrada Evento">Entrada a Evento Gastronómico</option>
-                    <option value="Patrocinio / Publicidad">Patrocinio / Publicidad Guía</option>
-                    <option value="Otro">Otro Concepto</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Período / Mes Correspondiente</label>
-                  <input
-                    type="text"
-                    value={manualFormData.periodo_mes}
-                    onChange={(e) => setManualFormData({ ...manualFormData, periodo_mes: e.target.value })}
-                    placeholder="ej. Octubre 2026"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-teal-600"
-                  />
-                </div>
-              </div>
-
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-slate-700 font-bold mb-1">Método de Pago</label>
-                  <select
-                    value={manualFormData.metodo_pago}
-                    onChange={(e) => setManualFormData({ ...manualFormData, metodo_pago: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-teal-600"
-                  >
-                    <option value="pago_movil">Pago Móvil Provincial</option>
-                    <option value="transferencia_nacional">Transferencia Bancaria</option>
-                    <option value="zelle">Zelle / Dólares</option>
-                    <option value="efectivo_usd">Efectivo USD</option>
-                    <option value="efectivo_bs">Efectivo Bs.</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Monto (USD) *</label>
+                  <label className="block text-slate-700 font-bold mb-1">Total (USD) *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1304,10 +1409,24 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                       setManualFormData({
                         ...manualFormData,
                         monto_usd: val,
-                        monto_bs: (val * (manualFormData.tasa_bcv || 54)).toFixed(2)
+                        monto_inscripcion_usd: val > 20 ? 20 : 10,
+                        monto_cuota_mes_usd: 10,
+                        monto_bs: val === 30 ? 26241.96 : 17494.64
                       });
                     }}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-teal-600 font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Monto en Bs. (Fijado)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={manualFormData.monto_bs}
+                    onChange={(e) => setManualFormData({ ...manualFormData, monto_bs: parseFloat(e.target.value) || 0 })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-teal-600 font-mono font-bold"
                   />
                 </div>
 
@@ -1318,20 +1437,10 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                     required
                     value={manualFormData.referencia}
                     onChange={(e) => setManualFormData({ ...manualFormData, referencia: e.target.value })}
-                    placeholder="ej. 09847291"
+                    placeholder="ej. 12345678"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-teal-600 font-mono"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Observaciones</label>
-                <input
-                  type="text"
-                  value={manualFormData.observaciones}
-                  onChange={(e) => setManualFormData({ ...manualFormData, observaciones: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-teal-600"
-                />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
@@ -1433,7 +1542,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                       setExpenseFormData({
                         ...expenseFormData,
                         monto_usd: val,
-                        monto_bs: (val * 54).toFixed(2)
+                        monto_bs: (val * 874.73).toFixed(2)
                       });
                     }}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-rose-600 font-bold"
@@ -1450,16 +1559,6 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-rose-600 font-mono"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Observaciones</label>
-                <input
-                  type="text"
-                  value={expenseFormData.observaciones}
-                  onChange={(e) => setExpenseFormData({ ...expenseFormData, observaciones: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-rose-600"
-                />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">

@@ -1,11 +1,11 @@
 import { supabase } from './supabaseClient';
 import { INITIAL_DIRECTORY_DATA } from '../data/initialDirectoryData';
 
-// Función auxiliar para extraer datos de pago de las observaciones del registro
+// Función para desglosar y extraer datos de pago reales a partir de un registro de agremiado
 export function parsePaymentFromMember(member, index = 1) {
   const obs = member.observaciones || '';
   
-  // Extraer referencia
+  // Extraer referencia bancaria
   const refMatch = obs.match(/Ref:\s*([^\s(]+)/i);
   const referencia = refMatch ? refMatch[1] : (member.rif_cedula ? `REF-${member.rif_cedula.replace(/\D/g, '').slice(-6)}` : `REF-${Math.floor(100000 + Math.random() * 900000)}`);
 
@@ -17,7 +17,7 @@ export function parsePaymentFromMember(member, index = 1) {
   const telMatch = obs.match(/Tel\.\s*Pagador:\s*([^\s.]+)/i);
   const telefonoPagador = telMatch ? telMatch[1] : (member.telefono || '');
 
-  // Extraer monto Bs
+  // Extraer monto Bs exacto reportado en el comprobante
   const bsMatch = obs.match(/Monto\s*Bs:\s*([0-9.,]+)/i);
   let montoBs = 0;
   if (bsMatch) {
@@ -25,16 +25,31 @@ export function parsePaymentFromMember(member, index = 1) {
     montoBs = parseFloat(rawBs) || 0;
   }
 
-  const montoUsd = parseFloat(member.monto_inscripcion) || 30.00;
+  const totalUsd = parseFloat(member.monto_inscripcion) || (member.categoria_negocio?.toLowerCase().includes('emprend') || member.categoria_negocio?.toLowerCase().includes('creador') ? 20.00 : 30.00);
+  
+  // Desglose oficial:
+  // Si paga $30 -> $20 Inscripción + $10 Cuota Primer Mes
+  // Si paga $20 -> $10 Inscripción + $10 Cuota Primer Mes
+  const cuotaMesUsd = 10.00;
+  const inscripcionUsd = totalUsd > 20.00 ? 20.00 : 10.00;
+
+  // Si montoBs no vino en observaciones, calculamos con tasa estimada de la fecha
   if (montoBs === 0) {
-    montoBs = montoUsd * 54.00;
+    if (member.codigo_afiliado === 'CGM-2026-001') {
+      montoBs = 26141.07;
+    } else {
+      montoBs = totalUsd === 30 ? 26241.96 : 17494.64;
+    }
   }
+
+  // Tasa BCV fijada al día del pago
+  const tasaBcvFijada = totalUsd > 0 ? (montoBs / totalUsd).toFixed(2) : '874.73';
 
   const isSolvent = (member.estado_solvencia || '').toLowerCase().includes('solvente');
   const padIndex = String(index).padStart(4, '0');
 
   return {
-    id: `pago-real-${member.id || member.codigo_afiliado}`,
+    id: `pago-${member.id || member.codigo_afiliado}`,
     numero_recibo: `REC-2026-${padIndex}`,
     codigo_afiliado: member.codigo_afiliado,
     nombre_establecimiento: member.nombre_establecimiento,
@@ -44,14 +59,16 @@ export function parsePaymentFromMember(member, index = 1) {
     email: member.email || '',
     concepto: 'Inscripción + 1er Mes de Membresía',
     periodo_mes: 'Octubre 2026',
+    monto_inscripcion_usd: inscripcionUsd,
+    monto_cuota_mes_usd: cuotaMesUsd,
+    monto_usd: totalUsd,
+    monto_bs: montoBs,
+    tasa_bcv: parseFloat(tasaBcvFijada) || 874.73,
     metodo_pago: bancoEmisor.toLowerCase().includes('provincial') ? 'pago_movil' : 'transferencia_nacional',
     banco_emisor: bancoEmisor,
     banco_receptor: 'Banco Provincial (0108)',
     referencia: referencia,
     telefono_pagador: telefonoPagador,
-    monto_bs: montoBs,
-    tasa_bcv: 54.00,
-    monto_usd: montoUsd,
     estado: isSolvent ? 'conciliado' : 'pendiente',
     fecha_pago: member.fecha_registro || member.created_at || new Date().toISOString(),
     fecha_conciliacion: isSolvent ? (member.updated_at || member.fecha_registro || new Date().toISOString()) : null,
@@ -60,10 +77,10 @@ export function parsePaymentFromMember(member, index = 1) {
   };
 }
 
-// Lista Real Base de Pagos (Construida directamente a partir de los 12 agremiados reales)
+// Lista Real Base de Pagos (Construida estrictamente con los 12 agremiados reales)
 export const INITIAL_PAYMENTS = INITIAL_DIRECTORY_DATA.map((member, idx) => parsePaymentFromMember(member, idx + 1));
 
-// Gastos reales (Inicialmente vacío hasta que Tesorería registre facturas reales)
+// Gastos reales: 0 egresos por defecto (sin datos inventados)
 export const INITIAL_EXPENSES = [];
 
 // Generar número correlativo de recibo
@@ -82,7 +99,6 @@ export async function fetchLivePayments() {
     // 1. Intentar cargar desde Supabase directorio_agremiados & pagos_tesoreria
     if (supabase) {
       try {
-        // Cargar pagos de tabla pagos_tesoreria
         const { data: pagosData, error: pagosErr } = await supabase
           .from('pagos_tesoreria')
           .select('*')
@@ -93,7 +109,6 @@ export async function fetchLivePayments() {
           return pagosData;
         }
 
-        // Si pagos_tesoreria aún está vacía, cargar agremiados de directorio_agremiados y mapear a pagos
         const { data: dirData, error: dirErr } = await supabase
           .from('directorio_agremiados')
           .select('*')
@@ -124,11 +139,14 @@ export async function fetchLivePayments() {
   }
 }
 
-// Obtener egresos desde Supabase o localStorage
+// Obtener egresos desde Supabase o localStorage (0 por defecto)
 export async function fetchLiveExpenses() {
   try {
     const saved = localStorage.getItem('cgem_egresos_camara');
-    let localData = saved ? JSON.parse(saved) : INITIAL_EXPENSES;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return parsed;
+    }
 
     if (supabase) {
       try {
@@ -137,7 +155,7 @@ export async function fetchLiveExpenses() {
           .select('*')
           .order('fecha_gasto', { ascending: false });
 
-        if (!error && Array.isArray(data) && data.length > 0) {
+        if (!error && Array.isArray(data)) {
           localStorage.setItem('cgem_egresos_camara', JSON.stringify(data));
           return data;
         }
@@ -145,13 +163,13 @@ export async function fetchLiveExpenses() {
         console.warn('Supabase egresos notice:', err);
       }
     }
-    return localData;
+    return [];
   } catch (e) {
-    return INITIAL_EXPENSES;
+    return [];
   }
 }
 
-// Guardar nuevo reporte de pago (usado tanto por agremiados como por tesorería)
+// Guardar nuevo reporte de pago
 export async function submitPaymentRecord(paymentData) {
   const newRecord = {
     ...paymentData,
@@ -162,7 +180,6 @@ export async function submitPaymentRecord(paymentData) {
     estado: paymentData.estado || 'pendiente'
   };
 
-  // 1. Guardar localmente
   try {
     const saved = localStorage.getItem('cgem_pagos_tesoreria');
     const list = saved ? JSON.parse(saved) : [...INITIAL_PAYMENTS];
@@ -177,7 +194,6 @@ export async function submitPaymentRecord(paymentData) {
     localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(updatedList));
   } catch (e) {}
 
-  // 2. Persistir en Supabase
   if (supabase) {
     try {
       const { data, error } = await supabase
@@ -204,7 +220,6 @@ export async function reconcilePaymentRecord(paymentId, conciliatorName = 'Edixo
     conciliado_por: conciliatorName
   };
 
-  // LocalStorage update
   try {
     const saved = localStorage.getItem('cgem_pagos_tesoreria');
     if (saved) {
@@ -214,7 +229,6 @@ export async function reconcilePaymentRecord(paymentId, conciliatorName = 'Edixo
     }
   } catch (e) {}
 
-  // Supabase update
   if (supabase) {
     try {
       await supabase
@@ -268,7 +282,7 @@ export async function submitExpenseRecord(expenseData) {
 
   try {
     const saved = localStorage.getItem('cgem_egresos_camara');
-    const list = saved ? JSON.parse(saved) : [...INITIAL_EXPENSES];
+    const list = saved ? JSON.parse(saved) : [];
     const updated = [newExpense, ...list];
     localStorage.setItem('cgem_egresos_camara', JSON.stringify(updated));
   } catch (e) {}
@@ -319,11 +333,11 @@ export function exportTreasuryCSV(payments = [], expenses = []) {
   let csv = "REPORTE OFICIAL DE TESORERÍA - CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA\n";
   csv += `Generado el: ${new Date().toLocaleString()}\n\n`;
 
-  csv += "--- INGRESOS Y RECAUDACIÓN ---\n";
-  csv += "Recibo,Codigo Afiliado,Establecimiento,Concepto,Periodo,Metodo,Banco Emisor,Referencia,Monto USD,Monto Bs,Estado,Fecha Pago,Conciliado Por\n";
+  csv += "--- INGRESOS Y RECAUDACIÓN (DISCRIMINADO) ---\n";
+  csv += "Recibo,Codigo Afiliado,Establecimiento,Inscripcion USD,Cuota Mes USD,Total USD,Monto Bs (Fijado BCV),Tasa BCV,Banco Emisor,Referencia,Tel Pagador,Estado,Fecha Pago,Conciliado Por\n";
 
   payments.forEach(p => {
-    csv += `"${p.numero_recibo || ''}","${p.codigo_afiliado || ''}","${(p.nombre_establecimiento || '').replace(/"/g, '""')}","${p.concepto || ''}","${p.periodo_mes || ''}","${p.metodo_pago || ''}","${p.banco_emisor || ''}","${p.referencia || ''}","${p.monto_usd || 0}","${p.monto_bs || 0}","${p.estado || ''}","${p.fecha_pago ? new Date(p.fecha_pago).toLocaleDateString() : ''}","${p.conciliado_por || ''}"\n`;
+    csv += `"${p.numero_recibo || ''}","${p.codigo_afiliado || ''}","${(p.nombre_establecimiento || '').replace(/"/g, '""')}","${p.monto_inscripcion_usd || 20}","${p.monto_cuota_mes_usd || 10}","${p.monto_usd || 0}","${p.monto_bs || 0}","${p.tasa_bcv || ''}","${p.banco_emisor || ''}","${p.referencia || ''}","${p.telefono_pagador || ''}","${p.estado || ''}","${p.fecha_pago ? new Date(p.fecha_pago).toLocaleDateString() : ''}","${p.conciliado_por || ''}"\n`;
   });
 
   csv += "\n--- EGRESOS Y GASTOS OPERATIVOS ---\n";
