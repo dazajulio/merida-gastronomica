@@ -53,28 +53,38 @@ export function convertAgremiadoToRestaurant(m) {
     gallery = [defaultCover];
   }
 
-  // Determinar eje según el municipio
+  // Determinar eje según el municipio y dirección
   const mun = (m.municipio || '').toLowerCase();
-  let eje = 'metropolitano';
-  let ejeName = 'Eje Metropolitano (Mérida Ciudad)';
-  if (mun.includes('rangel') || mun.includes('cardenal') || mun.includes('pueblo llano') || mun.includes('miranda')) {
+  const dir = (m.direccion_completa || '').toLowerCase();
+  const combinedLoc = `${mun} ${dir}`;
+
+  let eje = 'merida';
+  let ejeName = 'Mérida';
+
+  if (combinedLoc.includes('santos marquina') || combinedLoc.includes('tabay') || combinedLoc.includes('san javier') || combinedLoc.includes('el valle') || combinedLoc.includes('mucuy')) {
+    eje = 'valle-san-javier';
+    ejeName = 'El Valle de San Javier';
+  } else if (combinedLoc.includes('rangel') || combinedLoc.includes('mucuchíes') || combinedLoc.includes('mucuchies') || combinedLoc.includes('apartaderos') || combinedLoc.includes('cardenal') || combinedLoc.includes('santo domingo') || combinedLoc.includes('pueblo llano') || combinedLoc.includes('miranda') || combinedLoc.includes('timotes')) {
     eje = 'paramo';
-    ejeName = 'Eje Páramo (Mucuchíes & Apartaderos)';
-  } else if (mun.includes('tovar') || mun.includes('pinto') || mun.includes('rivas') || mun.includes('zea')) {
+    ejeName = 'Páramo Andino & Sierra Nevada';
+  } else if (combinedLoc.includes('tovar') || combinedLoc.includes('pinto') || combinedLoc.includes('santa cruz') || combinedLoc.includes('rivas') || combinedLoc.includes('bailadores') || combinedLoc.includes('zea') || combinedLoc.includes('sucre') || combinedLoc.includes('lagunillas') || combinedLoc.includes('chiguará') || combinedLoc.includes('chiguara')) {
     eje = 'mocoties';
-    ejeName = 'Eje Valle del Mocotíes';
-  } else if (mun.includes('arzobispo') || mun.includes('aricagua') || mun.includes('guaraque') || mun.includes('canaguá')) {
+    ejeName = 'Valle del Mocotíes & Ruta del Café';
+  } else if (combinedLoc.includes('arzobispo') || combinedLoc.includes('canaguá') || combinedLoc.includes('canagua') || combinedLoc.includes('aricagua') || combinedLoc.includes('guaraque') || combinedLoc.includes('padre noguera') || combinedLoc.includes('chacantá') || combinedLoc.includes('chacanta') || combinedLoc.includes('mucutuy')) {
     eje = 'pueblos-sur';
-    ejeName = 'Eje Pueblos del Sur';
-  } else if (mun.includes('adriani') || mun.includes('obispo') || mun.includes('tulio') || mun.includes('salas') || mun.includes('caracciolo')) {
+    ejeName = 'Pueblos del Sur';
+  } else if (combinedLoc.includes('adriani') || combinedLoc.includes('el vigía') || combinedLoc.includes('el vigia') || combinedLoc.includes('andrés bello') || combinedLoc.includes('azulita') || combinedLoc.includes('obispo') || combinedLoc.includes('santa elena') || combinedLoc.includes('tulio') || combinedLoc.includes('nueva bolivia') || combinedLoc.includes('palmarito') || combinedLoc.includes('salas') || combinedLoc.includes('arapuey') || combinedLoc.includes('justo') || combinedLoc.includes('torondoy') || combinedLoc.includes('caracciolo') || combinedLoc.includes('tucaní') || combinedLoc.includes('tucani')) {
     eje = 'panamericano';
-    ejeName = 'Eje Panamericano & Sur del Lago';
+    ejeName = 'Panamericano, Cacao';
   }
 
   // Coordenadas con fallback a Mérida Centro
   const lat = parseFloat(m.latitud || m.latitude || m.lat || m.coordinates?.lat) || 8.5956;
   const lng = parseFloat(m.longitud || m.longitude || m.lng || m.coordinates?.lng) || -71.1437;
   const alt = parseInt(m.altitud || m.altitude || m.alt || m.coordinates?.alt, 10) || 1620;
+
+  const rawWebsite = (m.sitio_web || m.website || '').trim();
+  const websiteUrl = rawWebsite ? (rawWebsite.startsWith('http://') || rawWebsite.startsWith('https://') ? rawWebsite : `https://${rawWebsite}`) : '';
 
   // Sanitizar descripción pública para que JAMÁS exponga comprobantes bancarios, referencias o teléfonos de pagadores
   const cleanCategory = m.categoria_negocio || 'Gastronomía Andina';
@@ -120,6 +130,9 @@ export function convertAgremiadoToRestaurant(m) {
     whatsapp: m.telefono ? m.telefono.replace(/[^0-9+]/g, '') : '',
     instagram: m.instagram || '',
     instagramUrl: m.instagram ? (m.instagram.startsWith('http') ? m.instagram : `https://instagram.com/${m.instagram.replace('@', '')}`) : '',
+    sitio_web: rawWebsite,
+    website: rawWebsite,
+    websiteUrl: websiteUrl,
     facebookUrl: '',
     isCertifiedByCamara: isSolvente,
     isFeatured: m.destacado_portada === true,

@@ -10,7 +10,7 @@ import {
   Compass
 } from 'lucide-react';
 
-export function RestaurantCard({ restaurant, onSelect, onBookDirect, onViewOnMap, t }) {
+export function RestaurantCard({ restaurant, onSelect, onViewOnMap, t }) {
   return (
     <div className="group relative rounded-3xl bg-white border border-slate-200 overflow-hidden hover:border-amber-400 hover:shadow-card-hover transition-all duration-300 flex flex-col justify-between">
       
@@ -26,7 +26,6 @@ export function RestaurantCard({ restaurant, onSelect, onBookDirect, onViewOnMap
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-black/20" />
         
-        {/* Top Badges */}
         {/* Top Badges */}
         <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
           {restaurant.isCertifiedByCamara && (
@@ -105,22 +104,13 @@ export function RestaurantCard({ restaurant, onSelect, onBookDirect, onViewOnMap
         {/* Card Footer Actions */}
         <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col gap-2">
           
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onSelect(restaurant)}
-              className="flex-1 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-slate-200"
-            >
-              <span>Ver Ficha Completa</span>
-              <ArrowUpRight className="w-3.5 h-3.5 text-amber-600" />
-            </button>
-
-            <button
-              onClick={() => onBookDirect(restaurant)}
-              className="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shrink-0 shadow-sm"
-            >
-              <span>Reservar</span>
-            </button>
-          </div>
+          <button
+            onClick={() => onSelect(restaurant)}
+            className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98]"
+          >
+            <span>Ver Ficha Oficial Completa</span>
+            <ArrowUpRight className="w-3.5 h-3.5 text-white" />
+          </button>
 
           {/* Direct Button: Ver Ubicación en Mapa 3D */}
           <button

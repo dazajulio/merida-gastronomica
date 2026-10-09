@@ -17,7 +17,6 @@ import { RestaurantCard } from './RestaurantCard';
 export function FeaturedRestaurantsCarousel({ 
   restaurants = [], 
   onSelectRestaurant, 
-  onBookDirect, 
   onViewOnMap, 
   onExploreAll,
   t 
@@ -168,7 +167,6 @@ export function FeaturedRestaurantsCarousel({
                   <RestaurantCard 
                     restaurant={restaurant}
                     onSelect={onSelectRestaurant}
-                    onBookDirect={onBookDirect}
                     onViewOnMap={onViewOnMap}
                     t={t}
                   />

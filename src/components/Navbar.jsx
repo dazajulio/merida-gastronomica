@@ -53,8 +53,8 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
       category: "Turismo & Gastronomía",
       items: [
         { id: 'home', label: 'Inicio', desc: 'Portada editorial y bienvenida oficial', icon: Mountain },
-        { id: 'guide', label: 'Guía de Restaurantes', desc: 'Fichas oficiales, menús, fotos y reservas', icon: UtensilsCrossed },
-        { id: 'lidar', label: 'Mapa Gastronómico 3D', desc: 'Cartografía satelital con radar de altitud', icon: Compass },
+        { id: 'guide', label: 'Guía de Restaurantes', desc: 'Fichas oficiales, menús, fotos y contacto', icon: UtensilsCrossed },
+        { id: 'lidar', label: 'Mapa Gastronómico 3D', desc: 'Cartografía satelital y rutas interactivas', icon: Compass },
         { id: 'terroir', label: 'Rutas Mérida', desc: 'Productos de páramo, piso térmico y terruño', icon: Sparkles },
         { id: 'cafe', label: 'Café de Especialidad', desc: 'Rutas andinas, microclimas y métodos de extracción', icon: Coffee },
         { id: 'cacao', label: 'Cacao Porcelana', desc: 'Genética criolla pura, bean-to-bar y maridajes', icon: Sparkles },

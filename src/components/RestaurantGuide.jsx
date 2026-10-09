@@ -15,7 +15,6 @@ import { GASTRONOMIC_CATEGORIES } from './AffiliateDashboard';
 export function RestaurantGuide({ 
   restaurants = [], 
   onSelectRestaurant, 
-  onBookDirect, 
   onViewOnMap,
   t, 
   initialSearch = '' 
@@ -28,11 +27,12 @@ export function RestaurantGuide({
 
   const ejes = [
     { id: 'all', name: 'Todos los Ejes' },
-    { id: 'metropolitano', name: 'Eje Metropolitano (Mérida Ciudad)' },
-    { id: 'paramo', name: 'Eje Páramo (Apartaderos & Mucubají)' },
-    { id: 'mocoties', name: 'Eje Valle del Mocotíes' },
-    { id: 'pueblos-sur', name: 'Eje Pueblos del Sur' },
-    { id: 'panamericano', name: 'Eje Panamericano & Sur del Lago' },
+    { id: 'merida', name: 'Mérida' },
+    { id: 'valle-san-javier', name: 'El Valle de San Javier' },
+    { id: 'paramo', name: 'Páramo Andino & Sierra Nevada' },
+    { id: 'mocoties', name: 'Valle del Mocotíes & Ruta del Café' },
+    { id: 'pueblos-sur', name: 'Pueblos del Sur' },
+    { id: 'panamericano', name: 'Panamericano, Cacao' }
   ];
 
   // Extraer todas las categorías oficiales y las existentes en los restaurantes registrados
@@ -94,8 +94,6 @@ export function RestaurantGuide({
       return matchSearch && matchEje && matchCategory && matchCertified;
     }).sort((a, b) => {
       if (sortBy === 'rating') return (b.rating || 5) - (a.rating || 5);
-      if (sortBy === 'altitude-desc') return (b.altitude || 1600) - (a.altitude || 1600);
-      if (sortBy === 'altitude-asc') return (a.altitude || 1600) - (b.altitude || 1600);
       if (sortBy === 'reviews') return (b.reviewsCount || 0) - (a.reviewsCount || 0);
       return 0;
     });
@@ -182,8 +180,6 @@ export function RestaurantGuide({
             >
               <option value="rating">Mayor Puntuación</option>
               <option value="reviews">Más Reseñas</option>
-              <option value="altitude-desc">Mayor Altitud (msnm)</option>
-              <option value="altitude-asc">Menor Altitud (msnm)</option>
             </select>
           </div>
 
@@ -234,7 +230,6 @@ export function RestaurantGuide({
               key={restaurant.id}
               restaurant={restaurant}
               onSelect={onSelectRestaurant}
-              onBookDirect={onBookDirect}
               onViewOnMap={onViewOnMap}
               t={t}
             />

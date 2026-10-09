@@ -8,25 +8,19 @@ import {
   Clock, 
   ChefHat, 
   ShieldCheck, 
-  Mountain, 
-  Calendar, 
-  CheckCircle2, 
   Sparkles, 
   Utensils,
   Share2,
   Copy,
   Check,
   Compass,
-  Send
+  Globe,
+  Instagram,
+  ExternalLink
 } from 'lucide-react';
 
 export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
-  const [activeImage, setActiveImage] = useState(restaurant.coverImage);
-  const [resDate, setResDate] = useState('');
-  const [resGuests, setResGuests] = useState('2 personas');
-  const [resName, setResName] = useState('');
-  const [resPhone, setResPhone] = useState('');
-  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [activeImage, setActiveImage] = useState(restaurant?.coverImage);
   const [copiedLink, setCopiedLink] = useState(false);
   const [showShareBar, setShowShareBar] = useState(false);
 
@@ -34,12 +28,12 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
 
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://meridagastronomica.com';
   const currentUrl = `${currentOrigin}/?restaurante=${restaurant.slug || restaurant.id}`;
-  const shareMessage = `¡Mira *${restaurant.name}* en la Guía Oficial de Mérida Gastronómica! 🍽️✨%0A%0A"${restaurant.tagline}"%0A📍 *Ubicación:* ${restaurant.location}%0A%0A📲 *Ver Ficha Completa, Fotos y Reservar:*%0A${currentUrl}`;
+  const shareMessage = `¡Mira *${restaurant.name}* en la Guía Oficial de Mérida Gastronómica! 🍽️✨%0A%0A"${restaurant.tagline}"%0A📍 *Ubicación:* ${restaurant.location}%0A%0A📲 *Ver Ficha Oficial y Canales de Contacto:*%0A${currentUrl}`;
 
   const handleNativeShare = async () => {
     const shareData = {
       title: `${restaurant.name} | Guía Oficial Mérida Gastronómica`,
-      text: `${restaurant.name}: ${restaurant.tagline}. Consulta su carta, fotos y reserva con el Sello Oficial de la Cámara Gastronómica.`,
+      text: `${restaurant.name}: ${restaurant.tagline}. Consulta su carta, fotos y canales oficiales de contacto.`,
       url: currentUrl
     };
 
@@ -65,76 +59,58 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
     }
   };
 
-  const handleBookingSubmit = (e) => {
-    e.preventDefault();
-    setBookingSuccess(true);
-    setTimeout(() => {
-      const text = `Hola *${restaurant.name}*, deseo solicitar una reserva formal:%0A%0A👤 *Nombre:* ${resName || 'Huésped VIP'}%0A📅 *Fecha:* ${resDate || 'Próxima disponibilidad'}%0A👥 *Comensales:* ${resGuests}%0A📱 *Teléfono:* ${resPhone}%0A%0ASolicitud enviada desde la *Guía Oficial de la Cámara Gastronómica del Estado Mérida*.`;
-      const cleanPhone = restaurant.whatsapp.replace(/[^0-9]/g, '');
-      window.open(`https://wa.me/${cleanPhone}?text=${text}`, '_blank');
-    }, 900);
-  };
+  const rawPhone = restaurant.phone || restaurant.whatsapp || '';
+  const cleanPhone = rawPhone.replace(/[^0-9+]/g, '');
+  const cleanWaNumber = cleanPhone.replace(/[^0-9]/g, '');
+
+  const websiteUrl = restaurant.websiteUrl || restaurant.website || restaurant.sitio_web || '';
+  const formattedWebsite = websiteUrl ? (websiteUrl.startsWith('http://') || websiteUrl.startsWith('https://') ? websiteUrl : `https://${websiteUrl}`) : '';
+
+  const instagramUser = restaurant.instagram ? restaurant.instagram.replace('@', '') : '';
+  const instagramUrl = restaurant.instagramUrl || (instagramUser ? `https://instagram.com/${instagramUser}` : '');
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 overflow-y-auto bg-slate-950/85 backdrop-blur-md animate-fadeIn">
       
-      <div className="relative w-full max-w-4xl bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden my-8 max-h-[90vh] flex flex-col text-slate-800">
+      {/* Modal Card Backdrop */}
+      <div 
+        className="fixed inset-0"
+        onClick={onClose}
+      />
+
+      {/* Modal Box */}
+      <div className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[92vh] border border-slate-200 animate-scaleUp">
         
-        {/* Header Bar */}
-        <div className="p-4 sm:p-6 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4">
+        {/* Sticky Header Bar */}
+        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between gap-4 shrink-0 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-amber-500 flex items-center justify-center text-white shadow-sm shrink-0">
-              <ChefHat className="w-6 h-6" />
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-600 to-amber-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
+              🍽️
             </div>
             <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="font-serif text-xl sm:text-2xl font-bold text-slate-900">
-                  {restaurant.name}
-                </h2>
-                {restaurant.isCertifiedByCamara && (
-                  <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
-                    <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-                    Certificado Oficial
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-600 font-medium mt-0.5">
-                {restaurant.tagline}
+              <h2 className="font-serif text-lg sm:text-xl font-bold text-white tracking-tight leading-snug">
+                {restaurant.name}
+              </h2>
+              <p className="text-xs text-amber-300 line-clamp-1">
+                {restaurant.tagline || `${restaurant.category} • Cámara Gastronómica`}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2">
+            {/* Direct 3D Map Jump */}
             {onViewOnMap && (
               <button
-                onClick={() => onViewOnMap(restaurant)}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-amber-300 border border-slate-700 text-xs font-semibold hover:bg-slate-800 transition-colors shadow-sm"
+                onClick={() => {
+                  onViewOnMap(restaurant);
+                  onClose();
+                }}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-bold transition-all border border-slate-700"
+                title="Ver ubicación en mapa 3D"
               >
                 <Compass className="w-3.5 h-3.5 text-amber-400" />
-                <span>📍 Ver en Mapa 3D</span>
+                <span>Ver en Mapa</span>
               </button>
-            )}
-
-            {restaurant.instagramUrl && (
-              <a
-                href={restaurant.instagramUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-pink-50 text-pink-700 border border-pink-200 text-xs font-semibold hover:bg-pink-100 transition-colors"
-              >
-                <span>Instagram</span>
-              </a>
-            )}
-
-            {restaurant.facebookUrl && (
-              <a
-                href={restaurant.facebookUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold hover:bg-blue-100 transition-colors"
-              >
-                <span>Facebook</span>
-              </a>
             )}
 
             {/* Compartir Button */}
@@ -149,7 +125,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
 
             <button
               onClick={onClose}
-              className="p-2 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 transition-colors"
+              className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -219,13 +195,13 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
           <div className="space-y-3">
             <div className="relative h-64 sm:h-96 rounded-2xl overflow-hidden border border-slate-200 shadow-md bg-slate-100">
               <img 
-                src={activeImage} 
+                src={activeImage || restaurant.coverImage} 
                 alt={restaurant.name} 
                 className="w-full h-full object-cover"
               />
-              <div className="absolute top-4 right-4 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold text-white flex items-center gap-1.5">
-                <Mountain className="w-3.5 h-3.5 text-sky-400" />
-                <span>{restaurant.altitude} msnm</span>
+              <div className="absolute top-4 left-4 bg-slate-900/85 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-bold text-white flex items-center gap-1.5 border border-amber-400/40">
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                <span>{restaurant.category}</span>
               </div>
             </div>
 
@@ -282,28 +258,34 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
               </p>
 
               {/* Signature Dishes */}
-              <div className="pt-4 space-y-3">
-                <h4 className="font-serif text-base font-bold text-amber-900 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-600" />
-                  Platos Insignia del Menú
-                </h4>
+              {restaurant.signatureDishes && restaurant.signatureDishes.length > 0 && (
+                <div className="pt-4 space-y-3">
+                  <h4 className="font-serif text-base font-bold text-amber-900 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-600" />
+                    Platos Insignia del Menú
+                  </h4>
 
-                <div className="space-y-2.5">
-                  {restaurant.signatureDishes.map((dish, i) => (
-                    <div key={i} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 hover:border-amber-300 transition-colors">
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="font-serif font-bold text-sm text-slate-900">{dish.name}</span>
-                        <span className="text-xs font-bold text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded-lg border border-amber-200 shrink-0">
-                          {dish.price}
-                        </span>
+                  <div className="space-y-2.5">
+                    {restaurant.signatureDishes.map((dish, i) => (
+                      <div key={i} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 hover:border-amber-300 transition-colors">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="font-serif font-bold text-sm text-slate-900">{dish.name}</span>
+                          {dish.price && dish.price !== 'Consultar' && (
+                            <span className="text-xs font-bold text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded-lg border border-amber-200 shrink-0">
+                              {dish.price}
+                            </span>
+                          )}
+                        </div>
+                        {dish.description && (
+                          <p className="text-xs text-slate-600 mt-1">
+                            {dish.description}
+                          </p>
+                        )}
                       </div>
-                      <p className="text-xs text-slate-600 mt-1">
-                        {dish.description}
-                      </p>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Menu highlights */}
               {restaurant.menuHighlights && (
@@ -326,12 +308,14 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
               <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200">
                 <div className="flex items-center gap-2 text-amber-800 mb-2">
                   <ChefHat className="w-5 h-5" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Chef Ejecutivo</span>
+                  <span className="text-xs font-bold uppercase tracking-wider">Chef Ejecutivo / Gerencia</span>
                 </div>
                 <h4 className="font-serif font-bold text-slate-900 text-base">{restaurant.chef}</h4>
-                <p className="text-xs text-slate-600 mt-2 italic leading-relaxed">
-                  "{restaurant.chefBio}"
-                </p>
+                {restaurant.chefBio && (
+                  <p className="text-xs text-slate-600 mt-2 italic leading-relaxed">
+                    "{restaurant.chefBio}"
+                  </p>
+                )}
               </div>
 
               {/* Chamber Seal of Quality */}
@@ -367,98 +351,101 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
 
           </div>
 
-          {/* Table Booking & Direct Contact Module */}
-          <div className="p-6 rounded-3xl bg-gradient-to-r from-amber-500 via-amber-600 to-terracotta text-white shadow-xl">
-            
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
-              <div>
-                <h3 className="font-serif text-xl font-bold text-white flex items-center gap-2">
-                  <Calendar className="w-5 h-5" />
-                  Reserva Directa VIP / Contacto Oficial
-                </h3>
-                <p className="text-xs text-amber-100 mt-1">
-                  Atención prioritaria con confirmación directa vía WhatsApp oficial del restaurante.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <a 
-                  href={`tel:${restaurant.phone}`}
-                  className="px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
-                >
-                  <Phone className="w-3.5 h-3.5" />
-                  <span>{restaurant.phone}</span>
-                </a>
-              </div>
+          {/* Canales Oficiales de Contacto Directo */}
+          <div className="p-6 rounded-3xl bg-slate-900 text-white shadow-xl space-y-4">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">Atención Directa</span>
+              <h3 className="font-serif text-xl font-bold text-white mt-0.5">
+                Canales Oficiales del Establecimiento
+              </h3>
+              <p className="text-xs text-slate-300 mt-1">
+                Comuníquese directamente con el equipo de {restaurant.name} para consultas, pedidos o visitas.
+              </p>
             </div>
 
-            {bookingSuccess ? (
-              <div className="p-6 rounded-2xl bg-white text-slate-900 text-center space-y-2 animate-fadeIn shadow-md">
-                <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
-                <h4 className="font-serif text-lg font-bold text-slate-900">¡Solicitud de Reserva Preparada!</h4>
-                <p className="text-xs text-slate-600 max-w-md mx-auto">
-                  Hemos abierto la conversación directa de WhatsApp con el concierge de <strong>{restaurant.name}</strong> para coordinar su mesa y requerimientos especiales.
-                </p>
-              </div>
-            ) : (
-              <form onSubmit={handleBookingSubmit} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-slate-900">
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-amber-100 mb-1">Nombre Completo</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={resName}
-                    onChange={(e) => setResName(e.target.value)}
-                    placeholder="Ej. Carlos Rodríguez / María Gómez" 
-                    className="w-full bg-white border border-white/40 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-300"
-                  />
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+              
+              {/* WhatsApp Directo */}
+              {cleanWaNumber && (
+                <a
+                  href={`https://wa.me/${cleanWaNumber}?text=${encodeURIComponent(`Hola ${restaurant.name}, le contacto a través de la Guía Oficial de la Cámara Gastronómica del Estado Mérida.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white transition-all flex items-center gap-3 shadow-md group active:scale-95"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                    <MessageCircle className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="overflow-hidden">
+                    <span className="block text-[10px] uppercase font-bold text-emerald-200">WhatsApp Oficial</span>
+                    <span className="text-xs font-bold truncate block">{restaurant.phone || restaurant.whatsapp}</span>
+                  </div>
+                </a>
+              )}
 
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-amber-100 mb-1">Fecha Deseada</label>
-                  <input 
-                    type="date" 
-                    required
-                    value={resDate}
-                    onChange={(e) => setResDate(e.target.value)}
-                    className="w-full bg-white border border-white/40 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-300"
-                  />
-                </div>
+              {/* Llamada Telefónica */}
+              {cleanPhone && (
+                <a
+                  href={`tel:${cleanPhone}`}
+                  className="p-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white transition-all flex items-center gap-3 border border-slate-700 shadow-md group active:scale-95"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+                    <Phone className="w-5 h-5 text-amber-400" />
+                  </div>
+                  <div className="overflow-hidden">
+                    <span className="block text-[10px] uppercase font-bold text-slate-400">Teléfono Directo</span>
+                    <span className="text-xs font-bold truncate block">{restaurant.phone}</span>
+                  </div>
+                </a>
+              )}
 
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-amber-100 mb-1">Número de Personas</label>
-                  <select 
-                    value={resGuests}
-                    onChange={(e) => setResGuests(e.target.value)}
-                    className="w-full bg-white border border-white/40 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-300"
-                  >
-                    <option value="1 persona">1 persona</option>
-                    <option value="2 personas">2 personas (Mesa Romántica)</option>
-                    <option value="4 personas">4 personas (Familiar)</option>
-                    <option value="6 a 10 personas">6 a 10 personas (Grupo / Banquete)</option>
-                    <option value="Evento Privado +10">Evento Privado (+10 personas)</option>
-                  </select>
-                </div>
+              {/* Instagram */}
+              {instagramUrl && (
+                <a
+                  href={instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-3.5 rounded-2xl bg-gradient-to-tr from-purple-700 to-pink-600 hover:opacity-95 text-white transition-all flex items-center gap-3 shadow-md group active:scale-95"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                    <Instagram className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="overflow-hidden">
+                    <span className="block text-[10px] uppercase font-bold text-pink-200">Instagram Oficial</span>
+                    <span className="text-xs font-bold truncate block">{restaurant.instagram || '@cuenta'}</span>
+                  </div>
+                </a>
+              )}
 
-                <div className="flex items-end">
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-serif font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
-                  >
-                    <MessageCircle className="w-4 h-4 text-emerald-400" />
-                    <span>Confirmar VIP</span>
-                  </button>
-                </div>
-              </form>
-            )}
+              {/* Sitio Web Oficial */}
+              {formattedWebsite && (
+                <a
+                  href={formattedWebsite}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white transition-all flex items-center gap-3 shadow-md group active:scale-95"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                    <Globe className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="overflow-hidden">
+                    <span className="block text-[10px] uppercase font-bold text-blue-200">Página Web</span>
+                    <span className="text-xs font-bold truncate block flex items-center gap-1">
+                      <span>Visitar Sitio</span>
+                      <ExternalLink className="w-3 h-3 text-white/80 inline" />
+                    </span>
+                  </div>
+                </a>
+              )}
 
+            </div>
           </div>
 
           {/* Location & Opening Hours */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-slate-200 text-xs text-slate-500">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-amber-600" />
-              <span>{restaurant.openingHours}</span>
+              <span>{restaurant.openingHours || 'Horario Comercial'}</span>
             </div>
 
             <div className="flex items-center gap-2">

@@ -265,6 +265,8 @@ export const createBlankBusinessProfile = (user) => {
     instagram: user?.instagram && user?.instagram !== '@' ? user?.instagram : '',
     instagramUrl: '',
     facebookUrl: '',
+    website: user?.sitio_web || user?.website || '',
+    sitio_web: user?.sitio_web || user?.website || '',
     isCertifiedByCamara: true,
     certificateNumber: code,
     coverImage: null,
@@ -585,7 +587,7 @@ function GpsCalibrationTab({ activeUser }) {
         </div>
 
         <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs w-full sm:w-auto">
+          <div className="grid grid-cols-2 gap-4 text-xs w-full sm:w-auto">
             <div>
               <span className="text-slate-400 block text-[10px] uppercase font-bold">Latitud GPS (Norte)</span>
               <span className="font-mono font-extrabold text-slate-900 text-sm">{coords.lat.toFixed(6)}° N</span>
@@ -593,10 +595,6 @@ function GpsCalibrationTab({ activeUser }) {
             <div>
               <span className="text-slate-400 block text-[10px] uppercase font-bold">Longitud GPS (Oeste)</span>
               <span className="font-mono font-extrabold text-slate-900 text-sm">{coords.lng.toFixed(6)}° W</span>
-            </div>
-            <div className="col-span-2 sm:col-span-1">
-              <span className="text-slate-400 block text-[10px] uppercase font-bold">Altitud Andina</span>
-              <span className="font-bold text-amber-800 text-sm">~{coords.alt || 1625} msnm</span>
             </div>
           </div>
 
@@ -894,6 +892,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
           telefono: businessProfile.phone,
           direccion_completa: businessProfile.location,
           instagram: businessProfile.instagram,
+          sitio_web: businessProfile.website || businessProfile.sitio_web || '',
           foto_portada: businessProfile.coverImage || (businessProfile.gallery && businessProfile.gallery[0]) || '',
           fotos_galeria: businessProfile.gallery || [],
           observaciones: `Especialidad: ${businessProfile.tagline || ''}. Horarios: ${businessProfile.openingHours || ''}`
@@ -2857,6 +2856,20 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                     placeholder="https://www.facebook.com/mirestaurante/"
                     value={businessProfile.facebookUrl || ''}
                     onChange={(e) => setBusinessProfile({ ...businessProfile, facebookUrl: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
+                  />
+                </div>
+
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Página Web Oficial (Opcional)</span>
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://www.minegocio.com"
+                    value={businessProfile.website || businessProfile.sitio_web || ''}
+                    onChange={(e) => setBusinessProfile({ ...businessProfile, website: e.target.value, sitio_web: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
                   />
                 </div>

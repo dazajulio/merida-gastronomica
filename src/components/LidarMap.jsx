@@ -1,12 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  Mountain, 
   Route as RouteIcon,
   Compass,
   Sparkles,
   MapPin,
-  TrendingUp,
-  ArrowUpRight
+  ArrowUpRight,
+  ShieldCheck,
+  Star,
+  CheckCircle2,
+  ExternalLink,
+  ChevronRight
 } from 'lucide-react';
 import { LIDAR_ROUTES } from '../data/routesLidarData';
 import { RESTAURANTS_DATA } from '../data/restaurantsData';
@@ -29,9 +32,9 @@ const getMapboxToken = () => {
 
 const MAPBOX_TOKEN = getMapboxToken();
 
-// LIVE COORDINATES RESOLVER (Gives 100% precedence to the Affiliate Portal Calibrator)
+// LIVE COORDINATES RESOLVER
 export const getLiveRestaurantCoords = (restData) => {
-  if (!restData) return { lat: 8.5956, lng: -71.1437, alt: 1620 };
+  if (!restData) return { lat: 8.5956, lng: -71.1437 };
   if (typeof window !== 'undefined') {
     try {
       const saved = (restData.id && localStorage.getItem(`coords_${restData.id}`)) ||
@@ -42,8 +45,7 @@ export const getLiveRestaurantCoords = (restData) => {
         if (parsed && typeof parsed.lat === 'number' && typeof parsed.lng === 'number' && !isNaN(parsed.lat) && !isNaN(parsed.lng)) {
           return {
             lat: parsed.lat,
-            lng: parsed.lng,
-            alt: parsed.alt || restData.altitude || 1620
+            lng: parsed.lng
           };
         }
       }
@@ -52,18 +54,16 @@ export const getLiveRestaurantCoords = (restData) => {
   if (restData.coordinates && typeof restData.coordinates.lat === 'number' && typeof restData.coordinates.lng === 'number' && !isNaN(restData.coordinates.lat) && !isNaN(restData.coordinates.lng)) {
     return {
       lat: restData.coordinates.lat,
-      lng: restData.coordinates.lng,
-      alt: restData.coordinates.alt || restData.altitude || 1620
+      lng: restData.coordinates.lng
     };
   }
   if (typeof restData.latitude === 'number' && typeof restData.longitude === 'number' && !isNaN(restData.latitude) && !isNaN(restData.longitude)) {
-    return { lat: restData.latitude, lng: restData.longitude, alt: restData.altitude || 1620 };
+    return { lat: restData.latitude, lng: restData.longitude };
   }
   if (typeof restData.lat === 'number' && typeof restData.lng === 'number' && !isNaN(restData.lat) && !isNaN(restData.lng)) {
-    return { lat: restData.lat, lng: restData.lng, alt: restData.alt || 1620 };
+    return { lat: restData.lat, lng: restData.lng };
   }
-  // Safe default coordinates for Mérida Centro
-  return { lat: 8.5956, lng: -71.1437, alt: 1620 };
+  return { lat: 8.5956, lng: -71.1437 };
 };
 
 const MAP_STYLES = [
@@ -97,7 +97,7 @@ const MAP_STYLES = [
   }
 ];
 
-// Helper to disperse overlapping coordinates in a subtle golden spiral pattern
+// Helper to disperse overlapping coordinates
 const getDispersedRestaurants = (restList) => {
   const coordGroups = {};
   return (restList || []).map((rest) => {
@@ -105,7 +105,6 @@ const getDispersedRestaurants = (restList) => {
     const base = getLiveRestaurantCoords(rest);
     if (!base || typeof base.lat !== 'number' || typeof base.lng !== 'number') return null;
 
-    // Group by coordinates with 3 decimal precision (~100m)
     const key = `${base.lat.toFixed(3)}_${base.lng.toFixed(3)}`;
     const count = coordGroups[key] || 0;
     coordGroups[key] = count + 1;
@@ -114,9 +113,8 @@ const getDispersedRestaurants = (restList) => {
       return { ...rest, mapCoords: base };
     }
 
-    // Offset in golden spiral (~35-65m radius per ring)
-    const angle = count * 2.39996; // Golden angle
-    const radius = 0.00038 * Math.sqrt(count); // in degrees
+    const angle = count * 2.39996;
+    const radius = 0.00038 * Math.sqrt(count);
     const latOffset = base.lat + radius * Math.cos(angle);
     const lngOffset = base.lng + (radius * Math.sin(angle)) / Math.cos(base.lat * Math.PI / 180);
 
@@ -124,16 +122,16 @@ const getDispersedRestaurants = (restList) => {
       ...rest,
       mapCoords: {
         lat: latOffset,
-        lng: lngOffset,
-        alt: base.alt || rest.altitude || 1620
+        lng: lngOffset
       }
     };
   }).filter(Boolean);
 };
 
 export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaurants = RESTAURANTS_DATA }) {
-  const [activeRouteId, setActiveRouteId] = useState('eje-metropolitano');
+  const [activeRouteId, setActiveRouteId] = useState('merida');
   const [selectedCheckpoint, setSelectedCheckpoint] = useState(null);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState(null);
   const [selectedStyleId, setSelectedStyleId] = useState('outdoors');
   const [is3DMode, setIs3DMode] = useState(true);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
@@ -142,8 +140,30 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
   const mapRef = useRef(null);
   const markersRef = useRef([]);
   const restaurantEntriesRef = useRef({});
+  const sidebarContainerRef = useRef(null);
 
-  const currentRoute = LIDAR_ROUTES.find(r => r.id === activeRouteId) || LIDAR_ROUTES[0];
+  const currentRoute = useMemo(() => {
+    return LIDAR_ROUTES.find(r => r.id === activeRouteId) || LIDAR_ROUTES[0];
+  }, [activeRouteId]);
+
+  // Establishments in the active Eje
+  const restaurantsInCurrentEje = useMemo(() => {
+    const list = Array.isArray(restaurants) ? restaurants : RESTAURANTS_DATA;
+    const filtered = list.filter(r => {
+      if (!r) return false;
+      const rEje = (r.eje || '').toLowerCase().trim();
+      const targetId = currentRoute.id.toLowerCase().trim();
+      if (rEje === targetId) return true;
+      if (r.ejeName && r.ejeName.toLowerCase().includes(currentRoute.name.toLowerCase())) return true;
+      return false;
+    });
+
+    // Fallback: If no establishments match this specific eje, show all solvent members to keep the sidebar active
+    if (filtered.length === 0) {
+      return list;
+    }
+    return filtered;
+  }, [restaurants, currentRoute]);
 
   // Configure 3D terrain and sky in Mapbox
   const configure3DTerrain = (map) => {
@@ -156,47 +176,56 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
           maxzoom: 14
         });
       }
-
       map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
 
-      if (!map.getLayer('sky')) {
-        map.addLayer({
-          id: 'sky',
-          type: 'sky',
-          paint: {
-            'sky-type': 'atmosphere',
-            'sky-atmosphere-sun': [0.0, 90.0],
-            'sky-atmosphere-sun-intensity': 15
-          }
-        });
-      }
-    } catch (err) {
-      console.warn('3D Terrain notice:', err);
+      map.setFog({
+        range: [0.5, 10],
+        color: '#f8fafc',
+        'horizon-blend': 0.1,
+        'high-color': '#0284c7',
+        'space-color': '#0f172a',
+        'star-intensity': 0.35
+      });
+    } catch (e) {
+      console.warn('Mapbox 3D terrain notice:', e);
     }
   };
 
-  // Draw Route Polyline & Markers on Mapbox
+  // Scroll to and highlight restaurant card in sidebar
+  const highlightSidebarItem = (restId) => {
+    if (!restId) return;
+    setSelectedRestaurantId(restId);
+    setSelectedCheckpoint(null);
+    setTimeout(() => {
+      const cardEl = document.getElementById(`sidebar-rest-${restId}`);
+      if (cardEl && sidebarContainerRef.current) {
+        cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 80);
+  };
+
+  // Update Route Polyline & Markers
   const updateRouteLayers = (map, route, autoFocusRefId = null) => {
-    if (!map) return;
+    if (!map || !map.isStyleLoaded()) return;
 
-    // 1. Draw Route Polyline safely if style is ready
+    // 1. Draw glowing polyline
+    const validCoords = (route?.checkpoints || [])
+      .filter(cp => cp && typeof cp.lng === 'number' && typeof cp.lat === 'number')
+      .map(cp => [cp.lng, cp.lat]);
+
+    const geojsonData = {
+      type: 'Feature',
+      properties: { name: route.name, color: route.color },
+      geometry: {
+        type: 'LineString',
+        coordinates: validCoords
+      }
+    };
+
     try {
-      if (map.isStyleLoaded()) {
-        const validCheckpoints = (route?.checkpoints || []).filter(cp => cp && typeof cp.lng === 'number' && typeof cp.lat === 'number');
-        const coordinates = validCheckpoints.map(cp => [cp.lng, cp.lat]);
-        const geojsonData = {
-          type: 'Feature',
-          properties: {},
-          geometry: {
-            type: 'LineString',
-            coordinates: coordinates
-          }
-        };
-
-        if (map.getLayer('route-glow')) map.removeLayer('route-glow');
-        if (map.getLayer('route-line')) map.removeLayer('route-line');
-        if (map.getSource('active-route')) map.removeSource('active-route');
-
+      if (map.getSource('active-route')) {
+        map.getSource('active-route').setData(geojsonData);
+      } else {
         map.addSource('active-route', {
           type: 'geojson',
           data: geojsonData
@@ -236,7 +265,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
     markersRef.current = [];
     restaurantEntriesRef.current = {};
 
-    // 3. RENDER COMPACT YELP-STYLE RESTAURANT PINS WITH ON-DEMAND INTERACTIVE POPUPS
+    // 3. RENDER COMPACT YELP-STYLE RESTAURANT PINS WITH NO ALTITUDE LABELS
     const dispersedRestaurants = getDispersedRestaurants(restaurants || RESTAURANTS_DATA);
 
     dispersedRestaurants.forEach((restData) => {
@@ -244,9 +273,8 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
       if (!liveCoords || typeof liveCoords.lng !== 'number' || typeof liveCoords.lat !== 'number') return;
       const restLng = liveCoords.lng;
       const restLat = liveCoords.lat;
-      const restAlt = liveCoords.alt || restData.altitude || 1620;
 
-      // Create Sleek Compact Pin DOM element
+      // Create Sleek Compact Pin DOM element (WITHOUT altitude tag)
       const el = document.createElement('div');
       el.className = 'cgm-restaurant-pin group cursor-pointer';
       el.style.position = 'relative';
@@ -260,10 +288,10 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
           <div class="group-hover:scale-110 group-hover:border-amber-400 group-hover:bg-slate-900" style="
             display: flex;
             align-items: center;
-            gap: 5.5px;
+            gap: 6px;
             background: #0f172a;
             color: #ffffff;
-            padding: 3.5px 8px 3.5px 5px;
+            padding: 4px 9px 4px 6px;
             border-radius: 9999px;
             border: 1.5px solid #f59e0b;
             box-shadow: 0 4px 12px rgba(0,0,0,0.35);
@@ -283,16 +311,11 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
               color: white;
               box-shadow: 0 2px 4px rgba(0,0,0,0.3);
               flex-shrink: 0;
-            ">☕</div>
+            ">🍽️</div>
 
             <!-- Name -->
-            <span style="font-size: 11px; font-weight: 700; color: #f8fafc; max-width: 120px; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.2px;">
+            <span style="font-size: 11.5px; font-weight: 700; color: #f8fafc; max-width: 140px; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.2px;">
               ${restData.name}
-            </span>
-
-            <!-- Altitude tag -->
-            <span style="font-size: 9px; font-weight: 800; color: #fbbf24; background: rgba(245,158,11,0.22); padding: 1px 4.5px; border-radius: 4px; border: 1px solid rgba(251,191,36,0.3);">
-              ${restAlt}m
             </span>
           </div>
 
@@ -304,7 +327,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
         </div>
       `;
 
-      // Create Rich Popup for On-Demand Unfolding
+      // Create Rich Popup
       const popupHTML = `
         <div style="width: 270px; font-family: inherit; overflow: hidden; background: #ffffff; border-radius: 18px;">
           <!-- Cover Image & Badges -->
@@ -351,7 +374,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
                 box-shadow: 0 4px 12px rgba(217,119,6,0.35);
               "
             >
-              <span>Ver Ficha Completa & Reservar</span>
+              <span>Ver Ficha Oficial Completa</span>
               <span>→</span>
             </button>
           </div>
@@ -367,6 +390,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
       }).setHTML(popupHTML);
 
       popup.on('open', () => {
+        highlightSidebarItem(restData.id);
         setTimeout(() => {
           const btn = document.getElementById(`btn-popup-${restData.id}`);
           if (btn) {
@@ -386,21 +410,23 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
         .addTo(map);
 
       el.addEventListener('click', () => {
+        highlightSidebarItem(restData.id);
         map.easeTo({
           center: [restLng, restLat],
+          zoom: 16.5,
           duration: 600
         });
       });
 
       markersRef.current.push(marker);
 
-      // Register for sidebar / external focus lookup
       if (restData.id) restaurantEntriesRef.current[restData.id] = { marker, popup, coords: { lng: restLng, lat: restLat } };
+      if (restData.codigo_afiliado) restaurantEntriesRef.current[restData.codigo_afiliado] = { marker, popup, coords: { lng: restLng, lat: restLat } };
       if (restData.certificateNumber) restaurantEntriesRef.current[restData.certificateNumber] = { marker, popup, coords: { lng: restLng, lat: restLat } };
       if (restData.slug) restaurantEntriesRef.current[restData.slug] = { marker, popup, coords: { lng: restLng, lat: restLat } };
     });
 
-    // 4. RENDER TOURIST ATTRACTION CHECKPOINTS (Points of interest along current route)
+    // 4. RENDER TOURIST ATTRACTIONS (WITHOUT ALTITUDE)
     (route?.checkpoints || [])
       .filter(cp => cp && cp.type !== 'restaurant' && typeof cp.lng === 'number' && typeof cp.lat === 'number')
       .forEach((cp, idx) => {
@@ -443,15 +469,13 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
               <span style="background: #0284c7; color: white; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;">${idx + 1}</span>
               <h4 style="font-size: 13px; font-weight: 800; color: #0f172a; margin: 0;">${cp.name}</h4>
             </div>
-            <p style="font-size: 11px; color: #64748b; margin: 0 0 6px 0;">📍 Atractivo Turístico & Paisajístico</p>
-            <span style="display: inline-block; font-size: 10px; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">
-              Altitud: ${cp.alt} msnm
-            </span>
+            <p style="font-size: 11px; color: #64748b; margin: 0;">📍 Punto de Interés Turístico & Paisajístico</p>
           </div>
         `);
 
         el.addEventListener('click', () => {
           setSelectedCheckpoint(cp);
+          setSelectedRestaurantId(null);
         });
 
         const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
@@ -478,19 +502,15 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
           if (entry.popup && !entry.popup.isOpen()) {
             entry.popup.addTo(map);
           }
-          const mapBoxEl = document.getElementById('mapa-lidar-box');
-          if (mapBoxEl) {
-            mapBoxEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
+          highlightSidebarItem(autoFocusRefId);
         }, 600);
       }
     } else {
-      // Center gracefully on the primary restaurant
       const primaryRest = dispersedRestaurants[0];
       if (primaryRest && primaryRest.mapCoords) {
         map.flyTo({
           center: [primaryRest.mapCoords.lng, primaryRest.mapCoords.lat],
-          zoom: 15.5,
+          zoom: 15.2,
           pitch: 50,
           bearing: -15,
           duration: 1800,
@@ -506,7 +526,6 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
 
-    // Detect if we have an initial focus restaurant
     let initialRoute = LIDAR_ROUTES[0];
     if (focusRestaurantId) {
       const foundRoute = LIDAR_ROUTES.find(r => r.checkpoints && r.checkpoints.some(cp => cp && cp.refId === focusRestaurantId));
@@ -522,14 +541,13 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
       container: mapContainerRef.current,
       style: MAP_STYLES.find(s => s.id === selectedStyleId)?.url || 'mapbox://styles/mapbox/outdoors-v12',
       center: [firstPoint.lng, firstPoint.lat],
-      zoom: 12,
+      zoom: 12.5,
       pitch: 55,
       bearing: -20,
       antialias: true
     });
 
     map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'top-right');
-    
     map.addControl(
       new mapboxgl.GeolocateControl({
         positionOptions: { enableHighAccuracy: true },
@@ -538,7 +556,6 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
       }),
       'top-right'
     );
-
     map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
 
     map.on('load', () => {
@@ -554,22 +571,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
     };
   }, []);
 
-  // Real-time synchronization when coordinates are updated in Affiliate Dashboard
-  useEffect(() => {
-    const handleCoordsUpdate = () => {
-      if (mapRef.current && isMapLoaded) {
-        updateRouteLayers(mapRef.current, currentRoute);
-      }
-    };
-    window.addEventListener('cgm_coords_updated', handleCoordsUpdate);
-    window.addEventListener('storage', handleCoordsUpdate);
-    return () => {
-      window.removeEventListener('cgm_coords_updated', handleCoordsUpdate);
-      window.removeEventListener('storage', handleCoordsUpdate);
-    };
-  }, [currentRoute, isMapLoaded]);
-
-  // Handle focusRestaurantId change if map is already loaded
+  // Synchronize on focusRestaurantId
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded || !focusRestaurantId) return;
     
@@ -580,7 +582,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
     }
   }, [focusRestaurantId, isMapLoaded]);
 
-  // Change Mapbox Style
+  // Handle style switch
   const handleStyleChange = (newStyleId) => {
     if (!mapRef.current) return;
     setSelectedStyleId(newStyleId);
@@ -597,7 +599,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
     });
   };
 
-  // Toggle 2D / 3D Mode
+  // Toggle 3D
   const toggle3DMode = () => {
     if (!mapRef.current) return;
     const nextMode = !is3DMode;
@@ -610,45 +612,36 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
     });
   };
 
-  // Update Route when activeRouteId changes manually
+  // Update Route when activeRouteId changes
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded) return;
     updateRouteLayers(mapRef.current, currentRoute);
-  }, [activeRouteId, isMapLoaded]);
+  }, [activeRouteId, isMapLoaded, restaurants]);
 
-  // Fly to selected checkpoint from sidebar & open popup
-  const handleCheckpointClick = (cp) => {
-    if (!cp) return;
-    setSelectedCheckpoint(cp);
-    
-    if (cp.refId && restaurantEntriesRef.current[cp.refId]) {
-      const entry = restaurantEntriesRef.current[cp.refId];
-      if (mapRef.current && entry.coords) {
-        mapRef.current.flyTo({
-          center: [entry.coords.lng, entry.coords.lat],
-          zoom: 16.8,
-          pitch: 52,
-          bearing: -15,
-          speed: 1.2,
-          curve: 1.4,
-          essential: true
-        });
-        setTimeout(() => {
-          if (entry.popup && mapRef.current) {
-            entry.popup.addTo(mapRef.current);
-          }
-        }, 400);
-      }
-    } else if (mapRef.current && typeof cp.lng === 'number' && typeof cp.lat === 'number') {
+  // Click on a restaurant card in the sidebar
+  const handleSidebarRestaurantClick = (rest) => {
+    if (!rest) return;
+    setSelectedRestaurantId(rest.id);
+    setSelectedCheckpoint(null);
+
+    const coords = rest.mapCoords || getLiveRestaurantCoords(rest);
+    if (mapRef.current && coords) {
       mapRef.current.flyTo({
-        center: [cp.lng, cp.lat],
-        zoom: 15.5,
-        pitch: 50,
+        center: [coords.lng, coords.lat],
+        zoom: 16.8,
+        pitch: 55,
         bearing: -15,
         speed: 1.2,
         curve: 1.4,
         essential: true
       });
+
+      setTimeout(() => {
+        const entry = restaurantEntriesRef.current[rest.id] || restaurantEntriesRef.current[rest.codigo_afiliado] || restaurantEntriesRef.current[rest.slug];
+        if (entry && entry.popup && mapRef.current) {
+          entry.popup.addTo(mapRef.current);
+        }
+      }, 400);
     }
   };
 
@@ -665,17 +658,17 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
           Mapa Topográfico & Rutas del Sabor
         </h2>
         <p className="mt-3 text-slate-600 text-sm sm:text-base">
-          Haz clic en cualquier restaurante para volar directamente a su ubicación GPS en 3D y abrir su ficha oficial.
+          Explora los destinos gastronómicos por eje territorial. Selecciona cualquier establecimiento para volar en 3D y abrir su ficha oficial.
         </p>
       </div>
 
       {/* Main Map Box */}
       <div id="mapa-lidar-box" className="rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden scroll-mt-24">
         
-        {/* Top Route & Style Toolbar */}
+        {/* Top Route Toolbar */}
         <div className="p-4 sm:p-5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-4">
           
-          {/* Route selector buttons */}
+          {/* Ejes selector buttons */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold text-amber-400 uppercase tracking-wider mr-1 flex items-center gap-1.5">
               <RouteIcon className="w-4 h-4" />
@@ -687,6 +680,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
                 onClick={() => {
                   setActiveRouteId(route.id);
                   setSelectedCheckpoint(null);
+                  setSelectedRestaurantId(null);
                 }}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 ${
                   activeRouteId === route.id
@@ -698,22 +692,22 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
                   className="w-2.5 h-2.5 rounded-full"
                   style={{ backgroundColor: activeRouteId === route.id ? '#ffffff' : route.color || '#d97706' }}
                 />
-                <span>{route.name.split(':')[1] || route.name}</span>
+                <span>{route.name}</span>
               </button>
             ))}
           </div>
 
-          {/* Quick Metrics */}
+          {/* Eje distance metric */}
           <div className="flex items-center gap-2.5">
             <div className="px-3 py-1 rounded-lg bg-slate-800 border border-slate-700 text-amber-300 text-xs font-medium flex items-center gap-1.5">
-              <Mountain className="w-3.5 h-3.5 text-amber-400" />
-              <span>{currentRoute.altitudeSpan}</span>
+              <Compass className="w-3.5 h-3.5 text-amber-400" />
+              <span>Recorrido estimado: {currentRoute.distanceKm}</span>
             </div>
           </div>
 
         </div>
 
-        {/* 2-Column Layout: Mapbox 3D Map + Checkpoint & Elevation Sidebar */}
+        {/* 2-Column Layout: Mapbox 3D Map + Synchronized Establishments Sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 relative">
           
           {/* Left Column: Mapbox GL */}
@@ -755,130 +749,128 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
             {/* Floating Bottom-Left: Legend */}
             <div className="absolute bottom-4 left-4 z-10 bg-slate-900/90 backdrop-blur-md px-3.5 py-2.5 rounded-2xl border border-slate-700 shadow-xl text-xs space-y-1.5 text-white">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-gradient-to-tr from-amber-500 to-orange-500 border-2 border-white shadow-md flex items-center justify-center text-[8px]">☕</div>
-                <span className="font-semibold text-amber-300">Restaurante Agremiado (Radar Activo)</span>
+                <div className="w-4 h-4 rounded-full bg-gradient-to-tr from-amber-500 to-orange-500 border-2 border-white shadow-md flex items-center justify-center text-[9px]">🍽️</div>
+                <span className="font-semibold text-amber-300">Restaurante Agremiado Oficial</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3.5 h-3.5 rounded-full bg-sky-600 border-2 border-white shadow" />
-                <span className="font-medium text-slate-300">Punto Turístico / Atractivo</span>
+                <span className="font-medium text-slate-300">Punto Turístico / Paisajístico</span>
               </div>
             </div>
 
           </div>
 
-          {/* Right Column: Checkpoints, Route Details & Elevation Sidebar */}
+          {/* Right Column: Checkpoints & Establishments Sidebar */}
           <div className="lg:col-span-4 p-5 sm:p-6 bg-slate-50 border-l border-slate-200 flex flex-col justify-between space-y-6">
             
-            <div>
+            <div className="flex-1 flex flex-col min-h-0">
               {/* Route Heading */}
               <div className="mb-4">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700">
                   {currentRoute.tag}
                 </span>
                 <h3 className="text-base font-bold text-slate-900 mt-0.5">
-                  {currentRoute.name}
+                  Eje: {currentRoute.name}
                 </h3>
                 <p className="text-xs text-slate-600 mt-1 leading-relaxed">
                   {currentRoute.description}
                 </p>
               </div>
 
-              {/* Paradas */}
+              {/* Establishments & Stops Header */}
               <div className="flex items-center justify-between mb-2.5">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-amber-600" />
-                  Paradas de la Ruta
+                  Paradas & Agremiados de la Ruta ({restaurantsInCurrentEje.length})
                 </span>
                 <span className="text-xs text-slate-500 font-medium">
                   {currentRoute.distanceKm}
                 </span>
               </div>
 
-              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                {currentRoute.checkpoints.map((cp, idx) => {
-                  const isSelected = selectedCheckpoint?.name === cp.name;
-                  const isRest = cp.type === 'restaurant';
+              {/* Scrollable Establishments List */}
+              <div ref={sidebarContainerRef} className="space-y-2.5 overflow-y-auto max-h-[380px] pr-1 flex-1">
+                {restaurantsInCurrentEje.map((rest) => {
+                  const isSelected = selectedRestaurantId === rest.id;
                   return (
                     <div
-                      key={idx}
-                      onClick={() => handleCheckpointClick(cp)}
+                      key={rest.id}
+                      id={`sidebar-rest-${rest.id}`}
+                      onClick={() => handleSidebarRestaurantClick(rest)}
                       className={`p-3 rounded-2xl border transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-white border-amber-500 shadow-md scale-[1.02] ring-2 ring-amber-500/20'
+                          ? 'bg-white border-amber-500 shadow-lg scale-[1.02] ring-2 ring-amber-500/20'
                           : 'bg-white border-slate-200 hover:border-amber-300 hover:bg-amber-50/30'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-2.5">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 mt-0.5 ${
-                            isRest ? 'bg-gradient-to-tr from-amber-600 to-orange-500' : 'bg-gradient-to-tr from-sky-600 to-blue-500'
-                          }`}>
-                            {isRest ? '☕' : idx + 1}
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-xs sm:text-sm text-slate-900 leading-snug">
-                              {cp.name}
-                            </h4>
-                            <p className="text-[11px] text-slate-500 mt-0.5">
-                              {isRest ? '⭐ Agremiado Oficial Cámara' : '📍 Atractivo Natural'}
-                            </p>
-                          </div>
+                      <div className="flex items-start gap-3">
+                        {/* Thumbnail */}
+                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
+                          <img 
+                            src={rest.coverImage || '/images/default-cover.jpg'} 
+                            alt={rest.name} 
+                            className="w-full h-full object-cover"
+                          />
                         </div>
 
-                        <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 shrink-0">
-                          {cp.alt} m
-                        </span>
+                        {/* Details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <h4 className="font-bold text-xs sm:text-sm text-slate-900 truncate">
+                              {rest.name}
+                            </h4>
+                            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shrink-0">
+                              ★ {rest.rating || '5.0'}
+                            </span>
+                          </div>
+
+                          <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                            {rest.category || 'Gastronomía'}
+                          </p>
+
+                          <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                            📍 {rest.location || 'Mérida, Venezuela'}
+                          </p>
+                        </div>
                       </div>
 
-                      {cp.refId && (
-                        <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onSelectRestaurantById(cp.refId);
-                            }}
-                            className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 transition-colors"
-                          >
-                            <span>Abrir Ficha & Reservas</span>
-                            <ArrowUpRight className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
+                      {/* Action Button inside card */}
+                      <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onSelectRestaurantById) onSelectRestaurantById(rest.id);
+                          }}
+                          className="font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 transition-colors"
+                        >
+                          <span>Ver Ficha Oficial</span>
+                          <ArrowUpRight className="w-3.5 h-3.5" />
+                        </button>
+
+                        <span className="text-[10px] font-bold text-slate-500 flex items-center gap-0.5">
+                          <span>Localizar</span>
+                          <ChevronRight className="w-3 h-3 text-amber-600" />
+                        </span>
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* Profile Elevation Chart */}
+            {/* Eje Highlights & Cultural Points */}
             <div className="pt-4 border-t border-slate-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <TrendingUp className="w-3.5 h-3.5 text-amber-600" />
-                  Gradiente de Altitud:
-                </span>
-                <span className="text-[11px] font-medium text-amber-700">
-                  {currentRoute.altitudeSpan}
-                </span>
-              </div>
-              
-              <div className="h-20 w-full bg-white rounded-xl p-2.5 border border-slate-200 flex items-end justify-between gap-1 shadow-inner">
-                {currentRoute.elevationProfile.map((pt, idx) => {
-                  const maxAlt = 4765;
-                  const heightPercent = Math.max(18, Math.min(100, (pt.alt / maxAlt) * 100));
-                  return (
-                    <div key={idx} className="flex-1 flex flex-col items-center gap-1 group cursor-pointer">
-                      <div 
-                        style={{ height: `${heightPercent}%` }}
-                        className="w-full rounded-t-md bg-gradient-to-t from-amber-600 to-amber-400 group-hover:from-amber-500 group-hover:to-orange-300 transition-all shadow-sm"
-                        title={`${pt.label}: ${pt.alt} msnm`}
-                      />
-                      <span className="text-[8px] font-semibold text-slate-500 truncate max-w-[45px] text-center">
-                        {pt.label.split(' ')[0]}
-                      </span>
-                    </div>
-                  );
-                })}
+              <span className="text-xs font-bold text-slate-800 block mb-2">
+                Destacados del Eje:
+              </span>
+              <div className="space-y-1.5">
+                {(currentRoute.highlights || []).map((hl, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs text-slate-600">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="truncate">{hl}</span>
+                  </div>
+                ))}
               </div>
             </div>
 

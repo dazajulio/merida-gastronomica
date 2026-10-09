@@ -291,10 +291,6 @@ export function App() {
     navigateTo('guide');
   };
 
-  const handleBookDirect = (restaurant) => {
-    setSelectedRestaurant(restaurant);
-  };
-
   return (
     <div className="min-h-screen bg-[#fcfbf9] text-slate-800 flex flex-col font-sans selection:bg-amber-500 selection:text-white">
       
@@ -326,7 +322,6 @@ export function App() {
             <FeaturedRestaurantsCarousel 
               restaurants={restaurants} 
               onSelectRestaurant={setSelectedRestaurant}
-              onBookDirect={handleBookDirect}
               onViewOnMap={handleViewOnMap}
               onExploreAll={() => navigateTo('guide')}
               t={t}
@@ -544,7 +539,6 @@ export function App() {
             <RestaurantGuide 
               restaurants={restaurants} 
               onSelectRestaurant={setSelectedRestaurant}
-              onBookDirect={handleBookDirect}
               onViewOnMap={handleViewOnMap}
               t={t}
               initialSearch={guideSearchTerm}
