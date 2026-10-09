@@ -14,16 +14,18 @@ CREATE TABLE IF NOT EXISTS public.pagos_tesoreria (
     rif_cedula TEXT,
     telefono TEXT,
     email TEXT,
-    concepto TEXT NOT NULL, -- 'Cuota Mensual', 'Inscripción + 1er Mes', 'Taller / Capacitación', 'Evento Especial', 'Otro'
-    periodo_mes TEXT, -- ej. 'Octubre 2026', 'Noviembre 2026'
-    metodo_pago TEXT NOT NULL, -- 'pago_movil', 'transferencia_nacional', 'zelle', 'efectivo_usd', 'efectivo_bs'
+    concepto TEXT NOT NULL, -- 'Inscripción + 1er Mes de Membresía', 'Cuota Mensual', etc.
+    periodo_mes TEXT DEFAULT 'Octubre 2026',
+    metodo_pago TEXT NOT NULL DEFAULT 'pago_movil', -- 'pago_movil', 'transferencia_nacional', 'zelle', 'efectivo_usd', 'efectivo_bs'
     banco_emisor TEXT,
     banco_receptor TEXT DEFAULT 'Banco Provincial (0108)',
     referencia TEXT NOT NULL,
     telefono_pagador TEXT,
+    monto_inscripcion_usd NUMERIC(10,2) DEFAULT 20.00,
+    monto_cuota_mes_usd NUMERIC(10,2) DEFAULT 10.00,
+    monto_usd NUMERIC(10,2) NOT NULL DEFAULT 30.00,
     monto_bs NUMERIC(12,2) DEFAULT 0.00,
     tasa_bcv NUMERIC(10,2) DEFAULT 0.00,
-    monto_usd NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     estado TEXT NOT NULL DEFAULT 'pendiente', -- 'pendiente', 'conciliado', 'rechazado'
     fecha_pago TIMESTAMPTZ DEFAULT NOW(),
     fecha_conciliacion TIMESTAMPTZ,
@@ -137,63 +139,121 @@ USING (true);
 GRANT ALL ON public.egresos_camara TO anon, authenticated, service_role;
 
 
--- 3. DATOS INICIALES SEMILLA DE TESORERÍA (PAGOS HISTÓRICOS & PENDIENTES)
+-- =========================================================================
+-- 3. CARGA ESTRICTA DE LOS 12 PAGOS REALES DE AGREMIADOS (0 DUMMY / 0 MOCK)
+-- =========================================================================
+
+-- Limpiar tablas si contenían datos de prueba antiguos
+-- TRUNCATE TABLE public.pagos_tesoreria;
+-- TRUNCATE TABLE public.egresos_camara;
+
 INSERT INTO public.pagos_tesoreria (
     numero_recibo, codigo_afiliado, nombre_establecimiento, representante_legal, 
     rif_cedula, telefono, email, concepto, periodo_mes, metodo_pago, banco_emisor, 
-    banco_receptor, referencia, telefono_pagador, monto_bs, tasa_bcv, monto_usd, 
-    estado, fecha_pago, fecha_conciliacion, conciliado_por, observaciones
+    banco_receptor, referencia, telefono_pagador, monto_inscripcion_usd, monto_cuota_mes_usd,
+    monto_usd, monto_bs, tasa_bcv, estado, fecha_pago, fecha_conciliacion, conciliado_por, observaciones
 ) VALUES
 (
     'REC-2026-0001', 'CGM-2026-001', 'Kaffia Caffe', 'Gerencia & Equipo Kaffia',
-    'J-50123456-7', '04148817137', 'cafe.kaffia@gmail.com', 'Inscripción + 1er Mes',
-    'Enero 2026', 'pago_movil', 'Banco Provincial', 'Banco Provincial (0108)',
-    '00492817', '04148817137', 1500.00, 50.00, 30.00,
-    'conciliado', '2026-01-05T10:30:00Z', '2026-01-05T11:15:00Z',
-    'Edixon Xavier Reyes Dávila (Tesorero)', 'Pago verificado en cuenta oficial Provincial'
+    'J-50123849-2', '+58 414-8817137', 'cafe.kaffia@gmail.com', 'Inscripción + 1er Mes de Membresía',
+    'Octubre 2026', 'pago_movil', 'Banco Provincial', 'Banco Provincial (0108)',
+    '16653', '04148817137', 20.00, 10.00, 30.00, 26141.07, 871.37,
+    'conciliado', '2026-09-30T05:39:01Z', '2026-10-08T02:44:28Z',
+    'Edixon Xavier Reyes Dávila (Tesorero)', 'Miembro Fundador Oficial. Barismo de Especialidad, Alta Cocina y Café de Altura.'
 ),
 (
-    'REC-2026-0002', 'CGM-2026-001', 'Kaffia Caffe', 'Gerencia & Equipo Kaffia',
-    'J-50123456-7', '04148817137', 'cafe.kaffia@gmail.com', 'Cuota Mensual',
-    'Septiembre 2026', 'pago_movil', 'Banco Provincial', 'Banco Provincial (0108)',
-    '00984729', '04148817137', 520.00, 52.00, 10.00,
-    'conciliado', '2026-09-01T14:20:00Z', '2026-09-01T15:00:00Z',
-    'Edixon Xavier Reyes Dávila (Tesorero)', 'Cuota ordinaria de Septiembre conciliada'
+    'REC-2026-0002', 'CGM-2026-176', 'COMERCIALIZADORA OC DE MARYURI CARMONA ', 'Maryuri Carolina Carmona Campos',
+    'V-12055310', '04147187233', 'comercializadoraocmerida@gmail.com', 'Inscripción + 1er Mes de Membresía',
+    'Octubre 2026', 'pago_movil', 'Banco Provincial', 'Banco Provincial (0108)',
+    '16653', '04147187233', 20.00, 10.00, 30.00, 26141.07, 871.37,
+    'conciliado', '2026-10-05T12:57:01Z', '2026-10-06T03:38:28Z',
+    'Edixon Xavier Reyes Dávila (Tesorero)', 'Empresa procesadora de alimentos, fabricante de Vinagre de Manzana orgánico'
 ),
 (
-    'REC-2026-0003', 'CGM-2026-002', 'La Sevillana Restaurant', 'Carlos Mendoza',
-    'J-40987654-3', '04247654321', 'contacto@lasevillanamerida.com', 'Inscripción + 1er Mes',
-    'Febrero 2026', 'transferencia_nacional', 'Banesco', 'Banco Provincial (0108)',
-    '78921634', '04247654321', 1600.00, 53.33, 30.00,
-    'conciliado', '2026-02-10T09:45:00Z', '2026-02-10T10:30:00Z',
-    'Edixon Xavier Reyes Dávila (Tesorero)', 'Inscripción aprobada'
+    'REC-2026-0003', 'CGM-2026-920', 'Margiovi_Cakes', 'Margiovi González',
+    'V-13233306', '0424-7744312', 'margiovicakes@gmail.com', 'Inscripción + 1er Mes de Membresía',
+    'Octubre 2026', 'pago_movil', 'Banco Provincial', 'Banco Provincial (0108)',
+    '00923363', '0424-7744312', 10.00, 10.00, 20.00, 17447.85, 872.39,
+    'conciliado', '2026-10-05T13:46:17Z', '2026-10-06T03:38:35Z',
+    'Edixon Xavier Reyes Dávila (Tesorero)', 'Pastelería artística de diseño'
 ),
 (
-    'REC-2026-0004', 'CGM-2026-003', 'Chocolates La Mucuy', 'Andreina Ramírez',
-    'J-31245678-9', '04147000001', 'andreinaramirez@camaragastronomicamerida.org', 'Cuota Mensual',
-    'Octubre 2026', 'pago_movil', 'Banco Mercantil', 'Banco Provincial (0108)',
-    '83749201', '04147000001', 540.00, 54.00, 10.00,
-    'pendiente', NOW(), NULL, NULL,
-    'Reporte de pago móvil recibido por la web. Pendiente por conciliación en extracto'
+    'REC-2026-0004', 'CGM-2026-983', 'Serrania Grill', 'Alexander Rangel',
+    'J-41258884-2', '04265756718', 'alexanderrangelmendoza@gmail.com', 'Inscripción + 1er Mes de Membresía',
+    'Octubre 2026', 'transferencia_nacional', 'Banco Mercantil', 'Banco Provincial (0108)',
+    '37112371', '04247798610', 20.00, 10.00, 30.00, 26241.96, 874.73,
+    'pendiente', '2026-10-08T18:02:41Z', NULL, NULL,
+    'Restaurante Carnes comida LLanera'
+),
+(
+    'REC-2026-0005', 'CGM-2026-383', 'Lenardo Maldonado', 'Leonardo Maldonado',
+    'V-1280379855', 'o4247793363', 'leonardo.andres.maldonado@gmail.com', 'Inscripción + 1er Mes de Membresía',
+    'Octubre 2026', 'pago_movil', 'Banco Provincial', 'Banco Provincial (0108)',
+    '000003363', '04247793363', 10.00, 10.00, 20.00, 17494.64, 874.73,
+    'pendiente', '2026-10-08T19:20:28Z', NULL, NULL,
+    'comida de autor y pizzas'
+),
+(
+    'REC-2026-0006', 'CGM-2026-818', 'Leonardo Maldonado', 'leonardo Maldonado Pizzeria',
+    'V-1280379855', '04247793363', 'leonardo.andre.maldonado@gmail.com', 'Inscripción + 1er Mes de Membresía',
+    'Octubre 2026', 'transferencia_nacional', 'BOD / 100% Banco / Otro', 'Banco Provincial (0108)',
+    '000000580971', '04247602051', 20.00, 10.00, 30.00, 26241.96, 874.73,
+    'pendiente', '2026-10-08T19:07:20Z', NULL, NULL,
+    'La Casa Del Valle'
+),
+(
+    'REC-2026-0007', 'CGM-2026-833', 'la casa del valle c.a,', 'la casa del valle c.a.',
+    'J-50478148-5', '04247602051', 'lacasadelvallemerida@gmail.com', 'Inscripción + 1er Mes de Membresía',
+    'Octubre 2026', 'transferencia_nacional', 'BOD / 100% Banco / Otro', 'Banco Provincial (0108)',
+    '000000580971', '04247602051', 20.00, 10.00, 30.00, 26241.96, 874.73,
+    'pendiente', '2026-10-08T19:05:40Z', NULL, NULL,
+    'Restaurante campestre'
+),
+(
+    'REC-2026-0008', 'CGM-2026-553', 'Rivaiz Gastronomia', 'Nairo Aizpurua',
+    'V-16933465', '04147271717', 'nairoaizpurua@gmail.com', 'Inscripción + 1er Mes de Membresía',
+    'Octubre 2026', 'transferencia_nacional', 'BOD / 100% Banco / Otro', 'Banco Provincial (0108)',
+    '716431', '04147271717', 10.00, 10.00, 20.00, 17494.64, 874.73,
+    'pendiente', '2026-10-08T19:29:28Z', NULL, NULL,
+    'Gestor de Eventos'
+),
+(
+    'REC-2026-0009', 'CGM-2026-360', 'Merengue y bocados', 'Yumerling Sánchez Sanchez',
+    'V-15756942', '0424-7723380', 'yumerlingsanchez@gmail.com', 'Inscripción + 1er Mes de Membresía',
+    'Octubre 2026', 'pago_movil', 'Banco de Venezuela', 'Banco Provincial (0108)',
+    '007603108742', '0424-7723380', 10.00, 10.00, 20.00, 17494.64, 874.73,
+    'pendiente', '2026-10-08T18:21:57Z', NULL, NULL,
+    'Postres, pasabocas dulces y salados, Catering'
+),
+(
+    'REC-2026-0010', 'CGM-2026-248', 'Kansas Group C.A', 'Alejandro Ramos',
+    'J-50073539-5', '04140810793', 'kansasgroup2021@gmail.com', 'Inscripción + 1er Mes de Membresía',
+    'Octubre 2026', 'transferencia_nacional', 'Banesco', 'Banco Provincial (0108)',
+    '0021677353', '04140810793', 20.00, 10.00, 30.00, 26241.96, 874.73,
+    'pendiente', '2026-10-08T18:49:15Z', NULL, NULL,
+    'Comercio al mayor y detal de víveres en general'
+),
+(
+    'REC-2026-0011', 'CGM-2026-277', 'Ufo Candy Store', 'Alejandro Ramos',
+    'J-50608620-2', '04140810793', 'ufocandystore@gmail.com', 'Inscripción + 1er Mes de Membresía',
+    'Octubre 2026', 'transferencia_nacional', 'Banesco', 'Banco Provincial (0108)',
+    '0021677353', '04140810793', 10.00, 10.00, 20.00, 17494.64, 874.73,
+    'pendiente', '2026-10-08T18:47:04Z', NULL, NULL,
+    'Dulcería y golosinas'
+),
+(
+    'REC-2026-0012', 'CGM-2026-324', 'Tintos y Café M&M', 'Mariana Peña',
+    'V-17849187', '04147444390', 'cafetintosym@gmail.com', 'Inscripción + 1er Mes de Membresía',
+    'Octubre 2026', 'pago_movil', 'Banco Provincial', 'Banco Provincial (0108)',
+    '00000000', '04147444390', 20.00, 10.00, 30.00, 26241.96, 874.73,
+    'pendiente', '2026-10-08T19:42:37Z', NULL, NULL,
+    'Cafetería y bebidas'
 )
-ON CONFLICT (numero_recibo) DO NOTHING;
-
-
--- 4. DATOS INICIALES SEMILLA DE EGRESOS
-INSERT INTO public.egresos_camara (
-    concepto, categoria, monto_usd, monto_bs, metodo_pago, referencia_comprobante, 
-    beneficiario_proveedor, fecha_gasto, aprobado_por, observaciones
-) VALUES
-(
-    'Diseño y Producción de Pendones Institucionales Sello AAA',
-    'Publicidad & Medios', 45.00, 2430.00, 'transferencia', 'REF-EG-001',
-    'Impresos Gráficos Los Andes C.A.', '2026-09-15T11:00:00Z',
-    'Edixon Xavier Reyes Dávila (Tesorero)', 'Material publicitario para eventos gremiales'
-),
-(
-    'Dominio Web y Servidor Plataforma Mérida Gastronómica',
-    'Servicios Web & Plataforma', 35.00, 1890.00, 'zelle', 'ZEL-HOST-2026',
-    'Infraestructura Cloud & Vercel Services', '2026-09-20T16:30:00Z',
-    'Edixon Xavier Reyes Dávila (Tesorero)', 'Mantenimiento del portal oficial y base de datos'
-)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (numero_recibo) DO UPDATE SET
+    monto_inscripcion_usd = EXCLUDED.monto_inscripcion_usd,
+    monto_cuota_mes_usd = EXCLUDED.monto_cuota_mes_usd,
+    monto_usd = EXCLUDED.monto_usd,
+    monto_bs = EXCLUDED.monto_bs,
+    tasa_bcv = EXCLUDED.tasa_bcv,
+    estado = EXCLUDED.estado,
+    observaciones = EXCLUDED.observaciones;
