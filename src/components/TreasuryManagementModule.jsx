@@ -40,7 +40,8 @@ import {
   submitExpenseRecord, 
   deleteExpenseRecord, 
   exportTreasuryCSV,
-  generateReceiptNumber
+  generateReceiptNumber,
+  parsePaymentFromMember
 } from '../lib/treasurySync';
 import { supabase } from '../lib/supabaseClient';
 import { sendPaymentReceiptEmail } from '../lib/emailService';
@@ -106,7 +107,22 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
         fetchLivePayments(),
         fetchLiveExpenses()
       ]);
-      setPayments(paymentsData);
+
+      let finalPayments = Array.isArray(paymentsData) ? [...paymentsData] : [];
+      if (Array.isArray(directoryMembers) && directoryMembers.length > 0) {
+        directoryMembers.forEach((m, idx) => {
+          const exists = finalPayments.some(p => 
+            (m.codigo_afiliado && p.codigo_afiliado === m.codigo_afiliado) ||
+            (m.email && p.email && p.email.toLowerCase() === m.email.toLowerCase()) ||
+            (m.id && p.id && p.id === m.id)
+          );
+          if (!exists) {
+            finalPayments.push(parsePaymentFromMember(m, finalPayments.length + 1));
+          }
+        });
+      }
+
+      setPayments(finalPayments);
       setExpenses(expensesData);
     } catch (err) {
       console.warn('Error loading treasury data:', err);
@@ -117,7 +133,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
 
   useEffect(() => {
     loadTreasuryData();
-  }, []);
+  }, [directoryMembers]);
 
   // Recalculate KPIs
   const totalIncomeUSD = useMemo(() => {

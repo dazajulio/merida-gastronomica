@@ -1,136 +1,70 @@
 import { supabase } from './supabaseClient';
+import { INITIAL_DIRECTORY_DATA } from '../data/initialDirectoryData';
 
-export const INITIAL_PAYMENTS = [
-  {
-    id: "pago-001",
-    numero_recibo: "REC-2026-0001",
-    codigo_afiliado: "CGM-2026-001",
-    nombre_establecimiento: "Kaffia Caffe",
-    representante_legal: "Gerencia & Equipo Kaffia",
-    rif_cedula: "J-50123456-7",
-    telefono: "04148817137",
-    email: "cafe.kaffia@gmail.com",
-    concepto: "Inscripción + 1er Mes",
-    periodo_mes: "Enero 2026",
-    metodo_pago: "pago_movil",
-    banco_emisor: "Banco Provincial",
-    banco_receptor: "Banco Provincial (0108)",
-    referencia: "00492817",
-    telefono_pagador: "04148817137",
-    monto_bs: 1500.00,
-    tasa_bcv: 50.00,
-    monto_usd: 30.00,
-    estado: "conciliado",
-    fecha_pago: "2026-01-05T10:30:00Z",
-    fecha_conciliacion: "2026-01-05T11:15:00Z",
-    conciliado_por: "Edixon Xavier Reyes Dávila (Tesorero)",
-    observaciones: "Pago verificado en cuenta oficial Provincial"
-  },
-  {
-    id: "pago-002",
-    numero_recibo: "REC-2026-0002",
-    codigo_afiliado: "CGM-2026-001",
-    nombre_establecimiento: "Kaffia Caffe",
-    representante_legal: "Gerencia & Equipo Kaffia",
-    rif_cedula: "J-50123456-7",
-    telefono: "04148817137",
-    email: "cafe.kaffia@gmail.com",
-    concepto: "Cuota Mensual",
-    periodo_mes: "Septiembre 2026",
-    metodo_pago: "pago_movil",
-    banco_emisor: "Banco Provincial",
-    banco_receptor: "Banco Provincial (0108)",
-    referencia: "00984729",
-    telefono_pagador: "04148817137",
-    monto_bs: 520.00,
-    tasa_bcv: 52.00,
-    monto_usd: 10.00,
-    estado: "conciliado",
-    fecha_pago: "2026-09-01T14:20:00Z",
-    fecha_conciliacion: "2026-09-01T15:00:00Z",
-    conciliado_por: "Edixon Xavier Reyes Dávila (Tesorero)",
-    observaciones: "Cuota ordinaria de Septiembre conciliada"
-  },
-  {
-    id: "pago-003",
-    numero_recibo: "REC-2026-0003",
-    codigo_afiliado: "CGM-2026-002",
-    nombre_establecimiento: "La Sevillana Restaurant",
-    representante_legal: "Carlos Mendoza",
-    rif_cedula: "J-40987654-3",
-    telefono: "04247654321",
-    email: "contacto@lasevillanamerida.com",
-    concepto: "Inscripción + 1er Mes",
-    periodo_mes: "Febrero 2026",
-    metodo_pago: "transferencia_nacional",
-    banco_emisor: "Banesco",
-    banco_receptor: "Banco Provincial (0108)",
-    referencia: "78921634",
-    telefono_pagador: "04247654321",
-    monto_bs: 1600.00,
-    tasa_bcv: 53.33,
-    monto_usd: 30.00,
-    estado: "conciliado",
-    fecha_pago: "2026-02-10T09:45:00Z",
-    fecha_conciliacion: "2026-02-10T10:30:00Z",
-    conciliado_por: "Edixon Xavier Reyes Dávila (Tesorero)",
-    observaciones: "Inscripción aprobada"
-  },
-  {
-    id: "pago-004",
-    numero_recibo: "REC-2026-0004",
-    codigo_afiliado: "CGM-2026-003",
-    nombre_establecimiento: "Chocolates La Mucuy",
-    representante_legal: "Andreina Ramírez",
-    rif_cedula: "J-31245678-9",
-    telefono: "04147000001",
-    email: "andreinaramirez@camaragastronomicamerida.org",
-    concepto: "Cuota Mensual",
-    periodo_mes: "Octubre 2026",
-    metodo_pago: "pago_movil",
-    banco_emisor: "Banco Mercantil",
-    banco_receptor: "Banco Provincial (0108)",
-    referencia: "83749201",
-    telefono_pagador: "04147000001",
-    monto_bs: 540.00,
+// Función auxiliar para extraer datos de pago de las observaciones del registro
+export function parsePaymentFromMember(member, index = 1) {
+  const obs = member.observaciones || '';
+  
+  // Extraer referencia
+  const refMatch = obs.match(/Ref:\s*([^\s(]+)/i);
+  const referencia = refMatch ? refMatch[1] : (member.rif_cedula ? `REF-${member.rif_cedula.replace(/\D/g, '').slice(-6)}` : `REF-${Math.floor(100000 + Math.random() * 900000)}`);
+
+  // Extraer banco emisor
+  const bankMatch = obs.match(/\(([^)]+)\)/);
+  const bancoEmisor = bankMatch ? bankMatch[1] : 'Banco Provincial';
+
+  // Extraer teléfono pagador
+  const telMatch = obs.match(/Tel\.\s*Pagador:\s*([^\s.]+)/i);
+  const telefonoPagador = telMatch ? telMatch[1] : (member.telefono || '');
+
+  // Extraer monto Bs
+  const bsMatch = obs.match(/Monto\s*Bs:\s*([0-9.,]+)/i);
+  let montoBs = 0;
+  if (bsMatch) {
+    const rawBs = bsMatch[1].replace(/\./g, '').replace(',', '.');
+    montoBs = parseFloat(rawBs) || 0;
+  }
+
+  const montoUsd = parseFloat(member.monto_inscripcion) || 30.00;
+  if (montoBs === 0) {
+    montoBs = montoUsd * 54.00;
+  }
+
+  const isSolvent = (member.estado_solvencia || '').toLowerCase().includes('solvente');
+  const padIndex = String(index).padStart(4, '0');
+
+  return {
+    id: `pago-real-${member.id || member.codigo_afiliado}`,
+    numero_recibo: `REC-2026-${padIndex}`,
+    codigo_afiliado: member.codigo_afiliado,
+    nombre_establecimiento: member.nombre_establecimiento,
+    representante_legal: member.representante_legal || '',
+    rif_cedula: member.rif_cedula || '',
+    telefono: member.telefono || '',
+    email: member.email || '',
+    concepto: 'Inscripción + 1er Mes de Membresía',
+    periodo_mes: 'Octubre 2026',
+    metodo_pago: bancoEmisor.toLowerCase().includes('provincial') ? 'pago_movil' : 'transferencia_nacional',
+    banco_emisor: bancoEmisor,
+    banco_receptor: 'Banco Provincial (0108)',
+    referencia: referencia,
+    telefono_pagador: telefonoPagador,
+    monto_bs: montoBs,
     tasa_bcv: 54.00,
-    monto_usd: 10.00,
-    estado: "pendiente",
-    fecha_pago: new Date().toISOString(),
-    fecha_conciliacion: null,
-    conciliado_por: null,
-    observaciones: "Reporte de pago móvil recibido vía web. Pendiente por conciliación en extracto"
-  }
-];
+    monto_usd: montoUsd,
+    estado: isSolvent ? 'conciliado' : 'pendiente',
+    fecha_pago: member.fecha_registro || member.created_at || new Date().toISOString(),
+    fecha_conciliacion: isSolvent ? (member.updated_at || member.fecha_registro || new Date().toISOString()) : null,
+    conciliado_por: isSolvent ? 'Edixon Xavier Reyes Dávila (Tesorero)' : null,
+    observaciones: member.observaciones || 'Registro Web Público'
+  };
+}
 
-export const INITIAL_EXPENSES = [
-  {
-    id: "egreso-001",
-    concepto: "Diseño y Producción de Pendones Institucionales Sello AAA",
-    categoria: "Publicidad & Medios",
-    monto_usd: 45.00,
-    monto_bs: 2430.00,
-    metodo_pago: "transferencia",
-    referencia_comprobante: "REF-EG-001",
-    beneficiario_proveedor: "Impresos Gráficos Los Andes C.A.",
-    fecha_gasto: "2026-09-15T11:00:00Z",
-    aprobado_por: "Edixon Xavier Reyes Dávila (Tesorero)",
-    observaciones: "Material publicitario para eventos gremiales"
-  },
-  {
-    id: "egreso-002",
-    concepto: "Dominio Web y Servidor Plataforma Mérida Gastronómica",
-    categoria: "Servicios Web & Plataforma",
-    monto_usd: 35.00,
-    monto_bs: 1890.00,
-    metodo_pago: "zelle",
-    referencia_comprobante: "ZEL-HOST-2026",
-    beneficiario_proveedor: "Infraestructura Cloud & Vercel Services",
-    fecha_gasto: "2026-09-20T16:30:00Z",
-    aprobado_por: "Edixon Xavier Reyes Dávila (Tesorero)",
-    observaciones: "Mantenimiento del portal oficial y base de datos"
-  }
-];
+// Lista Real Base de Pagos (Construida directamente a partir de los 12 agremiados reales)
+export const INITIAL_PAYMENTS = INITIAL_DIRECTORY_DATA.map((member, idx) => parsePaymentFromMember(member, idx + 1));
+
+// Gastos reales (Inicialmente vacío hasta que Tesorería registre facturas reales)
+export const INITIAL_EXPENSES = [];
 
 // Generar número correlativo de recibo
 export const generateReceiptNumber = (existingPayments = []) => {
@@ -140,28 +74,51 @@ export const generateReceiptNumber = (existingPayments = []) => {
   return `REC-${currentYear}-${padNum}`;
 };
 
-// Obtener pagos desde Supabase o localStorage
+// Obtener pagos desde Supabase o localStorage con auto-sincronización de registros reales
 export async function fetchLivePayments() {
   try {
-    const saved = localStorage.getItem('cgem_pagos_tesoreria');
-    let localData = saved ? JSON.parse(saved) : INITIAL_PAYMENTS;
+    let baseList = [...INITIAL_PAYMENTS];
 
+    // 1. Intentar cargar desde Supabase directorio_agremiados & pagos_tesoreria
     if (supabase) {
       try {
-        const { data, error } = await supabase
+        // Cargar pagos de tabla pagos_tesoreria
+        const { data: pagosData, error: pagosErr } = await supabase
           .from('pagos_tesoreria')
           .select('*')
           .order('fecha_pago', { ascending: false });
 
-        if (!error && Array.isArray(data) && data.length > 0) {
-          localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(data));
-          return data;
+        if (!pagosErr && Array.isArray(pagosData) && pagosData.length > 0) {
+          localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(pagosData));
+          return pagosData;
+        }
+
+        // Si pagos_tesoreria aún está vacía, cargar agremiados de directorio_agremiados y mapear a pagos
+        const { data: dirData, error: dirErr } = await supabase
+          .from('directorio_agremiados')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!dirErr && Array.isArray(dirData) && dirData.length > 0) {
+          const mapped = dirData.map((m, idx) => parsePaymentFromMember(m, idx + 1));
+          localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(mapped));
+          return mapped;
         }
       } catch (err) {
         console.warn('Supabase pagos notice:', err);
       }
     }
-    return localData;
+
+    // 2. Fallback a localStorage
+    const saved = localStorage.getItem('cgem_pagos_tesoreria');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+
+    return baseList;
   } catch (e) {
     return INITIAL_PAYMENTS;
   }
@@ -209,7 +166,7 @@ export async function submitPaymentRecord(paymentData) {
   try {
     const saved = localStorage.getItem('cgem_pagos_tesoreria');
     const list = saved ? JSON.parse(saved) : [...INITIAL_PAYMENTS];
-    const existsIndex = list.findIndex(p => p.id === newRecord.id || p.referencia === newRecord.referencia);
+    const existsIndex = list.findIndex(p => p.id === newRecord.id || (p.referencia && p.referencia === newRecord.referencia));
     let updatedList;
     if (existsIndex >= 0) {
       list[existsIndex] = { ...list[existsIndex], ...newRecord };
