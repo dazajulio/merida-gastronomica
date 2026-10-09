@@ -183,6 +183,98 @@ export const getBusinessTier = (typeIdOrName) => {
          BUSINESS_TIERS[1];
 };
 
+export const createBlankBusinessProfile = (user) => {
+  const code = user?.id || user?.codigo_afiliado || 'CGM-2026-000';
+  const restName = user?.restaurantName || user?.nombre_establecimiento || '';
+  const isKaffia = code === 'CGM-2026-001' || restName.toLowerCase().includes('kaffia');
+
+  if (isKaffia) {
+    return {
+      id: "rest-kaffia",
+      name: "Kaffia Caffe",
+      slug: "kaffia-caffe-merida",
+      tagline: "Más que café: Alta cocina, banquetes, hamburguesas de autor, pizzas y cafés de especialidad",
+      category: "Cafeterías",
+      rating: 5.0,
+      priceTier: "$$ (Gourmet)",
+      altitude: 1620,
+      ejeName: "Eje Metropolitano (Sector Las Heroínas)",
+      location: "Av. 8 entre Calles 24 y 25, Sector Las Heroínas, Casco Central, Mérida",
+      openingHours: "Lunes a Sábado: 8:00 AM - 10:00 PM | Domingo: 8:00 AM - 4:00 PM",
+      description: "Ubicado a pasos del Teleférico Mukumbarí y la emblemática Plaza Las Heroínas, Kaffia Caffe conjuga un ambiente colonial contemporáneo con muros de ladrillo expuesto, arreglos florales y cálida iluminación. Ofrece desde alta cocina y banquetes privados con maridaje de vino, hasta brunch, cafés de especialidad, pizzas y hamburguesas artesanales.",
+      chef: "Equipo Barista & Cocina Kaffia",
+      chefBio: "Fusionando la cultura del café de especialidad de altura con una propuesta gastronómica cálida de pizzas artesanales, hamburguesas de autor, banquetes y cenas con maridaje en Las Heroínas.",
+      phone: "+58 414-8817137",
+      whatsapp: "+58 414-8817137",
+      instagram: "@kaffiacaffe",
+      instagramUrl: "https://www.instagram.com/kaffiacaffe/",
+      facebookUrl: "https://www.facebook.com/kaffiacaffe/",
+      isCertifiedByCamara: true,
+      certificateNumber: "CGM-2026-001",
+      coverImage: "/images/kaffia/kaffia-fachada-hd.jpg",
+      gallery: [
+        "/images/kaffia/kaffia-fachada-hd.jpg",
+        "/images/kaffia/kaffia-salon-banquete.jpg",
+        "/images/kaffia/kaffia-plato-gourmet.jpg",
+        "/images/kaffia/kaffia-entrante-autor.jpg",
+        "/images/kaffia/kaffia-cena-vino.jpg"
+      ],
+      signatureDishes: [
+        {
+          name: "Medallones de Res en Salsa de Champiñones con Timbal de Aguacate",
+          price: "$12.00",
+          description: "Tiernos cortes de res glaseados en salsa cremosa de setas, acompañados de papas salteadas al romero y torre de vegetales andinos."
+        }
+      ],
+      menuHighlights: [
+        "Pizzas artesanales y burgers gourmet",
+        "Variedad de tortas, pastelería y repostería fina",
+        "Cenas y veladas especiales para grupos y banquetes privados",
+        "Cócteles, sangría de autor, copas de vino y mocktails"
+      ],
+      features: [
+        "Wi-Fi de Alta Velocidad",
+        "Zona Pet Friendly",
+        "Ambiente Musical & Arte",
+        "Cerca del Teleférico Mukumbarí",
+        "Opciones Vegetarianas",
+        "Take-away & Delivery",
+        "Salón para Eventos & Banquetes"
+      ]
+    };
+  }
+
+  // Perfil por defecto limpio para cualquier otro agremiado
+  return {
+    id: `rest-${code.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+    name: restName || '',
+    slug: (restName || 'mi-negocio').toLowerCase().replace(/\s+/g, '-'),
+    tagline: '',
+    category: user?.category || user?.memberCategory || user?.categoria_negocio || "Restaurantes de autor",
+    rating: 5.0,
+    priceTier: "$$ (Gourmet / Estándar)",
+    altitude: 1620,
+    ejeName: "Eje Metropolitano",
+    location: user?.location || user?.direccion_completa || user?.municipio || '',
+    openingHours: '',
+    description: '',
+    chef: user?.ownerName || user?.representante_legal || '',
+    chefBio: '',
+    phone: user?.phone || user?.telefono || '',
+    whatsapp: user?.whatsapp || user?.phone || user?.telefono || '',
+    instagram: user?.instagram && user?.instagram !== '@' ? user?.instagram : '',
+    instagramUrl: '',
+    facebookUrl: '',
+    isCertifiedByCamara: true,
+    certificateNumber: code,
+    coverImage: null,
+    gallery: [],
+    signatureDishes: [],
+    menuHighlights: [],
+    features: []
+  };
+};
+
 // =========================================================================
 // SATELLITE GPS CALIBRATION COMPONENT
 // =========================================================================
@@ -637,94 +729,25 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
   // SECCIÓN "MI NEGOCIO": GESTIÓN Y PERSONALIZACIÓN DE FICHA WEB COMPLETA
   // =========================================================================
   const [businessProfile, setBusinessProfile] = useState(() => {
+    return createBlankBusinessProfile(AFFILIATES_DATA.currentUser);
+  });
+
+  // Mantener la ficha del negocio sincronizada estrictamente con el usuario activo
+  useEffect(() => {
+    if (!activeUser) return;
+    const userStorageKey = `cgem_biz_profile_${activeUser.id || activeUser.email || 'default'}`;
     try {
-      const saved = localStorage.getItem('cgem_my_business_profile');
+      const saved = localStorage.getItem(userStorageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (!parsed.gallery || !Array.isArray(parsed.gallery) || parsed.gallery.length === 0) {
-          parsed.gallery = [
-            "/images/kaffia/kaffia-fachada-hd.jpg",
-            "/images/kaffia/kaffia-salon-banquete.jpg",
-            "/images/kaffia/kaffia-plato-gourmet.jpg",
-            "/images/kaffia/kaffia-entrante-autor.jpg",
-            "/images/kaffia/kaffia-cena-vino.jpg"
-          ];
+        if (parsed && typeof parsed === 'object') {
+          setBusinessProfile(parsed);
+          return;
         }
-        if (!parsed.coverImage) {
-          parsed.coverImage = parsed.gallery[0] || "/images/kaffia/kaffia-fachada-hd.jpg";
-        }
-        return parsed;
       }
     } catch (e) {}
-    return {
-      id: "rest-kaffia",
-      name: "Kaffia Caffe",
-      slug: "kaffia-caffe-merida",
-      tagline: "Más que café: Alta cocina, banquetes, hamburguesas de autor, pizzas y cafés de especialidad",
-      category: "Cafeterías",
-      rating: 5.0,
-      priceTier: "$$ (Gourmet)",
-      altitude: 1620,
-      ejeName: "Eje Metropolitano (Sector Las Heroínas)",
-      location: "Av. 8 entre Calles 24 y 25, Sector Las Heroínas, Casco Central, Mérida",
-      openingHours: "Lunes a Sábado: 8:00 AM - 10:00 PM | Domingo: 8:00 AM - 4:00 PM",
-      description: "Ubicado a pasos del Teleférico Mukumbarí y la emblemática Plaza Las Heroínas, Kaffia Caffe conjuga un ambiente colonial contemporáneo con muros de ladrillo expuesto, arreglos florales y cálida iluminación. Ofrece desde alta cocina y banquetes privados con maridaje de vino, hasta brunch, cafés de especialidad, pizzas y hamburguesas artesanales.",
-      chef: "Equipo Barista & Cocina Kaffia",
-      chefBio: "Fusionando la cultura del café de especialidad de altura con una propuesta gastronómica cálida de pizzas artesanales, hamburguesas de autor, banquetes y cenas con maridaje en Las Heroínas.",
-      phone: "+58 274 2521448",
-      whatsapp: "+58 412 6666954",
-      instagram: "@kaffiacaffe",
-      instagramUrl: "https://www.instagram.com/kaffiacaffe/",
-      facebookUrl: "https://www.facebook.com/kaffiacaffe/",
-      isCertifiedByCamara: true,
-      certificateNumber: "CGM-2026-001",
-      coverImage: "/images/kaffia/kaffia-fachada-hd.jpg",
-      gallery: [
-        "/images/kaffia/kaffia-fachada-hd.jpg",
-        "/images/kaffia/kaffia-salon-banquete.jpg",
-        "/images/kaffia/kaffia-plato-gourmet.jpg",
-        "/images/kaffia/kaffia-entrante-autor.jpg",
-        "/images/kaffia/kaffia-cena-vino.jpg"
-      ],
-      signatureDishes: [
-        {
-          name: "Medallones de Res en Salsa de Champiñones con Timbal de Aguacate",
-          price: "$12.00",
-          description: "Tiernos cortes de res glaseados en salsa cremosa de setas, acompañados de papas salteadas al romero y torre de vegetales andinos."
-        },
-        {
-          name: "Cazuela Marinera Cremosa al Pimentón con Arroz Pilaf",
-          price: "$11.50",
-          description: "Salteado de mariscos en salsa emulsionada de pimentón dulce, servido con timbal de arroz blanco y ensalada fresca."
-        },
-        {
-          name: "Canapé de Res Braseada en Nido de Papa y Microgreens",
-          price: "$6.50",
-          description: "Entrante de autor servido en corteza crujiente de papa andina con reducción de tomates dulces y brotes frescos."
-        },
-        {
-          name: "Hamburguesas Gourmet Kaffia & Cenas con Maridaje",
-          price: "$8.50",
-          description: "Carne premium en pan artesanal sellado con el logo Kaffia, quesos fundidos y papas rústicas, ideales para veladas y eventos."
-        }
-      ],
-      menuHighlights: [
-        "Pizzas artesanales y burgers gourmet",
-        "Variedad de tortas, pastelería y repostería fina",
-        "Cenas y veladas especiales para grupos y banquetes privados",
-        "Cócteles, sangría de autor, copas de vino y mocktails"
-      ],
-      features: [
-        "Wi-Fi de Alta Velocidad",
-        "Zona Pet Friendly",
-        "Ambiente Musical & Arte",
-        "Cerca del Teleférico Mukumbarí",
-        "Opciones Vegetarianas",
-        "Take-away & Delivery",
-        "Salón para Eventos & Banquetes"
-      ]
-    };
-  });
+    setBusinessProfile(createBlankBusinessProfile(activeUser));
+  }, [activeUser?.id, activeUser?.restaurantName]);
 
   const [businessSaveSuccess, setBusinessSaveSuccess] = useState(false);
   const [isSavingBusiness, setIsSavingBusiness] = useState(false);
@@ -851,9 +874,12 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
     if (e && e.preventDefault) e.preventDefault();
     setIsSavingBusiness(true);
     try {
+      const userKey = `cgem_biz_profile_${activeUser?.id || activeUser?.email || 'default'}`;
+      localStorage.setItem(userKey, JSON.stringify(businessProfile));
       localStorage.setItem('cgem_my_business_profile', JSON.stringify(businessProfile));
+
       const existingCustom = JSON.parse(localStorage.getItem('cgem_custom_restaurants') || '[]');
-      const otherRestaurants = existingCustom.filter(r => r.id !== (businessProfile.id || 'rest-kaffia'));
+      const otherRestaurants = existingCustom.filter(r => r.id !== businessProfile.id && r.certificateNumber !== activeUser?.id);
       const updatedCustom = [businessProfile, ...otherRestaurants];
       localStorage.setItem('cgem_custom_restaurants', JSON.stringify(updatedCustom));
 
@@ -870,8 +896,8 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
           instagram: businessProfile.instagram,
           foto_portada: businessProfile.coverImage || (businessProfile.gallery && businessProfile.gallery[0]) || '',
           fotos_galeria: businessProfile.gallery || [],
-          observaciones: `Especialidad: ${businessProfile.tagline}. Horarios: ${businessProfile.openingHours}`
-        }).eq('codigo_afiliado', activeUser.id || 'CGM-2026-001').catch(() => {});
+          observaciones: `Especialidad: ${businessProfile.tagline || ''}. Horarios: ${businessProfile.openingHours || ''}`
+        }).eq('codigo_afiliado', activeUser?.id || 'CGM-2026-001').catch(() => {});
       }
 
       setBusinessSaveSuccess(true);
@@ -887,8 +913,8 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
     setBusinessProfile(prev => ({
       ...prev,
       signatureDishes: [
-        ...prev.signatureDishes,
-        { name: 'Nuevo Plato Insignia', price: '$10.00', description: 'Descripción de la especialidad culinaria...' }
+        ...(prev.signatureDishes || []),
+        { name: '', price: '', description: '' }
       ]
     }));
   };
@@ -896,7 +922,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
   const handleRemoveDish = (index) => {
     setBusinessProfile(prev => ({
       ...prev,
-      signatureDishes: prev.signatureDishes.filter((_, i) => i !== index)
+      signatureDishes: (prev.signatureDishes || []).filter((_, i) => i !== index)
     }));
   };
 
@@ -1242,18 +1268,28 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
           }
         });
 
-        // Initialize business profile for this specific affiliate
-        setBusinessProfile(prev => ({
-          ...prev,
-          id: `rest-${code.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-          name: restName,
-          slug: restName.toLowerCase().replace(/\s+/g, '-'),
-          certificateNumber: code,
-          location: foundMember.direccion_completa || prev.location,
-          phone: foundMember.telefono || prev.phone,
-          instagram: foundMember.instagram || prev.instagram,
-          chef: owner
-        }));
+        // Cargar ficha limpia o guardada exclusivamente para este agremiado
+        const userKey = `cgem_biz_profile_${code}`;
+        let userBizProfile = null;
+        try {
+          const saved = localStorage.getItem(userKey);
+          if (saved) userBizProfile = JSON.parse(saved);
+        } catch (e) {}
+
+        if (!userBizProfile) {
+          userBizProfile = createBlankBusinessProfile({
+            id: code,
+            restaurantName: restName,
+            ownerName: owner,
+            category: foundMember.categoria_negocio,
+            telefono: foundMember.telefono,
+            email: foundMember.email,
+            direccion_completa: foundMember.direccion_completa,
+            municipio: foundMember.municipio,
+            instagram: foundMember.instagram
+          });
+        }
+        setBusinessProfile(userBizProfile);
 
         setViewMode('dashboard');
       } else {
@@ -1378,11 +1414,28 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
         lastPaymentDate: "Hoy",
         certificateCode: `${newCode}-PROV`,
         stats: {
-          profileViewsMonth: 120,
+          profileViewsMonth: 0,
           reservationsMonth: 0,
-          chamberRating: "Pendiente Auditoría Sello AAA"
+          chamberRating: "En Proceso de Verificación"
         }
       });
+
+      // Crear ficha limpia exclusiva para este nuevo agremiado
+      const newBlankProfile = createBlankBusinessProfile({
+        id: newCode,
+        restaurantName: regData.restaurantName,
+        ownerName: regData.ownerName,
+        category: regData.category,
+        memberCategory: tierInfo.name,
+        phone: regData.phone,
+        email: regData.email,
+        location: `${currentMunicipioObj.name} - ${regData.cityTown || regData.town || 'Mérida'}`,
+        instagram: regData.instagram
+      });
+      setBusinessProfile(newBlankProfile);
+      try {
+        localStorage.setItem(`cgem_biz_profile_${newCode}`, JSON.stringify(newBlankProfile));
+      } catch (e) {}
 
       setIsSubmittingReg(false);
       setRegStep(4);
@@ -2400,42 +2453,29 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
 
       {/* Tab 1: Overview */}
       {activeTab === 'overview' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Impacto en Guía Global</span>
-              <p className="font-serif text-2xl font-bold text-slate-900 mt-1">{activeUser.stats.profileViewsMonth}</p>
-              <span className="text-xs text-emerald-700 font-bold flex items-center gap-1 mt-1">
-                <TrendingUp className="w-3.5 h-3.5" /> +24% visitas este mes
+        <div className="space-y-6 animate-fadeIn">
+          <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-800 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+                Respaldo Institucional Oficial
               </span>
+              <h3 className="font-serif text-2xl font-bold text-slate-900 mt-3">
+                Beneficios Activos de su Membresía Gremial
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+                Como miembro agremiado a la Cámara Gastronómica del Estado Mérida, su establecimiento cuenta con aval oficial, respaldo legal, presencia en la Guía Digital y vinculación gremial continua.
+              </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Reservas Solicitadas</span>
-              <p className="font-serif text-2xl font-bold text-amber-800 mt-1">{activeUser.stats.reservationsMonth}</p>
-              <span className="text-xs text-slate-500 mt-1 block">Canal oficial de la Cámara</span>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Auditoría Sanitaria y Calidad</span>
-              <p className="font-serif text-base font-bold text-emerald-700 mt-1">100% Aprobada</p>
-              <span className="text-xs text-slate-500 mt-1 block">Vigencia hasta Diciembre 2026</span>
-            </div>
-          </div>
-
-          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm">
-            <h3 className="font-serif text-xl font-bold text-slate-900 mb-4">
-              Beneficios Activos de su Membresía Gremial
-            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {guildBenefits.map((benefit, idx) => (
-                <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-start gap-3">
+                <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-start gap-3 hover:border-amber-200 transition-colors">
                   <div className="p-2 rounded-xl bg-amber-100 text-amber-800 shrink-0 mt-0.5">
                     <CheckCircle2 className="w-4 h-4" />
                   </div>
                   <div>
                     <h4 className="font-bold text-sm text-slate-900">{benefit}</h4>
-                    <p className="text-xs text-slate-600 mt-0.5">Acceso exclusivo a través del aval institucional.</p>
+                    <p className="text-xs text-slate-600 mt-0.5">Acceso exclusivo a través del aval institucional de la Cámara.</p>
                   </div>
                 </div>
               ))}
@@ -2792,7 +2832,8 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                   <input
                     type="text"
                     required
-                    value={businessProfile.location}
+                    placeholder="Ej. Avenida Principal, Sector / Casco Central, Mérida"
+                    value={businessProfile.location || ''}
                     onChange={(e) => setBusinessProfile({ ...businessProfile, location: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
                   />
@@ -2803,7 +2844,8 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                   <input
                     type="text"
                     required
-                    value={businessProfile.openingHours}
+                    placeholder="Ej. Lunes a Domingo: 12:00 PM - 10:00 PM"
+                    value={businessProfile.openingHours || ''}
                     onChange={(e) => setBusinessProfile({ ...businessProfile, openingHours: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50 text-slate-800"
                   />
@@ -2815,7 +2857,8 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                   <label className="block text-xs font-bold text-slate-700 mb-1">Teléfono Fijo / Local</label>
                   <input
                     type="text"
-                    value={businessProfile.phone}
+                    placeholder="Ej. +58 274 0000000"
+                    value={businessProfile.phone || ''}
                     onChange={(e) => setBusinessProfile({ ...businessProfile, phone: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
                   />
@@ -2825,7 +2868,8 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                   <label className="block text-xs font-bold text-slate-700 mb-1">WhatsApp de Reservas *</label>
                   <input
                     type="text"
-                    value={businessProfile.whatsapp}
+                    placeholder="Ej. +58 414 0000000"
+                    value={businessProfile.whatsapp || ''}
                     onChange={(e) => setBusinessProfile({ ...businessProfile, whatsapp: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
                   />
@@ -2835,7 +2879,8 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                   <label className="block text-xs font-bold text-slate-700 mb-1">Instagram (@usuario)</label>
                   <input
                     type="text"
-                    value={businessProfile.instagram}
+                    placeholder="@mirestaurante"
+                    value={businessProfile.instagram || ''}
                     onChange={(e) => setBusinessProfile({ ...businessProfile, instagram: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
                   />
@@ -2845,7 +2890,8 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                   <label className="block text-xs font-bold text-slate-700 mb-1">Enlace de Facebook</label>
                   <input
                     type="text"
-                    value={businessProfile.facebookUrl}
+                    placeholder="https://www.facebook.com/mirestaurante/"
+                    value={businessProfile.facebookUrl || ''}
                     onChange={(e) => setBusinessProfile({ ...businessProfile, facebookUrl: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
                   />
@@ -2865,7 +2911,8 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                   <label className="block text-xs font-bold text-slate-700 mb-1">Nombre del Chef / Equipo Culinario</label>
                   <input
                     type="text"
-                    value={businessProfile.chef}
+                    placeholder="Ej. Chef Ejecutivo o Equipo Gastronómico"
+                    value={businessProfile.chef || ''}
                     onChange={(e) => setBusinessProfile({ ...businessProfile, chef: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
                   />
@@ -2875,7 +2922,8 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                   <label className="block text-xs font-bold text-slate-700 mb-1">Cita / Bio del Chef</label>
                   <textarea
                     rows="2"
-                    value={businessProfile.chefBio}
+                    placeholder="Ej. Breve reseña de la trayectoria culinaria y visión gastronómica..."
+                    value={businessProfile.chefBio || ''}
                     onChange={(e) => setBusinessProfile({ ...businessProfile, chefBio: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
                   />
@@ -2894,7 +2942,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 <button
                   type="button"
                   onClick={handleAddDish}
-                  className="py-1.5 px-3 rounded-lg bg-amber-500 text-white font-bold text-xs flex items-center gap-1 hover:bg-amber-600"
+                  className="py-1.5 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center gap-1 shadow-sm transition-all"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Agregar Plato</span>
@@ -2902,13 +2950,29 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               </div>
 
               <div className="space-y-4">
-                {businessProfile.signatureDishes.map((dish, idx) => (
-                  <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 relative">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[10px] uppercase font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
-                        Plato Insignia #{idx + 1}
-                      </span>
-                      {businessProfile.signatureDishes.length > 1 && (
+                {(!businessProfile.signatureDishes || businessProfile.signatureDishes.length === 0) ? (
+                  <div className="p-8 text-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-slate-500 space-y-2">
+                    <Sparkles className="w-8 h-8 text-amber-500/50 mx-auto" />
+                    <p className="text-xs font-semibold text-slate-700">No ha registrado platos insignia aún.</p>
+                    <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                      Haga clic en "+ Agregar Plato" para destacar las creaciones estrella de su menú con nombres, descripciones y precios sugeridos.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleAddDish}
+                      className="mt-2 py-2 px-4 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs shadow-sm hover:bg-amber-600 transition-all inline-flex items-center gap-1.5"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Agregar Primer Plato Insignia</span>
+                    </button>
+                  </div>
+                ) : (
+                  businessProfile.signatureDishes.map((dish, idx) => (
+                    <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 relative">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[10px] uppercase font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
+                          Plato Insignia #{idx + 1}
+                        </span>
                         <button
                           type="button"
                           onClick={() => handleRemoveDish(idx)}
@@ -2917,45 +2981,48 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                           <Trash2 className="w-3.5 h-3.5" />
                           <span>Eliminar</span>
                         </button>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                      <div className="md:col-span-8">
-                        <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Nombre del Plato *</label>
-                        <input
-                          type="text"
-                          required
-                          value={dish.name}
-                          onChange={(e) => handleDishChange(idx, 'name', e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-amber-500 bg-white"
-                        />
                       </div>
 
-                      <div className="md:col-span-4">
-                        <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Precio Sugerido ($ USD) *</label>
-                        <input
-                          type="text"
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                        <div className="md:col-span-8">
+                          <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Nombre del Plato *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Ej. Nombre del plato o especialidad gastronómica"
+                            value={dish.name || ''}
+                            onChange={(e) => handleDishChange(idx, 'name', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-amber-500 bg-white"
+                          />
+                        </div>
+
+                        <div className="md:col-span-4">
+                          <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Precio Sugerido ($ USD) *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Ej. $10.00"
+                            value={dish.price || ''}
+                            onChange={(e) => handleDishChange(idx, 'price', e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-amber-500 bg-white font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Descripción Culinaria & Acompañamientos *</label>
+                        <textarea
+                          rows="2"
                           required
-                          value={dish.price}
-                          onChange={(e) => handleDishChange(idx, 'price', e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-amber-500 bg-white font-mono"
+                          placeholder="Ej. Descripción de ingredientes principales, técnica y guarniciones..."
+                          value={dish.description || ''}
+                          onChange={(e) => handleDishChange(idx, 'description', e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-white"
                         />
                       </div>
                     </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Descripción Culinaria & Acompañamientos *</label>
-                      <textarea
-                        rows="2"
-                        required
-                        value={dish.description}
-                        onChange={(e) => handleDishChange(idx, 'description', e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-white"
-                      />
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 
@@ -2979,16 +3046,20 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-2">Destacados de la Carta:</label>
-                <div className="flex flex-wrap gap-2">
-                  {businessProfile.menuHighlights.map((hl, idx) => (
-                    <span key={idx} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-900">
-                      <span>{hl}</span>
-                      <button type="button" onClick={() => handleRemoveMenuHighlight(idx)} className="text-amber-700 hover:text-red-700">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
+                {(!businessProfile.menuHighlights || businessProfile.menuHighlights.length === 0) ? (
+                  <p className="text-[11px] text-slate-400 italic mb-2">No ha agregado destacados aún. Haga clic en "+ Agregar Destacado".</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {businessProfile.menuHighlights.map((hl, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-900">
+                        <span>{hl}</span>
+                        <button type="button" onClick={() => handleRemoveMenuHighlight(idx)} className="text-amber-700 hover:text-red-700">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 border-t border-slate-100">
