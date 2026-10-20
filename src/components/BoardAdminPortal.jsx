@@ -73,7 +73,12 @@ import {
   deleteCourseFromSupabase,
   fetchLiveEventRsvps,
   updateRsvpStatusInSupabase,
-  deleteRsvpFromSupabase
+  deleteRsvpFromSupabase,
+  fetchLiveBoardAgenda,
+  saveBoardAgendaEventToSupabase,
+  deleteBoardAgendaEventFromSupabase,
+  fetchLiveCompletedBoardEvents,
+  markBoardEventCompletedInSupabase
 } from '../lib/eventsCoursesSync';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -371,7 +376,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Agenda State (Stored in localStorage with fallback to INITIAL_BOARD_AGENDA_DATA)
+  // Agenda State (Synchronized with Supabase Cloud + localStorage resilience)
   const [agendaEvents, setAgendaEvents] = useState(() => {
     try {
       const saved = localStorage.getItem('cgem_board_agenda_v2');
@@ -386,6 +391,36 @@ export function BoardAdminPortal({ t, onNavigate }) {
       localStorage.setItem('cgem_board_agenda_v2', JSON.stringify(agendaEvents));
     } catch (e) {}
   }, [agendaEvents]);
+
+  // Real-time / Cloud synchronization for Board Agenda & Completed Events across all board members
+  useEffect(() => {
+    let isMounted = true;
+    const syncBoardAgendaCloud = async () => {
+      try {
+        const [liveAgenda, liveCompleted] = await Promise.all([
+          fetchLiveBoardAgenda(INITIAL_BOARD_AGENDA_DATA),
+          fetchLiveCompletedBoardEvents()
+        ]);
+        if (!isMounted) return;
+        if (Array.isArray(liveAgenda)) setAgendaEvents(liveAgenda);
+        if (Array.isArray(liveCompleted)) setCompletedBoardEvents(liveCompleted);
+      } catch (err) {
+        console.warn('Error syncing board agenda with cloud:', err);
+      }
+    };
+
+    syncBoardAgendaCloud();
+
+    const handleWindowFocus = () => syncBoardAgendaCloud();
+    window.addEventListener('focus', handleWindowFocus);
+    const intervalId = setInterval(syncBoardAgendaCloud, 20000);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('focus', handleWindowFocus);
+      clearInterval(intervalId);
+    };
+  }, []);
 
   // Roles & Permissions
   const isPresident = currentUser?.id === 'dir-presidente' || 
@@ -570,7 +605,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
   }, [canAccessDirectory]);
 
   // Calendar View Filters & Navigation
-  const [selectedYear, setSelectedYear] = useState(2026);
+  const [selectedYear, setSelectedYear] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState('all'); // 'all' or 1..12
   const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
   const [viewMode, setViewMode] = useState('timeline'); // timeline | directorio | completed_report | courses_management | events_management | board_list | legal_resources
@@ -785,15 +820,19 @@ export function BoardAdminPortal({ t, onNavigate }) {
     setIsSyncingCloud(true);
     setActionSuccessMessage('Sincronizando con Supabase Cloud...');
     try {
-      const [events, courses, rsvps] = await Promise.all([
+      const [events, courses, rsvps, liveAgenda, liveCompleted] = await Promise.all([
         fetchLiveEvents(),
         fetchLiveCourses(),
-        fetchLiveEventRsvps()
+        fetchLiveEventRsvps(),
+        fetchLiveBoardAgenda(INITIAL_BOARD_AGENDA_DATA),
+        fetchLiveCompletedBoardEvents()
       ]);
       if (events) setOfficialEvents(events);
       if (courses) setOfficialCourses(courses);
       if (rsvps) setEventRsvpsList(rsvps);
-      setActionSuccessMessage('¡Sincronización Cloud completada!');
+      if (Array.isArray(liveAgenda)) setAgendaEvents(liveAgenda);
+      if (Array.isArray(liveCompleted)) setCompletedBoardEvents(liveCompleted);
+      setActionSuccessMessage('¡Sincronización Cloud completada para toda la Junta Directiva!');
     } catch (e) {
       setActionErrorMessage('Error al sincronizar con Supabase Cloud.');
     } finally {
@@ -951,12 +990,22 @@ export function BoardAdminPortal({ t, onNavigate }) {
     setActionSuccessMessage('');
     setRsvpLoadingEventId(event.id);
 
-    const alreadyConfirmed = isUserConfirmed(event);
-    const atCapacity = isEventAtCapacity(event);
+    // Fetch latest version of the agenda from Supabase Cloud first so concurrent RSVPs never overwrite each other
+    let latestEvent = event;
+    try {
+      const liveAgenda = await fetchLiveBoardAgenda(INITIAL_BOARD_AGENDA_DATA);
+      if (Array.isArray(liveAgenda)) {
+        const found = liveAgenda.find(ev => String(ev.id) === String(event.id));
+        if (found) latestEvent = found;
+      }
+    } catch (e) {}
+
+    const alreadyConfirmed = isUserConfirmed(latestEvent);
+    const atCapacity = isEventAtCapacity(latestEvent);
 
     // If not confirmed and at capacity, prevent attendance!
     if (!alreadyConfirmed && atCapacity) {
-      setActionErrorMessage(`NO HAY DISPONIBILIDAD para asistir a "${event.title}" porque se ocupó el límite máximo de ${event.maxAttendees} asistentes permitidos.`);
+      setActionErrorMessage(`NO HAY DISPONIBILIDAD para asistir a "${latestEvent.title}" porque se ocupó el límite máximo de ${latestEvent.maxAttendees} asistentes permitidos.`);
       setRsvpLoadingEventId(null);
       return;
     }
@@ -965,10 +1014,10 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
     if (alreadyConfirmed) {
       // Remove attendance
-      updatedAttendees = (event.confirmedAttendees || []).filter(
+      updatedAttendees = (latestEvent.confirmedAttendees || []).filter(
         a => a.memberId !== currentUser.id && a.name !== currentUser.name
       );
-      setActionSuccessMessage(`Has cancelado tu confirmación de asistencia a "${event.title}".`);
+      setActionSuccessMessage(`Has cancelado tu confirmación de asistencia a "${latestEvent.title}".`);
     } else {
       // Add attendance
       const newAttendee = {
@@ -977,8 +1026,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
         role: currentUser.role,
         confirmedAt: new Date().toISOString()
       };
-      updatedAttendees = [...(event.confirmedAttendees || []), newAttendee];
-      setActionSuccessMessage(`¡Excelente ${currentUser.name}! Tu asistencia ha sido confirmada formalmente. Se ha enviado notificación a tu correo registrado y a Dirección Ejecutiva.`);
+      updatedAttendees = [...(latestEvent.confirmedAttendees || []), newAttendee];
+      setActionSuccessMessage(`¡Excelente ${currentUser.name}! Tu asistencia ha sido confirmada formalmente y sincronizada con toda la Junta Directiva. Se ha enviado notificación a tu correo registrado y a Dirección Ejecutiva.`);
 
       // Send Email Notification via Resend
       try {
@@ -986,26 +1035,24 @@ export function BoardAdminPortal({ t, onNavigate }) {
           memberName: currentUser.name,
           memberRole: currentUser.role,
           memberEmail: currentUser.email,
-          eventTitle: event.title,
-          eventType: event.typeLabel || event.type,
-          eventDate: event.date,
-          eventTime: `${event.timeStart || ''} - ${event.timeEnd || ''}`,
-          eventLocation: event.location,
-          isVirtual: event.isVirtual,
-          virtualLink: event.virtualLink
+          eventTitle: latestEvent.title,
+          eventType: latestEvent.typeLabel || latestEvent.type,
+          eventDate: latestEvent.date,
+          eventTime: `${latestEvent.timeStart || ''} - ${latestEvent.timeEnd || ''}`,
+          eventLocation: latestEvent.location,
+          isVirtual: latestEvent.isVirtual,
+          virtualLink: latestEvent.virtualLink
         });
       } catch (err) {
         console.warn('Error enviando correo de confirmación directiva:', err);
       }
     }
 
-    // Update state
-    setAgendaEvents(prev => prev.map(ev => {
-      if (ev.id === event.id) {
-        return { ...ev, confirmedAttendees: updatedAttendees };
-      }
-      return ev;
-    }));
+    const updatedEventObj = { ...latestEvent, confirmedAttendees: updatedAttendees };
+
+    // Update local state & persist to Supabase Cloud immediately
+    setAgendaEvents(prev => prev.map(ev => (ev.id === event.id ? updatedEventObj : ev)));
+    await saveBoardAgendaEventToSupabase(updatedEventObj);
 
     setRsvpLoadingEventId(null);
     setTimeout(() => {
@@ -1015,7 +1062,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
   };
 
   // Save (Create or Update) Event (Admin Only: Presidente / Director Ejecutivo)
-  const handleSaveEvent = (e) => {
+  const handleSaveEvent = async (e) => {
     e.preventDefault();
     if (!currentUser?.isAdminLevel) return;
 
@@ -1027,21 +1074,18 @@ export function BoardAdminPortal({ t, onNavigate }) {
     const maxParsed = formData.maxAttendees ? parseInt(formData.maxAttendees, 10) : null;
 
     if (editingEvent) {
-      // Update
-      setAgendaEvents(prev => prev.map(ev => {
-        if (ev.id === editingEvent.id) {
-          return {
-            ...ev,
-            ...formData,
-            maxAttendees: maxParsed,
-            year,
-            month,
-            typeLabel: typeConfig.label
-          };
-        }
-        return ev;
-      }));
-      setActionSuccessMessage('Actividad actualizada exitosamente en la agenda oficial.');
+      const updatedEvent = {
+        ...editingEvent,
+        ...formData,
+        maxAttendees: maxParsed,
+        year,
+        month,
+        typeLabel: typeConfig.label
+      };
+      // Update state & Supabase Cloud
+      setAgendaEvents(prev => prev.map(ev => (ev.id === editingEvent.id ? updatedEvent : ev)));
+      await saveBoardAgendaEventToSupabase(updatedEvent);
+      setActionSuccessMessage('Actividad actualizada y sincronizada en tiempo real con toda la Junta Directiva.');
     } else {
       // Create
       const newEvent = {
@@ -1061,7 +1105,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
         ]
       };
       setAgendaEvents(prev => [newEvent, ...prev]);
-      setActionSuccessMessage('Nueva actividad creada y agendada en el cronograma institucional.');
+      await saveBoardAgendaEventToSupabase(newEvent);
+      setActionSuccessMessage('Nueva actividad creada y publicada en Supabase Cloud para todos los miembros de la Junta Directiva.');
     }
 
     setIsCreateModalOpen(false);
@@ -1070,11 +1115,12 @@ export function BoardAdminPortal({ t, onNavigate }) {
   };
 
   // Delete Event (Admin Only)
-  const handleDeleteEvent = (eventId) => {
+  const handleDeleteEvent = async (eventId) => {
     if (!currentUser?.isAdminLevel) return;
     if (window.confirm('¿Está seguro de que desea eliminar esta actividad de la agenda institucional?')) {
       setAgendaEvents(prev => prev.filter(ev => ev.id !== eventId));
-      setActionSuccessMessage('Actividad eliminada de la agenda directiva.');
+      await deleteBoardAgendaEventFromSupabase(eventId);
+      setActionSuccessMessage('Actividad eliminada de la agenda directiva en todos los dispositivos.');
       setTimeout(() => setActionSuccessMessage(''), 4000);
     }
   };
@@ -1954,7 +2000,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
   // =========================================================================
   // EVENTO CUMPLIDO & REPORTE TRIMESTRAL HANDLERS
   // =========================================================================
-  const handleMarkEventCompleted = (event) => {
+  const handleMarkEventCompleted = async (event) => {
     if (!currentUser?.isAdminLevel) return;
     if (window.confirm(`¿Marcar la actividad "${event.title}" como EVENTO CUMPLIDO?\n\nEsta actividad se archivará formalmente en el Reporte de Gestión de los últimos 3 meses con el registro de sus asistentes confirmados.`)) {
       const completedItem = {
@@ -1964,7 +2010,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
       };
       setCompletedBoardEvents(prev => [completedItem, ...prev]);
       setAgendaEvents(prev => prev.filter(ev => ev.id !== event.id));
-      setActionSuccessMessage(`Actividad "${event.title}" marcada como CUMPLIDA y registrada en el Reporte Histórico.`);
+      await markBoardEventCompletedInSupabase(completedItem);
+      setActionSuccessMessage(`Actividad "${event.title}" marcada como CUMPLIDA y sincronizada en el Reporte Histórico para toda la Junta Directiva.`);
       setTimeout(() => setActionSuccessMessage(''), 4000);
     }
   };
@@ -2614,6 +2661,18 @@ export function BoardAdminPortal({ t, onNavigate }) {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+              {(viewMode === 'timeline' || viewMode === 'completed_report') && (
+                <button
+                  onClick={handleManualSyncEventsCourses}
+                  disabled={isSyncingCloud}
+                  className="py-3 px-4 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 font-sans font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50"
+                  title="Sincronizar Agenda con Supabase Cloud"
+                >
+                  <RefreshCw className={`w-4 h-4 text-emerald-700 ${isSyncingCloud ? 'animate-spin' : ''}`} />
+                  <span>{isSyncingCloud ? 'Sincronizando...' : 'Sincronizar Agenda Cloud'}</span>
+                </button>
+              )}
+
               {currentUser.isAdminLevel && viewMode === 'timeline' && (
                 <button
                   onClick={openNewModal}

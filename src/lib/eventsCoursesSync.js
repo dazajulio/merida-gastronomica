@@ -69,12 +69,17 @@ export async function fetchLiveEvents() {
         .order('created_at', { ascending: false });
 
       if (!error && Array.isArray(data) && data.length > 0) {
-        events = data.map(formatEventFromSupabase);
-        // Guardar copia de respaldo en localStorage
-        try {
-          localStorage.setItem('cgem_official_events', JSON.stringify(events));
-        } catch (e) {}
-        return events;
+        const publicRows = data.filter(
+          row => !String(row.id || '').startsWith('board_') && !String(row.category || '').startsWith('__CGEM_BOARD_')
+        );
+        if (publicRows.length > 0) {
+          events = publicRows.map(formatEventFromSupabase);
+          // Guardar copia de respaldo en localStorage
+          try {
+            localStorage.setItem('cgem_official_events', JSON.stringify(events));
+          } catch (e) {}
+          return events;
+        }
       }
     } catch (e) {
       console.warn('Supabase fetch events notice:', e);
@@ -433,3 +438,313 @@ export async function saveCourseEnrollmentToSupabase(enrollment) {
     }
   }
 }
+
+/**
+ * =========================================================================
+ * SINCRONIZACIÓN DE LA AGENDA INTERNA DE LA JUNTA DIRECTIVA (SUPABASE CLOUD)
+ * Garantiza que todas las actividades creadas por Dirección Ejecutiva o
+ * Presidencia y las confirmaciones de asistencia sean vistas por todos los
+ * miembros de la Junta Directiva en cualquier dispositivo en tiempo real.
+ * =========================================================================
+ */
+const BOARD_AGENDA_CATEGORY = '__CGEM_BOARD_AGENDA__';
+const BOARD_COMPLETED_CATEGORY = '__CGEM_BOARD_COMPLETED__';
+const BOARD_META_CATEGORY = '__CGEM_BOARD_META__';
+const BOARD_DELETED_META_ID = 'board_meta::deleted_ids';
+
+function formatBoardEventForSupabase(event, category = BOARD_AGENDA_CATEGORY) {
+  const prefix = category === BOARD_COMPLETED_CATEGORY ? 'board_completed::' : 'board_agenda::';
+  const cleanId = String(event.id || `agenda-${Date.now()}`).replace(/^board_(agenda|completed)::/, '');
+  const eventYear = event.year || (event.date ? parseInt(String(event.date).split('-')[0], 10) : 2026);
+  const eventMonth = event.month || (event.date ? parseInt(String(event.date).split('-')[1], 10) : 10);
+  const normalizedEvent = {
+    ...event,
+    id: cleanId,
+    year: eventYear,
+    month: eventMonth,
+    confirmedAttendees: Array.isArray(event.confirmedAttendees) ? event.confirmedAttendees : []
+  };
+
+  return {
+    id: `${prefix}${cleanId}`,
+    title: normalizedEvent.title || 'Actividad Junta Directiva',
+    date: normalizedEvent.date || new Date().toISOString().split('T')[0],
+    month: String(eventMonth),
+    location: normalizedEvent.location || 'Mérida',
+    category,
+    badge: normalizedEvent.typeLabel || normalizedEvent.type || 'Institucional',
+    description: normalizedEvent.description || '',
+    price_tiers: [normalizedEvent],
+    highlights: normalizedEvent.confirmedAttendees,
+    updated_at: new Date().toISOString()
+  };
+}
+
+function parseBoardEventFromSupabase(row) {
+  let stored = {};
+  if (Array.isArray(row.price_tiers) && row.price_tiers.length > 0 && typeof row.price_tiers[0] === 'object') {
+    stored = row.price_tiers[0];
+  } else if (typeof row.price_tiers === 'string') {
+    try {
+      const parsed = JSON.parse(row.price_tiers);
+      if (Array.isArray(parsed) && parsed[0]) stored = parsed[0];
+    } catch (e) {}
+  }
+
+  const cleanId = stored.id || String(row.id || '').replace(/^board_(agenda|completed)::/, '');
+  const dateStr = stored.date || row.date || new Date().toISOString().split('T')[0];
+  const eventYear = stored.year || parseInt(String(dateStr).split('-')[0], 10) || 2026;
+  const eventMonth = stored.month || parseInt(String(dateStr).split('-')[1], 10) || 10;
+  const attendees = Array.isArray(row.highlights)
+    ? row.highlights
+    : (Array.isArray(stored.confirmedAttendees) ? stored.confirmedAttendees : []);
+
+  return {
+    id: cleanId,
+    title: stored.title || row.title || 'Actividad Junta Directiva',
+    type: stored.type || 'institucional',
+    typeLabel: stored.typeLabel || row.badge || 'Institucional & Academia',
+    date: dateStr,
+    timeStart: stored.timeStart || '09:00',
+    timeEnd: stored.timeEnd || '12:00',
+    year: eventYear,
+    month: eventMonth,
+    location: stored.location || row.location || 'Mérida',
+    isVirtual: !!stored.isVirtual,
+    virtualLink: stored.virtualLink || '',
+    organizer: stored.organizer || 'Presidencia & Dirección Ejecutiva',
+    description: stored.description !== undefined ? stored.description : (row.description || ''),
+    maxAttendees: stored.maxAttendees !== undefined ? stored.maxAttendees : null,
+    status: stored.status || 'confirmado',
+    completedAt: stored.completedAt || null,
+    confirmedAttendees: attendees
+  };
+}
+
+async function getDeletedBoardEventIds() {
+  if (!supabase) return new Set();
+  try {
+    const { data, error } = await supabase
+      .from('eventos_oficiales')
+      .select('highlights')
+      .eq('id', BOARD_DELETED_META_ID)
+      .maybeSingle();
+
+    if (!error && data && Array.isArray(data.highlights)) {
+      return new Set(data.highlights.map(String));
+    }
+  } catch (e) {}
+  return new Set();
+}
+
+async function addDeletedBoardEventId(eventId) {
+  if (!supabase || !eventId) return;
+  try {
+    const cleanId = String(eventId).replace(/^board_(agenda|completed)::/, '');
+    const currentSet = await getDeletedBoardEventIds();
+    currentSet.add(cleanId);
+    const updatedArray = Array.from(currentSet);
+    await supabase
+      .from('eventos_oficiales')
+      .upsert({
+        id: BOARD_DELETED_META_ID,
+        title: 'Metadata Junta Directiva',
+        date: '2026-01-01',
+        month: '1',
+        location: 'Sistema',
+        category: BOARD_META_CATEGORY,
+        highlights: updatedArray,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+  } catch (e) {
+    console.warn('Error saving deleted board event id:', e);
+  }
+}
+
+export async function fetchLiveBoardAgenda(initialAgendaData = []) {
+  let localEvents = [];
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const saved = localStorage.getItem('cgem_board_agenda_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) localEvents = parsed;
+      }
+    } catch (e) {}
+  }
+
+  if (supabase) {
+    try {
+      const [agendaRes, deletedIds] = await Promise.all([
+        supabase
+          .from('eventos_oficiales')
+          .select('*')
+          .eq('category', BOARD_AGENDA_CATEGORY)
+          .order('date', { ascending: true }),
+        getDeletedBoardEventIds()
+      ]);
+
+      if (!agendaRes.error && Array.isArray(agendaRes.data)) {
+        const cloudEvents = agendaRes.data
+          .map(parseBoardEventFromSupabase)
+          .filter(ev => !deletedIds.has(String(ev.id)));
+
+        const cloudMap = new Map(cloudEvents.map(ev => [String(ev.id), ev]));
+
+        // Si la nube aún no tenía actividades inicializadas y no han sido borradas, sembrar datos iniciales + locales
+        if (cloudEvents.length === 0 && deletedIds.size === 0) {
+          const seedSource = localEvents.length > 0 ? localEvents : initialAgendaData;
+          if (seedSource.length > 0) {
+            const payloads = seedSource.map(ev => formatBoardEventForSupabase(ev, BOARD_AGENDA_CATEGORY));
+            await supabase.from('eventos_oficiales').upsert(payloads, { onConflict: 'id' });
+            try {
+              localStorage.setItem('cgem_board_agenda_v2', JSON.stringify(seedSource));
+            } catch (e) {}
+            return seedSource;
+          }
+        }
+
+        // Si el navegador actual (ej. Directora Ejecutiva o Presidente) tiene actividades creadas localmente
+        // que aún no estaban en Supabase y no fueron eliminadas, subirlas automáticamente a la nube
+        const unsyncedLocalEvents = localEvents.filter(
+          loc => loc && loc.id && !cloudMap.has(String(loc.id)) && !deletedIds.has(String(loc.id))
+        );
+
+        if (unsyncedLocalEvents.length > 0) {
+          const payloads = unsyncedLocalEvents.map(ev => formatBoardEventForSupabase(ev, BOARD_AGENDA_CATEGORY));
+          await supabase.from('eventos_oficiales').upsert(payloads, { onConflict: 'id' });
+          unsyncedLocalEvents.forEach(ev => cloudMap.set(String(ev.id), ev));
+        }
+
+        const mergedList = Array.from(cloudMap.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
+        try {
+          localStorage.setItem('cgem_board_agenda_v2', JSON.stringify(mergedList));
+        } catch (e) {}
+        return mergedList;
+      }
+    } catch (err) {
+      console.warn('Supabase fetch board agenda notice:', err);
+    }
+  }
+
+  return localEvents.length > 0 ? localEvents : initialAgendaData;
+}
+
+export async function saveBoardAgendaEventToSupabase(event) {
+  if (!supabase || !event) return { success: false };
+  try {
+    const payload = formatBoardEventForSupabase(event, BOARD_AGENDA_CATEGORY);
+    const { data, error } = await supabase
+      .from('eventos_oficiales')
+      .upsert(payload, { onConflict: 'id' })
+      .select();
+
+    if (error) {
+      console.warn('Supabase save board agenda warning:', error.message);
+      return { success: false, error };
+    }
+    return {
+      success: true,
+      event: data && data[0] ? parseBoardEventFromSupabase(data[0]) : event
+    };
+  } catch (err) {
+    console.warn('Supabase save board agenda err:', err);
+    return { success: false, error: err };
+  }
+}
+
+export async function deleteBoardAgendaEventFromSupabase(eventId) {
+  if (!supabase || !eventId) return { success: false };
+  try {
+    const cleanId = String(eventId).replace(/^board_agenda::/, '');
+    const rowId = `board_agenda::${cleanId}`;
+    await Promise.all([
+      supabase.from('eventos_oficiales').delete().eq('id', rowId),
+      addDeletedBoardEventId(cleanId)
+    ]);
+    return { success: true };
+  } catch (err) {
+    console.warn('Supabase delete board agenda err:', err);
+    return { success: false, error: err };
+  }
+}
+
+export async function fetchLiveCompletedBoardEvents() {
+  const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
+  let localCompleted = [];
+
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const saved = localStorage.getItem('cgem_completed_board_events');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          localCompleted = parsed.filter(ev => {
+            const t = ev.completedAt ? new Date(ev.completedAt).getTime() : new Date(ev.date).getTime();
+            return t >= ninetyDaysAgo;
+          });
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('eventos_oficiales')
+        .select('*')
+        .eq('category', BOARD_COMPLETED_CATEGORY)
+        .order('updated_at', { ascending: false });
+
+      if (!error && Array.isArray(data)) {
+        const cloudCompleted = data
+          .map(parseBoardEventFromSupabase)
+          .filter(ev => {
+            const t = ev.completedAt ? new Date(ev.completedAt).getTime() : new Date(ev.date).getTime();
+            return t >= ninetyDaysAgo;
+          });
+
+        const cloudMap = new Map(cloudCompleted.map(ev => [String(ev.id), ev]));
+        const unsyncedLocal = localCompleted.filter(loc => loc && loc.id && !cloudMap.has(String(loc.id)));
+
+        if (unsyncedLocal.length > 0) {
+          const payloads = unsyncedLocal.map(ev => formatBoardEventForSupabase(ev, BOARD_COMPLETED_CATEGORY));
+          await supabase.from('eventos_oficiales').upsert(payloads, { onConflict: 'id' });
+          unsyncedLocal.forEach(ev => cloudMap.set(String(ev.id), ev));
+        }
+
+        const merged = Array.from(cloudMap.values());
+        try {
+          localStorage.setItem('cgem_completed_board_events', JSON.stringify(merged));
+        } catch (e) {}
+        return merged;
+      }
+    } catch (err) {
+      console.warn('Supabase fetch completed board events notice:', err);
+    }
+  }
+
+  return localCompleted;
+}
+
+export async function markBoardEventCompletedInSupabase(completedEvent) {
+  if (!supabase || !completedEvent) return { success: false };
+  try {
+    const cleanId = String(completedEvent.id).replace(/^board_(agenda|completed)::/, '');
+    const completedPayload = formatBoardEventForSupabase(
+      { ...completedEvent, id: cleanId, status: 'cumplido', completedAt: completedEvent.completedAt || new Date().toISOString() },
+      BOARD_COMPLETED_CATEGORY
+    );
+
+    await Promise.all([
+      supabase.from('eventos_oficiales').upsert(completedPayload, { onConflict: 'id' }),
+      supabase.from('eventos_oficiales').delete().eq('id', `board_agenda::${cleanId}`),
+      addDeletedBoardEventId(cleanId)
+    ]);
+    return { success: true };
+  } catch (err) {
+    console.warn('Supabase mark completed board event err:', err);
+    return { success: false, error: err };
+  }
+}
+
