@@ -134,8 +134,9 @@ export const BOARD_MEMBERS_DATA = [
     roleCategory: "Coordinación Especializada",
     instagram: "@chocolateslamucuy",
     instagramUrl: "https://www.instagram.com/chocolateslamucuy/",
-    email: "andreinaramirez@camaragastronomicamerida.org",
-    hasPasswordSet: false,
+    email: "andreinafehr5@gmail.com",
+    passwordHash: "andreinaramirez0501",
+    hasPasswordSet: true,
     isAdminLevel: false,
     avatar: "/images/Coordinación de Cacao y Café Andreina Ramírez.png",
     order: 9

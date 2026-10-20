@@ -86,7 +86,7 @@ export const AFFILIATES_DATA = {
       role: "Coordinación de Cacao y Café",
       name: "Andreina Ramírez",
       instagram: "@chocolateslamucuy",
-      email: "andreinaramirez@camaragastronomicamerida.org",
+      email: "andreinafehr5@gmail.com",
       phone: "+58 414 0000000",
       bio: "Desarrollo y proyección de las cadenas de valor de café de especialidad y cacao Porcelana andino."
     },
