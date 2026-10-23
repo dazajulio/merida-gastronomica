@@ -61,6 +61,7 @@ import { BOARD_MEMBERS_DATA, INITIAL_BOARD_AGENDA_DATA } from '../data/boardData
 import { LEGAL_DATA } from '../data/legalData';
 import { INITIAL_DIRECTORY_DATA } from '../data/initialDirectoryData';
 import { TreasuryManagementModule } from './TreasuryManagementModule';
+import { OfficialCommunicationsModule } from './OfficialCommunicationsModule';
 import { sendBoardAttendanceEmail } from '../lib/emailService';
 import { supabase } from '../lib/supabaseClient';
 import { optimizeImage, formatBytes } from '../lib/imageOptimizer';
@@ -440,6 +441,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
   // President, Executive Director, Tesorero and Admin Level have full access to Directorio & Treasury
   const canAccessDirectory = currentUser?.isAdminLevel || isPresident || isExecutiveDirector || isTesorero;
   const canAccessTreasury = currentUser?.isAdminLevel || isPresident || isExecutiveDirector || isTesorero;
+  const canAccessOfficialCommunications = isPresident || isExecutiveDirector;
 
   // Legal Resources State (Synchronized with localStorage)
   const [legalCategories, setLegalCategories] = useState(() => {
@@ -2907,6 +2909,21 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     <span>TESORERÍA & FINANZAS</span>
                   </button>
                 )}
+
+                {/* 10. COMUNICACIONES OFICIALES (Exclusivo Presidente & Director Ejecutivo) */}
+                {canAccessOfficialCommunications && (
+                  <button
+                    onClick={() => setViewMode('communications')}
+                    className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
+                      viewMode === 'communications'
+                        ? 'bg-gradient-to-r from-amber-700 to-rose-900 text-white shadow-sm font-extrabold ring-2 ring-amber-400/40'
+                        : 'text-amber-950 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200'
+                    }`}
+                  >
+                    <Mail className={`w-3.5 h-3.5 ${viewMode === 'communications' ? 'text-amber-300' : 'text-amber-700'}`} />
+                    <span>COMUNICACIONES OFICIALES</span>
+                  </button>
+                )}
               </div>
 
               {/* Year tabs (only in timeline view) */}
@@ -4626,6 +4643,16 @@ export function BoardAdminPortal({ t, onNavigate }) {
             currentUser={currentUser}
             directoryMembers={directoryMembers}
             onDirectoryUpdate={(updated) => setDirectoryMembers(updated)}
+          />
+        )}
+
+        {/* =========================================================================
+            VIEW MODE 6: COMUNICACIONES OFICIALES (PRESIDENTE & DIRECTOR EJECUTIVO)
+            ========================================================================= */}
+        {viewMode === 'communications' && canAccessOfficialCommunications && (
+          <OfficialCommunicationsModule
+            currentUser={currentUser}
+            directoryMembers={directoryMembers}
           />
         )}
 

@@ -541,6 +541,195 @@ export async function sendPaymentReceiptEmail({
   });
 }
 
+/**
+ * Plantilla Membretada Oficial para Comunicaciones Institucionales
+ * Emisión exclusiva para Presidente y Director Ejecutivo (CGEM)
+ */
+export const getOfficialCommunicationTemplate = ({
+  subject = 'Comunicado Oficial',
+  category = 'COMUNICADO OFICIAL',
+  officialNumber = 'CGEM-COM-2026-001',
+  dateFormatted = '',
+  targetAudienceName = 'Miembros y Agremiados',
+  senderRole = 'Presidencia y Dirección Ejecutiva',
+  senderName = 'Julio Alberto Daza Celis & Mary Giovanna Vera',
+  signaturesMode = 'both',
+  bodyHtml = '',
+}) => {
+  const todayStr = dateFormatted || new Date().toLocaleDateString('es-VE', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  const signaturesHtml = signaturesMode === 'both' ? `
+    <table style="width: 100%; border-collapse: collapse; margin-top: 30px;">
+      <tr>
+        <td style="width: 50%; text-align: center; vertical-align: top; padding: 0 16px;">
+          <div style="border-top: 2px solid #cbd5e1; width: 85%; margin: 0 auto 12px auto;"></div>
+          <p style="margin: 0; font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase;">Julio Alberto Daza Celis</p>
+          <p style="margin: 2px 0 0 0; font-size: 11px; font-weight: 700; color: #b45309;">Presidente</p>
+          <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">Junta Directiva CGEM</p>
+        </td>
+        <td style="width: 50%; text-align: center; vertical-align: top; padding: 0 16px;">
+          <div style="border-top: 2px solid #cbd5e1; width: 85%; margin: 0 auto 12px auto;"></div>
+          <p style="margin: 0; font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase;">Mary Giovanna Vera</p>
+          <p style="margin: 2px 0 0 0; font-size: 11px; font-weight: 700; color: #b45309;">Directora Ejecutiva</p>
+          <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">Dirección General CGEM</p>
+        </td>
+      </tr>
+    </table>
+  ` : signaturesMode === 'presidente' ? `
+    <div style="text-align: center; margin-top: 30px;">
+      <div style="border-top: 2px solid #cbd5e1; width: 220px; margin: 0 auto 12px auto;"></div>
+      <p style="margin: 0; font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase;">Julio Alberto Daza Celis</p>
+      <p style="margin: 2px 0 0 0; font-size: 11px; font-weight: 700; color: #b45309;">Presidente</p>
+      <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">Cámara Gastronómica del Estado Mérida (CGEM)</p>
+    </div>
+  ` : signaturesMode === 'ejecutivo' ? `
+    <div style="text-align: center; margin-top: 30px;">
+      <div style="border-top: 2px solid #cbd5e1; width: 220px; margin: 0 auto 12px auto;"></div>
+      <p style="margin: 0; font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase;">Mary Giovanna Vera</p>
+      <p style="margin: 2px 0 0 0; font-size: 11px; font-weight: 700; color: #b45309;">Directora Ejecutiva</p>
+      <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">Cámara Gastronómica del Estado Mérida (CGEM)</p>
+    </div>
+  ` : `
+    <div style="text-align: center; margin-top: 30px;">
+      <div style="border-top: 2px solid #cbd5e1; width: 260px; margin: 0 auto 12px auto;"></div>
+      <p style="margin: 0; font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase;">Junta Directiva Oficial</p>
+      <p style="margin: 2px 0 0 0; font-size: 11px; font-weight: 700; color: #b45309;">Cámara Gastronómica del Estado Mérida</p>
+      <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">Período 2026 - 2027</p>
+    </div>
+  `;
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; margin: 0; padding: 24px; color: #1e293b; }
+    .container { max-width: 680px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 8px 24px -4px rgba(0,0,0,0.08); }
+    .top-accent { background: #451a03; height: 5px; }
+    .header { background: linear-gradient(135deg, #7c2d12 0%, #9a3412 45%, #b45309 100%); padding: 32px 26px; text-align: center; color: #ffffff; }
+    .header-badge { display: inline-block; background-color: rgba(255,255,255,0.18); border: 1px solid rgba(253,230,138,0.45); color: #fef3c7; font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; padding: 4px 14px; border-radius: 9999px; margin-bottom: 12px; }
+    .header h1 { margin: 0; font-size: 23px; font-weight: 800; letter-spacing: -0.3px; color: #ffffff; text-transform: uppercase; }
+    .header p { margin: 6px 0 0 0; font-size: 12.5px; color: #fde68a; font-weight: 500; }
+    .letterhead-bar { background-color: #fdf8f6; border-bottom: 2px solid #fed7aa; padding: 14px 24px; }
+    .meta-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+    .meta-table td { padding: 3px 0; color: #475569; }
+    .meta-table strong { color: #0f172a; }
+    .body-content { padding: 32px 28px; font-size: 14.5px; line-height: 1.7; color: #334155; }
+    .body-content h2, .body-content h3 { color: #0f172a; margin-top: 20px; margin-bottom: 10px; font-weight: 700; }
+    .body-content h2 { font-size: 19px; border-bottom: 2px solid #fed7aa; padding-bottom: 6px; }
+    .body-content h3 { font-size: 16px; }
+    .body-content p { margin: 12px 0; }
+    .body-content ul, .body-content ol { padding-left: 24px; margin: 14px 0; }
+    .body-content li { margin-bottom: 6px; }
+    .info-box { background: #fdf8f6; border-left: 4px solid #b45309; padding: 14px 18px; border-radius: 6px; margin: 18px 0; color: #78350f; font-size: 13.5px; }
+    .signatures-section { margin-top: 36px; padding-top: 24px; border-top: 1px solid #e2e8f0; }
+    .seal-row { text-align: center; margin-top: 20px; }
+    .seal-chip { display: inline-block; background-color: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 14px; border-radius: 9999px; }
+    .footer { background-color: #0f172a; padding: 24px; text-align: center; font-size: 11.5px; color: #94a3b8; border-top: 1px solid #1e293b; line-height: 1.6; }
+    .footer a { color: #fbbf24; text-decoration: none; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-accent"></div>
+    <div class="header">
+      <div class="header-badge">${category}</div>
+      <h1>Mérida Gastronómica</h1>
+      <p>Cámara Gastronómica del Estado Mérida &bull; Plataforma y Despacho Oficial</p>
+    </div>
+
+    <div class="letterhead-bar">
+      <table class="meta-table">
+        <tr>
+          <td style="width: 60%;"><strong>Ref. Oficial:</strong> <span style="font-family: monospace; font-weight: 700; color: #b45309;">${officialNumber}</span></td>
+          <td style="width: 40%; text-align: right;"><strong>Fecha:</strong> ${todayStr}</td>
+        </tr>
+        <tr>
+          <td><strong>Destinatarios:</strong> ${targetAudienceName}</td>
+          <td style="text-align: right;"><strong>Emite:</strong> ${senderRole}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="body-content">
+      ${bodyHtml}
+
+      <div class="signatures-section">
+        ${signaturesHtml}
+        
+        <div class="seal-row">
+          <span class="seal-chip">✓ Documento Institucional Avalado por la CGEM</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p style="margin: 0 0 6px 0; font-weight: 700; color: #ffffff; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
+        Cámara Gastronómica del Estado Mérida (CGEM)
+      </p>
+      <p style="margin: 0 0 6px 0;">
+        Av. 4 con Calles 19 y 20, Centro Empresarial &bull; Mérida, Estado Mérida, Venezuela
+      </p>
+      <p style="margin: 0 0 10px 0;">
+        Canal Oficial: <a href="mailto:meridacamaragastronomica@gmail.com">meridacamaragastronomica@gmail.com</a> &bull; Portal Web: <a href="https://www.meridagastronomica.com" target="_blank">meridagastronomica.com</a>
+      </p>
+      <p style="margin: 0; font-size: 10px; color: #64748b;">
+        Este es un comunicado oficial emitido conforme a los estatutos de la Cámara Gastronómica. Conserva este correo como comprobante formal gremial.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+};
+
+/**
+ * Envío de Comunicado Oficial Institucional a múltiples destinatarios
+ */
+export async function sendOfficialCommunication({
+  to,
+  replyTo = 'meridacamaragastronomica@gmail.com',
+  subject,
+  category = 'COMUNICADO OFICIAL',
+  officialNumber = 'CGEM-COM-2026-001',
+  targetAudienceName = 'Miembros y Agremiados',
+  senderRole = 'Presidencia y Dirección Ejecutiva',
+  senderName = 'Julio Alberto Daza Celis & Mary Giovanna Vera',
+  signaturesMode = 'both',
+  bodyHtml,
+  plainText
+}) {
+  const fullHtml = getOfficialCommunicationTemplate({
+    subject,
+    category,
+    officialNumber,
+    targetAudienceName,
+    senderRole,
+    senderName,
+    signaturesMode,
+    bodyHtml
+  });
+
+  const fullSubject = `[CGEM ${category}] ${subject}`;
+
+  return sendEmail({
+    to,
+    replyTo,
+    subject: fullSubject,
+    html: fullHtml,
+    text: plainText || subject
+  });
+}
+
+
 
 
 
