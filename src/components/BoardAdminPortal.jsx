@@ -59,6 +59,19 @@ import {
   Menu,
   X,
   ChevronRight,
+  ChevronLeft,
+  ChevronDown,
+  Bell,
+  HelpCircle,
+  Filter,
+  MoreHorizontal,
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+  PieChart,
+  BarChart3,
+  ArrowUpRight,
+  ArrowDownLeft,
   ArrowLeft,
   LayoutDashboard
 } from 'lucide-react';
@@ -637,7 +650,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const [selectedYear, setSelectedYear] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState('all'); // 'all' or 1..12
   const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('timeline'); // timeline | directorio | completed_report | courses_management | events_management | board_list | legal_resources
+  const [viewMode, setViewMode] = useState('dashboard'); // dashboard | timeline | directorio | completed_report | courses_management | events_management | board_list | legal_resources
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Admin Event Management Modal
@@ -2612,6 +2625,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const countSolventes = directoryMembers.filter(m => (m.estado_solvencia || '').toLowerCase().includes('solvente') || (m.estado_solvencia || '').toLowerCase().includes('activo')).length;
   const countEnRevision = directoryMembers.filter(m => (m.estado_solvencia || '').toLowerCase().includes('revisión') || (m.estado_solvencia || '').toLowerCase().includes('pendiente')).length;
   const totalMonthlyIncomeUSD = directoryMembers.reduce((acc, m) => acc + (parseFloat(m.monto_cuota_mensual) || 0), 0);
+  const countGrandes = directoryMembers.filter(m => (m.categoria_negocio || '').toLowerCase().includes('grande')).length;
+  const countPymes = directoryMembers.filter(m => !(m.categoria_negocio || '').toLowerCase().includes('grande')).length;
 
   // =========================================================================
   // VIEW 1: LIGHT MODE LOGIN SCREEN (SI NO ESTÁ AUTENTICADO)
@@ -2731,6 +2746,17 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
   const navSections = [
     {
+      title: 'Menú Principal',
+      items: [
+        {
+          id: 'dashboard',
+          label: 'Panel General',
+          icon: LayoutDashboard,
+          visible: true,
+        },
+      ]
+    },
+    {
       title: 'Gestión Gremial & Membresía',
       items: [
         {
@@ -2738,7 +2764,6 @@ export function BoardAdminPortal({ t, onNavigate }) {
           label: 'Directorio de Agremiados',
           icon: Building2,
           badge: countTotalAgremiados,
-          badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
           visible: canAccessDirectory,
         },
         {
@@ -2746,7 +2771,6 @@ export function BoardAdminPortal({ t, onNavigate }) {
           label: 'Tesorería & Finanzas',
           icon: CircleDollarSign,
           badge: '$ USD',
-          badgeColor: 'bg-teal-500/20 text-teal-300 border-teal-500/30',
           visible: canAccessTreasury,
         },
         {
@@ -2754,7 +2778,6 @@ export function BoardAdminPortal({ t, onNavigate }) {
           label: 'Comunicaciones Oficiales',
           icon: Mail,
           badge: 'Oficial',
-          badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
           visible: canAccessOfficialCommunications,
         },
       ]
@@ -2767,7 +2790,6 @@ export function BoardAdminPortal({ t, onNavigate }) {
           label: 'Agenda Cronológica',
           icon: Clock,
           badge: agendaEvents.length,
-          badgeColor: 'bg-slate-800 text-slate-300 border-slate-700',
           visible: true,
         },
         {
@@ -2775,7 +2797,6 @@ export function BoardAdminPortal({ t, onNavigate }) {
           label: 'Cursos & Academia',
           icon: GraduationCap,
           badge: officialCourses.length,
-          badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
           visible: currentUser?.isAdminLevel,
         },
         {
@@ -2783,7 +2804,6 @@ export function BoardAdminPortal({ t, onNavigate }) {
           label: 'Eventos & Festivales',
           icon: Ticket,
           badge: officialEvents.length,
-          badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
           visible: currentUser?.isAdminLevel,
         },
         {
@@ -2791,7 +2811,6 @@ export function BoardAdminPortal({ t, onNavigate }) {
           label: 'Servicios Turísticos VIP',
           icon: Compass,
           badge: touristServices.length,
-          badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
           visible: currentUser?.isAdminLevel,
         },
         {
@@ -2799,7 +2818,6 @@ export function BoardAdminPortal({ t, onNavigate }) {
           label: 'Eventos Cumplidos (Memoria)',
           icon: History,
           badge: completedBoardEvents.length,
-          badgeColor: 'bg-teal-500/20 text-teal-300 border-teal-500/30',
           visible: true,
         },
       ]
@@ -2812,7 +2830,6 @@ export function BoardAdminPortal({ t, onNavigate }) {
           label: 'Junta Directiva',
           icon: Users,
           badge: '12',
-          badgeColor: 'bg-slate-800 text-slate-300 border-slate-700',
           visible: true,
         },
         {
@@ -2820,7 +2837,6 @@ export function BoardAdminPortal({ t, onNavigate }) {
           label: 'Marco Jurídico & Actas',
           icon: BookOpen,
           badge: totalLegalDocs,
-          badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
           visible: isPresident,
         },
       ]
@@ -2829,6 +2845,13 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
   const getViewModeMeta = (mode) => {
     switch (mode) {
+      case 'dashboard':
+        return {
+          title: 'Panel General',
+          subtitle: 'Monitoreo gremial, estados de solvencia y agenda ejecutiva de la Cámara',
+          category: 'Menú Principal',
+          icon: LayoutDashboard
+        };
       case 'directorio':
         return {
           title: 'Directorio de Agremiados',
@@ -2901,7 +2924,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
         };
       default:
         return {
-          title: 'Portal Directivo',
+          title: 'Panel Directivo',
           subtitle: 'Cámara Gastronómica del Estado Mérida',
           category: 'Administración',
           icon: ShieldCheck
@@ -2912,31 +2935,30 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const currentMeta = getViewModeMeta(viewMode);
 
   // =========================================================================
-  // VIEW 2: AUTHENTICATED BOARD DASHBOARD (CLEAN SAAS / SOFT UI)
+  // VIEW 2: AUTHENTICATED BOARD DASHBOARD (CLEAN SAAS / SOFT UI - BENTO GRID)
   // =========================================================================
   return (
-    <div className="min-h-screen bg-[#fcfbf9] text-slate-800 flex flex-col lg:flex-row antialiased selection:bg-amber-500 selection:text-white font-sans">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col lg:flex-row antialiased selection:bg-amber-500 selection:text-white font-sans">
       
       {/* Mobile Drawer Overlay Backdrop */}
       {isSidebarOpen && (
         <div 
           onClick={() => setIsSidebarOpen(false)}
-          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-40 lg:hidden transition-opacity"
+          className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-40 lg:hidden transition-opacity"
         />
       )}
 
-      {/* 1. DARK SIDEBAR NAVIGATION (Modern Clean SaaS) */}
+      {/* 1. LIGHT SOFT UI SIDEBAR NAVIGATION */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-72 bg-slate-950 text-slate-300 border-r border-slate-800/80
+        fixed inset-y-0 left-0 z-50 w-72 bg-white text-slate-700 border-r border-slate-200/80
         flex flex-col shrink-0 transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0
         ${isSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
       `}>
-        
         {/* Brand Header */}
-        <div className="p-5 border-b border-slate-800/80 shrink-0">
+        <div className="p-5 border-b border-slate-100 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center shadow-md shadow-amber-500/10 shrink-0 border border-amber-300/40">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 p-1.5 flex items-center justify-center shadow-xs shrink-0 border border-amber-300/40">
                 <img 
                   src="/logo-merida-gastronomica.png" 
                   alt="Cámara Gastronómica" 
@@ -2944,13 +2966,13 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 />
               </div>
               <div className="min-w-0">
-                <span className="text-[9px] font-extrabold uppercase tracking-widest text-amber-400 block font-sans">
+                <span className="text-[9px] font-extrabold uppercase tracking-widest text-amber-700 block font-sans">
                   Cámara Gastronómica
                 </span>
-                <h1 className="font-serif font-black text-xs text-white uppercase tracking-wider truncate">
+                <h1 className="font-sans font-black text-xs text-slate-900 uppercase tracking-tight truncate">
                   Mérida Gastronómica
                 </h1>
-                <span className="text-[10px] text-slate-400 block font-sans">
+                <span className="text-[10px] text-slate-400 block font-sans font-medium">
                   Portal Directivo &bull; Clean SaaS
                 </span>
               </div>
@@ -2959,62 +2981,27 @@ export function BoardAdminPortal({ t, onNavigate }) {
             {/* Mobile close button */}
             <button
               onClick={() => setIsSidebarOpen(false)}
-              className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
               title="Cerrar Menú"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
-
-          {/* Back to public portal button */}
-          <button
-            onClick={() => onNavigate ? onNavigate('home') : (window.location.href = '/')}
-            className="w-full mt-3.5 py-1.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800/90 text-slate-400 hover:text-amber-300 border border-slate-800 text-[11px] font-sans font-semibold flex items-center justify-between transition-all group"
-          >
-            <span className="flex items-center gap-2">
-              <ArrowLeft className="w-3.5 h-3.5 text-amber-500 group-hover:-translate-x-0.5 transition-transform" />
-              <span>Portal Público</span>
-            </span>
-            <span className="text-[10px] text-slate-500 group-hover:text-slate-400 font-normal">Salir</span>
-          </button>
-        </div>
-
-        {/* User Profile Pill in Sidebar */}
-        <div className="px-4 pt-4 pb-2 shrink-0">
-          <div className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800/80 flex items-center gap-3 shadow-xs">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 p-0.5 flex items-center justify-center text-slate-950 font-serif font-black text-sm shrink-0 shadow-md shadow-amber-500/20 border border-amber-300/50">
-              <ShieldCheck className="w-5 h-5 text-slate-950" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-xs font-bold text-white truncate font-sans">
-                {currentUser?.name || 'Directivo'}
-              </h2>
-              <p className="text-[10px] text-amber-400 truncate font-sans font-medium">
-                {currentUser?.roleCategory} &bull; {currentUser?.role}
-              </p>
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[9px] text-emerald-400 font-semibold tracking-wider font-sans uppercase">
-                  Sesión Activa
-                </span>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Navigation Categories */}
-        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-5 scrollbar-thin scrollbar-thumb-slate-800">
+        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4 scrollbar-thin scrollbar-thumb-slate-200">
           {navSections.map((sec, idx) => {
             const visibleItems = sec.items.filter(item => item.visible);
             if (visibleItems.length === 0) return null;
 
             return (
-              <div key={idx} className="space-y-1">
-                <span className="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block font-sans">
+              <div key={idx} className="space-y-0.5">
+                <span className="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block font-sans mb-1">
                   {sec.title}
                 </span>
 
-                <div className="space-y-1 mt-1">
+                <div className="space-y-0.5">
                   {visibleItems.map((item) => {
                     const ItemIcon = item.icon;
                     const isActive = viewMode === item.id;
@@ -3026,24 +3013,24 @@ export function BoardAdminPortal({ t, onNavigate }) {
                           setViewMode(item.id);
                           setIsSidebarOpen(false);
                         }}
-                        className={`w-full py-2.5 px-3 rounded-xl text-xs font-sans transition-all flex items-center justify-between group ${
+                        className={`w-full py-2 px-3 rounded-2xl text-xs font-sans transition-all flex items-center justify-between group ${
                           isActive
-                            ? 'bg-gradient-to-r from-amber-500/20 to-amber-500/5 text-amber-300 border-l-[3px] border-amber-500 font-bold shadow-xs'
-                            : 'text-slate-400 hover:text-white hover:bg-slate-900/70 font-medium'
+                            ? 'bg-amber-50 text-amber-900 font-bold border border-amber-200/60 shadow-2xs'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-medium'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <ItemIcon className={`w-4 h-4 shrink-0 transition-colors ${
-                            isActive ? 'text-amber-400' : 'text-slate-400 group-hover:text-slate-200'
+                            isActive ? 'text-amber-600' : 'text-slate-400 group-hover:text-slate-600'
                           }`} />
                           <span className="truncate">{item.label}</span>
                         </div>
 
                         {item.badge !== undefined && (
-                          <span className={`text-[10px] font-sans font-bold px-2 py-0.5 rounded-full border shrink-0 ${
+                          <span className={`text-[10px] font-sans font-bold px-2 py-0.5 rounded-full shrink-0 ${
                             isActive
-                              ? 'bg-amber-500/20 text-amber-200 border-amber-500/40'
-                              : item.badgeColor || 'bg-slate-800 text-slate-400 border-slate-700'
+                              ? 'bg-amber-200/60 text-amber-900'
+                              : 'bg-slate-100 text-slate-500'
                           }`}>
                             {item.badge}
                           </span>
@@ -3057,310 +3044,673 @@ export function BoardAdminPortal({ t, onNavigate }) {
           })}
         </nav>
 
-        {/* Sidebar Footer */}
-        <div className="p-3 border-t border-slate-800/80 shrink-0 space-y-1.5 bg-slate-950">
-          <button
-            onClick={handleManualSyncEventsCourses}
-            disabled={isSyncingCloud}
-            className="w-full py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-emerald-300 border border-slate-800 text-[11px] font-sans font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-            title="Sincronizar datos con Supabase Cloud"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isSyncingCloud ? 'animate-spin' : ''}`} />
-            <span>{isSyncingCloud ? 'Sincronizando...' : 'Sincronizar Cloud'}</span>
-          </button>
+        {/* Promo Box & Footer */}
+        <div className="p-3 border-t border-slate-100 shrink-0 space-y-2 bg-white">
+          <div className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-600 via-amber-700 to-amber-900 text-white shadow-xs relative overflow-hidden">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-200 block font-sans">
+              Portal Oficial ✨
+            </span>
+            <h5 className="font-sans font-bold text-xs text-white mt-0.5">
+              Mérida Gastronómica
+            </h5>
+            <p className="text-[10px] text-amber-100/80 font-sans">
+              Edición Digital 2026
+            </p>
+            <button
+              onClick={() => onNavigate ? onNavigate('home') : (window.location.href = '/')}
+              className="w-full mt-2.5 py-1.5 px-3 rounded-xl bg-white hover:bg-amber-50 text-slate-900 font-sans font-bold text-[11px] shadow-2xs flex items-center justify-center gap-1.5 transition-all"
+            >
+              <Building2 className="w-3.5 h-3.5 text-amber-600" />
+              <span>Ver Portal Público</span>
+            </button>
+          </div>
 
-          <button
-            onClick={handleLogout}
-            className="w-full py-2 px-3 rounded-xl bg-slate-900/60 hover:bg-rose-950/40 text-slate-400 hover:text-rose-300 border border-slate-800/80 hover:border-rose-900/50 text-[11px] font-sans font-medium flex items-center justify-center gap-2 transition-all"
-            title="Cerrar Sesión Directiva"
-          >
-            <LogOut className="w-3.5 h-3.5 text-rose-400" />
-            <span>Cerrar Sesión</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handleManualSyncEventsCourses}
+              disabled={isSyncingCloud}
+              className="flex-1 py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-[11px] font-sans font-semibold flex items-center justify-center gap-1.5 transition-all border border-slate-200/60 disabled:opacity-50"
+              title="Sincronizar Cloud"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 ${isSyncingCloud ? 'animate-spin' : ''}`} />
+              <span>Sincronizar</span>
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="py-1.5 px-3 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 text-[11px] font-sans font-semibold flex items-center justify-center gap-1.5 transition-all border border-slate-200/60 hover:border-rose-200"
+              title="Cerrar Sesión"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
-
       </aside>
 
       {/* 2. LIGHT MAIN WORKSPACE */}
-      <main className="flex-1 min-w-0 flex flex-col bg-[#fcfbf9] min-h-screen">
+      <main className="flex-1 min-w-0 flex flex-col bg-[#f8fafc] min-h-screen">
         
-        {/* Sticky Top Header Bar */}
-        <header className="sticky top-0 z-30 bg-[#fcfbf9]/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
+        {/* Sticky Top Header Bar (Oripio Style) */}
+        <header className="sticky top-0 z-30 bg-[#f8fafc]/90 backdrop-blur-md border-b border-slate-200/60 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
             {/* Mobile Toggle Button */}
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 shadow-xs transition-colors shrink-0"
-              title="Abrir menú directivo"
+              className="lg:hidden p-2 rounded-2xl bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors shrink-0"
+              title="Abrir menú"
             >
               <Menu className="w-5 h-5" />
             </button>
 
-            {/* View Breadcrumb & Title */}
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-sans">
-                  {currentMeta.category}
-                </span>
-                <span className="text-slate-400 text-xs hidden sm:inline">&bull;</span>
-                <span className="text-xs text-slate-500 font-sans hidden sm:inline">
-                  {currentUser?.roleCategory} &bull; {currentUser?.role}
-                </span>
-              </div>
-              <h1 className="font-sans font-black text-xl sm:text-2xl text-slate-900 tracking-tight truncate">
-                {currentMeta.title}
-              </h1>
+            {/* Pill Search Input with ⌘ K */}
+            <div className="relative w-56 sm:w-80">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar en el portal directivo..."
+                value={directorySearch}
+                onChange={(e) => {
+                  setDirectorySearch(e.target.value);
+                  if (viewMode !== 'directorio' && e.target.value.trim().length > 0) {
+                    setViewMode('directorio');
+                  }
+                }}
+                className="w-full pl-9 pr-14 py-2 rounded-2xl bg-white border border-slate-200/80 text-xs font-sans placeholder:text-slate-400 focus:outline-none focus:border-amber-500 shadow-2xs transition-all"
+              />
+              <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/80 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none hidden sm:inline">
+                ⌘ K
+              </span>
             </div>
           </div>
 
-          {/* Contextual Action Buttons in Header */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            
-            {/* Manual Sync (for timeline / completed_report) */}
-            {(viewMode === 'timeline' || viewMode === 'completed_report') && (
-              <button
-                onClick={handleManualSyncEventsCourses}
-                disabled={isSyncingCloud}
-                className="py-2.5 px-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs disabled:opacity-50 font-sans"
-                title="Sincronizar Agenda con Supabase Cloud"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 text-amber-600 ${isSyncingCloud ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">{isSyncingCloud ? 'Sincronizando...' : 'Sincronizar Cloud'}</span>
-              </button>
-            )}
+          {/* Utility Icons & Profile Capsule */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => setViewMode('communications')}
+              className="w-9 h-9 rounded-full bg-white border border-slate-200/80 text-slate-600 hover:text-amber-700 hover:bg-slate-50 flex items-center justify-center shadow-2xs transition-colors relative"
+              title="Comunicaciones Oficiales"
+            >
+              <Mail className="w-4 h-4" />
+            </button>
 
-            {/* Directory quick actions */}
-            {viewMode === 'directorio' && canAccessDirectory && (
-              <>
-                <button
-                  onClick={fetchDirectoryFromSupabase}
-                  disabled={isLoadingDirectory}
-                  className="py-2.5 px-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs disabled:opacity-50 font-sans"
-                  title="Sincronizar Directorio con Supabase Cloud"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 ${isLoadingDirectory ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">{isLoadingDirectory ? 'Actualizando...' : 'Actualizar'}</span>
-                </button>
-                <button
-                  onClick={handleExportCSV}
-                  className="py-2.5 px-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs font-sans"
-                  title="Exportar a CSV / Excel"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="hidden sm:inline">Exportar CSV</span>
-                </button>
-                <button
-                  onClick={handleCopyEmails}
-                  className="py-2.5 px-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs font-sans"
-                  title="Copiar correos al portapapeles"
-                >
-                  <Copy className="w-3.5 h-3.5 text-sky-600" />
-                  <span className="hidden sm:inline">Copiar Correos</span>
-                </button>
-              </>
-            )}
+            <button
+              onClick={handleManualSyncEventsCourses}
+              disabled={isSyncingCloud}
+              className="w-9 h-9 rounded-full bg-white border border-slate-200/80 text-slate-600 hover:text-emerald-700 hover:bg-slate-50 flex items-center justify-center shadow-2xs transition-colors relative disabled:opacity-50"
+              title="Sincronización en la Nube"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncingCloud ? 'animate-spin text-emerald-600' : ''}`} />
+              <span className="w-2 h-2 rounded-full bg-emerald-500 absolute top-1.5 right-1.5 ring-2 ring-white" />
+            </button>
 
-            {/* Primary Warm Terracotta / Orange CTAs */}
-            {canAccessDirectory && viewMode === 'directorio' && (
-              <button
-                onClick={openNewMemberModal}
-                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-amber-600/20 transition-all active:scale-98"
-              >
-                <Plus className="w-4 h-4 text-white" />
-                <span>Nuevo Agremiado</span>
-              </button>
-            )}
-
-            {currentUser?.isAdminLevel && viewMode === 'timeline' && (
-              <button
-                onClick={openNewModal}
-                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-amber-600/20 transition-all active:scale-98"
-              >
-                <Plus className="w-4 h-4 text-white" />
-                <span>Nuevo Evento</span>
-              </button>
-            )}
-
-            {currentUser?.isAdminLevel && viewMode === 'courses_management' && (
-              <button
-                onClick={openNewCourseModal}
-                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-amber-600/20 transition-all active:scale-98"
-              >
-                <Plus className="w-4 h-4 text-white" />
-                <span>Nuevo Curso</span>
-              </button>
-            )}
-
-            {currentUser?.isAdminLevel && viewMode === 'events_management' && (
-              <button
-                onClick={openNewPublicEventModal}
-                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-amber-600/20 transition-all active:scale-98"
-              >
-                <Plus className="w-4 h-4 text-white" />
-                <span>Nuevo Festival</span>
-              </button>
-            )}
-
-            {currentUser?.isAdminLevel && viewMode === 'tourist_services' && (
-              <button
-                onClick={openNewTouristServiceModal}
-                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-amber-600/20 transition-all active:scale-98"
-              >
-                <Plus className="w-4 h-4 text-white" />
-                <span>Nuevo Servicio VIP</span>
-              </button>
-            )}
-
-            {viewMode === 'completed_report' && (
-              <button
-                onClick={handleExportCompletedReportCSV}
-                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-emerald-600/20 transition-all active:scale-98"
-              >
-                <FileSpreadsheet className="w-4 h-4 text-white" />
-                <span>Descargar CSV</span>
-              </button>
-            )}
-
-            {isPresident && viewMode === 'legal_resources' && (
-              <button
-                onClick={() => openNewLegalDocModal('fiscal')}
-                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-amber-600/20 transition-all active:scale-98"
-              >
-                <FolderPlus className="w-4 h-4 text-white" />
-                <span>Cargar Documento</span>
-              </button>
-            )}
-
+            {/* User Pill Capsule */}
+            <div className="flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full bg-white border border-slate-200/80 shadow-2xs">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 text-slate-950 font-bold text-xs flex items-center justify-center">
+                {(currentUser?.name || 'D')[0]}
+              </div>
+              <span className="text-xs font-bold text-slate-800 hidden sm:inline">
+                {currentUser?.name || 'Directivo'}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            </div>
           </div>
         </header>
 
         {/* Inner Content Area */}
         <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
+          {/* Greeting Row (Oripio Style) */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="font-sans font-black text-2xl sm:text-3xl text-slate-900 tracking-tight">
+                {viewMode === 'dashboard'
+                  ? `Bienvenido de nuevo, ${currentUser?.name || 'Directivo'}`
+                  : currentMeta.title}
+              </h1>
+              <p className="text-xs text-slate-500 font-sans mt-0.5">
+                {viewMode === 'dashboard'
+                  ? 'Monitoreo gremial, estados de solvencia y agenda ejecutiva de la Cámara.'
+                  : currentMeta.subtitle}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              {/* Date pill */}
+              <div className="bg-white border border-slate-200/80 text-slate-700 text-xs font-semibold px-3.5 py-2 rounded-2xl shadow-2xs flex items-center gap-2">
+                <CalendarIcon className="w-3.5 h-3.5 text-slate-400" />
+                <span>
+                  {new Date().toLocaleDateString('es-VE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+
+              {/* Contextual primary pill CTA */}
+              {canAccessDirectory && (viewMode === 'dashboard' || viewMode === 'directorio') && (
+                <button
+                  onClick={openNewMemberModal}
+                  className="bg-slate-900 hover:bg-slate-800 text-white rounded-2xl px-4 py-2 text-xs font-bold shadow-xs flex items-center gap-2 transition-all active:scale-98"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Nuevo Agremiado</span>
+                </button>
+              )}
+
+              {viewMode === 'timeline' && currentUser?.isAdminLevel && (
+                <button
+                  onClick={openNewModal}
+                  className="bg-slate-900 hover:bg-slate-800 text-white rounded-2xl px-4 py-2 text-xs font-bold shadow-xs flex items-center gap-2 transition-all active:scale-98"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Nuevo Evento</span>
+                </button>
+              )}
+
+              {viewMode === 'completed_report' && (
+                <button
+                  onClick={handleExportCompletedReportCSV}
+                  className="bg-slate-900 hover:bg-slate-800 text-white rounded-2xl px-4 py-2 text-xs font-bold shadow-xs flex items-center gap-2 transition-all active:scale-98"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>Exportar CSV</span>
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Success / Error Notification Alerts */}
           {actionSuccessMessage && (
-            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs flex items-center gap-3 animate-fadeIn shadow-xs font-sans">
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs flex items-center gap-3 animate-fadeIn shadow-2xs font-sans">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
               <span className="font-medium">{actionSuccessMessage}</span>
             </div>
           )}
 
           {actionErrorMessage && (
-            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-center gap-3 animate-fadeIn shadow-xs font-sans">
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-center gap-3 animate-fadeIn shadow-2xs font-sans">
               <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
               <span className="font-bold">{actionErrorMessage}</span>
             </div>
           )}
 
-          {/* Soft UI Pastel Metric Cards (Clean SaaS KPIs with Watermark Icons) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 font-sans">
-            
-            {/* Card 1: Warm Amber / Terracotta Pastel */}
-            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#fffbeb] via-[#fffdf5] to-[#fef3c7] border border-amber-200/80 p-5 shadow-xs hover:shadow-md transition-all">
-              <Building2 className="w-24 h-24 text-amber-500/10 absolute -right-4 -bottom-4 pointer-events-none transition-transform group-hover:scale-110" />
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-900/80 font-sans">
-                  Total Agremiados
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-900 border border-amber-300/60 font-sans">
-                  Directorio
-                </span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-sans font-black text-3xl sm:text-4xl text-amber-950 tracking-tight">
-                  {countTotalAgremiados}
-                </span>
-                <span className="text-xs text-amber-800 font-semibold">afiliados</span>
-              </div>
-              <p className="text-[11px] text-amber-800/70 mt-1 font-sans">
-                Establecimientos & marcas registradas
-              </p>
-            </div>
+          {/* =========================================================================
+              VIEW MODE 0: DASHBOARD BENTO GRID (CLEAN SAAS - ORIPO INSPIRATION)
+              ========================================================================= */}
+          {viewMode === 'dashboard' && (
+            <div className="space-y-6 animate-fadeIn font-sans">
+              
+              {/* Row 1: Top 3 Bento Metric Cards */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                
+                {/* Card 1: Main Hero Metric Card (Account Balance style) - 5 cols */}
+                <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200/60 text-amber-700 flex items-center justify-center">
+                          <Building2 className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-800 tracking-tight">Directorio & Membresías</span>
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-500 bg-slate-50 px-2.5 py-0.5 rounded-lg border border-slate-200/60 flex items-center gap-1">
+                        CGEM 2026 <ChevronDown className="w-3 h-3 text-slate-400" />
+                      </span>
+                    </div>
 
-            {/* Card 2: Mint Green Pastel */}
-            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#f0fdf4] via-[#f7fee7]/40 to-[#dcfce7] border border-emerald-200/80 p-5 shadow-xs hover:shadow-md transition-all">
-              <CheckCircle2 className="w-24 h-24 text-emerald-500/10 absolute -right-4 -bottom-4 pointer-events-none transition-transform group-hover:scale-110" />
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-900/80 font-sans">
-                  Solventes (Activos)
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-900 border border-emerald-300/60 font-sans">
-                  Al Día
-                </span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-sans font-black text-3xl sm:text-4xl text-emerald-950 tracking-tight">
-                  {countSolventes}
-                </span>
-                <span className="text-xs text-emerald-800 font-semibold">solventes</span>
-              </div>
-              <p className="text-[11px] text-emerald-800/70 mt-1 font-sans">
-                {countEnRevision} en validación / trámite
-              </p>
-            </div>
+                    <div className="mt-2">
+                      <span className="font-sans font-black text-3xl sm:text-4xl text-slate-900 tracking-tight block">
+                        {countTotalAgremiados}
+                      </span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
+                          <ArrowUpRight className="w-3 h-3" /> +{countSolventes} solventes
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium">al día con la Cámara</span>
+                      </div>
+                    </div>
 
-            {/* Card 3: Sky Blue Pastel */}
-            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#f0f9ff] via-[#f8fafc] to-[#e0f2fe] border border-sky-200/80 p-5 shadow-xs hover:shadow-md transition-all">
-              <CalendarDays className="w-24 h-24 text-sky-500/10 absolute -right-4 -bottom-4 pointer-events-none transition-transform group-hover:scale-110" />
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-sky-900/80 font-sans">
-                  Agenda & Eventos
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-900 border border-sky-300/60 font-sans">
-                  {agendaEvents.length} en agenda
-                </span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-sans font-black text-3xl sm:text-4xl text-sky-950 tracking-tight">
-                  {agendaEvents.length + officialEvents.length}
-                </span>
-                <span className="text-xs text-sky-800 font-semibold">actividades</span>
-              </div>
-              <p className="text-[11px] text-sky-800/70 mt-1 font-sans">
-                {officialEvents.length} festivales &bull; {completedBoardEvents.length} cumplidos
-              </p>
-            </div>
+                    {/* Dual Action Buttons (Send Money / Request Money style) */}
+                    <div className="grid grid-cols-2 gap-2.5 mt-5">
+                      {canAccessDirectory && (
+                        <button
+                          onClick={openNewMemberModal}
+                          className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-sans font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-amber-600/15 transition-all active:scale-98"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>+ Registrar</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={handleCopyEmails}
+                        className="py-2.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 font-sans font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-98"
+                      >
+                        <Copy className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Copiar Correos</span>
+                      </button>
+                    </div>
+                  </div>
 
-            {/* Card 4: Lavender / Purple Pastel */}
-            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#faf5ff] via-[#fdf4ff]/40 to-[#f3e8ff] border border-purple-200/80 p-5 shadow-xs hover:shadow-md transition-all">
-              <GraduationCap className="w-24 h-24 text-purple-500/10 absolute -right-4 -bottom-4 pointer-events-none transition-transform group-hover:scale-110" />
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-purple-900/80 font-sans">
-                  Academia & VIP
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-900 border border-purple-300/60 font-sans">
-                  Formación
-                </span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-sans font-black text-3xl sm:text-4xl text-purple-950 tracking-tight">
-                  {officialCourses.length + touristServices.length}
-                </span>
-                <span className="text-xs text-purple-800 font-semibold">programas</span>
-              </div>
-              <p className="text-[11px] text-purple-800/70 mt-1 font-sans">
-                {officialCourses.length} cursos &bull; {touristServices.length} servicios turísticos
-              </p>
-            </div>
+                  {/* Sub-breakdown: My Wallet style in reference */}
+                  <div className="pt-5 mt-5 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                        Resumen de Afiliados
+                      </span>
+                      <button 
+                        onClick={() => setViewMode('directorio')}
+                        className="text-[11px] font-semibold text-amber-700 hover:text-amber-800"
+                      >
+                        Ver todos &rarr;
+                      </button>
+                    </div>
 
-          </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-2.5 rounded-2xl bg-slate-50/70 border border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <span className="text-[11px] text-slate-600 font-medium">Solventes</span>
+                        </div>
+                        <span className="text-xs font-bold text-slate-900">{countSolventes}</span>
+                      </div>
+
+                      <div className="p-2.5 rounded-2xl bg-slate-50/70 border border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-amber-500" />
+                          <span className="text-[11px] text-slate-600 font-medium">En Trámite</span>
+                        </div>
+                        <span className="text-xs font-bold text-slate-900">{countEnRevision}</span>
+                      </div>
+
+                      <div className="p-2.5 rounded-2xl bg-slate-50/70 border border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-sky-500" />
+                          <span className="text-[11px] text-slate-600 font-medium">Grandes Emp.</span>
+                        </div>
+                        <span className="text-xs font-bold text-slate-900">{countGrandes}</span>
+                      </div>
+
+                      <div className="p-2.5 rounded-2xl bg-slate-50/70 border border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-purple-500" />
+                          <span className="text-[11px] text-slate-600 font-medium">PYMEs / Marcas</span>
+                        </div>
+                        <span className="text-xs font-bold text-slate-900">{countPymes}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 2: Recaudación Cuotas Mensual (Total Expenses style) - 3.5 cols */}
+                <div className="lg:col-span-3.5 bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200/60 text-emerald-700 flex items-center justify-center">
+                          <CircleDollarSign className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-800 tracking-tight">Recaudación Estimada</span>
+                      </div>
+                      <button 
+                        onClick={() => setViewMode('treasury')}
+                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                        title="Opciones de Tesorería"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="mt-2">
+                      <span className="font-sans font-black text-3xl sm:text-4xl text-slate-900 tracking-tight block">
+                        ${totalMonthlyIncomeUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
+                          <CheckCircle2 className="w-3 h-3" /> Solvencia mensual
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 mt-4 border-t border-slate-100">
+                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                      Estimación de aportes por membresías activas. Conciliación y recibos disponibles en Tesorería.
+                    </p>
+                    <button
+                      onClick={() => setViewMode('treasury')}
+                      className="w-full mt-3 py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-emerald-200/50"
+                    >
+                      <span>Ir a Tesorería & Finanzas</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Card 3: Agenda Institucional (Total Savings style) - 3.5 cols */}
+                <div className="lg:col-span-3.5 bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-sky-50 border border-sky-200/60 text-sky-700 flex items-center justify-center">
+                          <CalendarDays className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-800 tracking-tight">Agenda & Actividades</span>
+                      </div>
+                      <button 
+                        onClick={() => setViewMode('timeline')}
+                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                        title="Opciones de Agenda"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="mt-2">
+                      <span className="font-sans font-black text-3xl sm:text-4xl text-slate-900 tracking-tight block">
+                        {agendaEvents.length + officialEvents.length}
+                      </span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200/60">
+                          {officialEvents.length} públicos
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium">&bull; {completedBoardEvents.length} cumplidos</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 mt-4 border-t border-slate-100">
+                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                      Próximas asambleas, cursos formativos y festivales culinarios calendarizados.
+                    </p>
+                    <button
+                      onClick={() => setViewMode('timeline')}
+                      className="w-full mt-3 py-2 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-900 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-sky-200/50"
+                    >
+                      <span>Ver Agenda Cronológica</span>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Row 2: 2-Column Split (Left 5 cols / Right 7 cols) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                
+                {/* Left Column (5 cols): Distribution & Governance */}
+                <div className="lg:col-span-5 space-y-5">
+                  
+                  {/* Box 1: Categorías (My Savings Plan style) */}
+                  <div className="bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
+                    <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 border border-purple-200/60 flex items-center justify-center">
+                          <PieChart className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-800">Distribución por Sectores</span>
+                      </div>
+                      <span className="text-[11px] text-slate-400 font-semibold">{countTotalAgremiados} total</span>
+                    </div>
+
+                    <div className="space-y-4 mt-4">
+                      <div>
+                        <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
+                          <span>Restaurantes, Bistrós & Bares</span>
+                          <span className="font-bold">62%</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full rounded-full bg-amber-500" style={{ width: '62%' }} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
+                          <span>Cafés, Reposterías & Panaderías</span>
+                          <span className="font-bold">24%</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full rounded-full bg-emerald-500" style={{ width: '24%' }} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
+                          <span>Hotelería & Marcas Personales</span>
+                          <span className="font-bold">14%</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full rounded-full bg-purple-500" style={{ width: '14%' }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Box 2: Accesos Directos Institucionales */}
+                  <div className="bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                        Accesos Directivos Rápidos
+                      </span>
+                      <ShieldCheck className="w-4 h-4 text-amber-600" />
+                    </div>
+
+                    <div className="space-y-2 mt-3">
+                      <button
+                        onClick={() => setViewMode('communications')}
+                        className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-amber-50/60 border border-slate-100 text-left flex items-center justify-between transition-colors group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-xl bg-white border border-slate-200/70 text-amber-700 shadow-2xs">
+                            <Mail className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h5 className="text-xs font-bold text-slate-800 group-hover:text-amber-950">Comunicaciones Oficiales</h5>
+                            <p className="text-[10px] text-slate-400">Emisión y registro de circulares</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-amber-600 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+
+                      <button
+                        onClick={() => setViewMode('courses_management')}
+                        className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-sky-50/60 border border-slate-100 text-left flex items-center justify-between transition-colors group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-xl bg-white border border-slate-200/70 text-sky-700 shadow-2xs">
+                            <GraduationCap className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h5 className="text-xs font-bold text-slate-800 group-hover:text-sky-950">Academia Gastronómica</h5>
+                            <p className="text-[10px] text-slate-400">{officialCourses.length} cursos activos</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-sky-600 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+
+                      {isPresident && (
+                        <button
+                          onClick={() => setViewMode('legal_resources')}
+                          className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-indigo-50/60 border border-slate-100 text-left flex items-center justify-between transition-colors group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl bg-white border border-slate-200/70 text-indigo-700 shadow-2xs">
+                              <BookOpen className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h5 className="text-xs font-bold text-slate-800 group-hover:text-indigo-950">Marco Jurídico & Actas</h5>
+                              <p className="text-[10px] text-slate-400">{totalLegalDocs} resoluciones registradas</p>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-transform" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Right Column (7 cols): Overview Chart & Recent Members */}
+                <div className="lg:col-span-7 space-y-5">
+                  
+                  {/* Box 1: Overview Chart (Overview Bar Chart style) */}
+                  <div className="bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/60 flex items-center justify-center">
+                          <BarChart3 className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-slate-800 block">Actividad Institucional Anual</span>
+                          <span className="text-[10px] text-slate-400">Distribución de reuniones, asambleas y catas</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-xs">
+                        <span className="flex items-center gap-1.5 text-slate-600 font-medium">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
+                          Actividades
+                        </span>
+                        <span className="font-semibold text-slate-700 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200/60">
+                          2026 ▾
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Clean Visual Bar Chart */}
+                    <div className="pt-6">
+                      <div className="flex items-end justify-between gap-2 h-36 px-2">
+                        {[
+                          { m: 'Ene', v: 35 },
+                          { m: 'Feb', v: 45 },
+                          { m: 'Mar', v: 60 },
+                          { m: 'Abr', v: 30 },
+                          { m: 'May', v: 75 },
+                          { m: 'Jun', v: 50 },
+                          { m: 'Jul', v: 25 },
+                          { m: 'Ago', v: 95, active: true, label: 'Festival Agosto' },
+                          { m: 'Sep', v: 40 },
+                          { m: 'Oct', v: 70 },
+                          { m: 'Nov', v: 55 },
+                          { m: 'Dic', v: 65 }
+                        ].map((item, idx) => (
+                          <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+                            {item.active && (
+                              <span className="text-[9px] font-extrabold text-white bg-slate-900 px-1.5 py-0.5 rounded shadow-xs -mb-1 animate-pulse">
+                                Pico
+                              </span>
+                            )}
+                            <div
+                              style={{ height: `${item.v}%` }}
+                              className={`w-full max-w-[28px] rounded-t-lg transition-all ${
+                                item.active
+                                  ? 'bg-gradient-to-t from-emerald-600 to-teal-500 shadow-sm'
+                                  : 'bg-emerald-100/70 hover:bg-emerald-200'
+                              }`}
+                            />
+                            <span className={`text-[10px] font-sans ${item.active ? 'font-bold text-slate-900' : 'text-slate-400'}`}>
+                              {item.m}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Box 2: Recent Incorporations Table (Recent Transactions style) */}
+                  <div className="bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
+                    <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 border border-amber-200/60 flex items-center justify-center">
+                          <Users className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-800">Agremiados Recientes</span>
+                      </div>
+
+                      <button
+                        onClick={() => setViewMode('directorio')}
+                        className="text-xs font-semibold text-amber-700 hover:text-amber-800 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200/60 transition-colors"
+                      >
+                        Ver Directorio ({countTotalAgremiados}) &rarr;
+                      </button>
+                    </div>
+
+                    <div className="overflow-x-auto mt-2">
+                      <table className="w-full text-left font-sans">
+                        <thead>
+                          <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                            <th className="py-2.5 pr-3">Establecimiento</th>
+                            <th className="py-2.5 px-3">Código</th>
+                            <th className="py-2.5 px-3">Municipio</th>
+                            <th className="py-2.5 pl-3 text-right">Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-xs">
+                          {directoryMembers.slice(0, 5).map((member) => (
+                            <tr key={member.id} className="hover:bg-slate-50/60 transition-colors">
+                              <td className="py-3 pr-3">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-300/40 text-amber-800 flex items-center justify-center font-bold text-xs shrink-0">
+                                    {(member.nombre_establecimiento || 'M')[0]}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className="font-bold text-slate-800 block truncate max-w-[160px]">
+                                      {member.nombre_establecimiento}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 block truncate max-w-[160px]">
+                                      {member.representante_legal || 'Representante'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-3">
+                                <span className="font-mono text-[11px] font-semibold text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200/60">
+                                  {member.codigo_afiliado || 'CGM'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-slate-500 text-[11px]">
+                                {member.municipio || 'Libertador'}
+                              </td>
+                              <td className="py-3 pl-3 text-right">
+                                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  (member.estado_solvencia || '').toLowerCase().includes('solvente') || (member.estado_solvencia || '').toLowerCase().includes('activo')
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200/60'
+                                    : 'bg-amber-50 text-amber-800 border-amber-200/60'
+                                }`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${
+                                    (member.estado_solvencia || '').toLowerCase().includes('solvente') || (member.estado_solvencia || '').toLowerCase().includes('activo')
+                                      ? 'bg-emerald-500'
+                                      : 'bg-amber-500'
+                                  }`} />
+                                  {member.estado_solvencia || 'Solvente'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+          )}
 
           {/* Timeline View Filter Controls (rendered when viewing timeline) */}
           {viewMode === 'timeline' && (
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3 font-sans">
+            <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-2xs space-y-3 font-sans">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                     Año:
                   </span>
-                  <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                  <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl border border-slate-200/80">
                     {[2026, 2027, 'all'].map((yr) => (
                       <button
                         key={yr}
                         onClick={() => setSelectedYear(yr)}
-                        className={`py-1 px-3 rounded-lg text-xs font-serif font-black transition-all ${
+                        className={`py-1 px-3 rounded-xl text-xs font-sans font-bold transition-all ${
                           selectedYear === yr
-                            ? 'bg-amber-500 text-slate-950 shadow-xs'
+                            ? 'bg-amber-500 text-slate-950 shadow-2xs'
                             : 'text-slate-600 hover:text-slate-900 hover:bg-white'
                         }`}
                       >
@@ -3380,7 +3730,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     <button
                       key={type.id}
                       onClick={() => setActiveCategoryFilter(type.id)}
-                      className={`py-1 px-2.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all border ${
+                      className={`py-1 px-2.5 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-all border ${
                         activeCategoryFilter === type.id
                           ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold shadow-2xs'
                           : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'
@@ -3398,7 +3748,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   onClick={() => setSelectedMonth('all')}
                   className={`py-1.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all font-sans ${
                     selectedMonth === 'all'
-                      ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                      ? 'bg-amber-500 text-slate-950 font-black shadow-2xs'
                       : 'bg-slate-50 text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
                   }`}
                 >
@@ -3411,7 +3761,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     onClick={() => setSelectedMonth(m.num)}
                     className={`py-1.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all font-sans ${
                       selectedMonth === m.num
-                        ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                        ? 'bg-amber-500 text-slate-950 font-black shadow-2xs'
                         : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
                     }`}
                   >
