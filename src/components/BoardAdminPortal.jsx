@@ -62,7 +62,7 @@ import { LEGAL_DATA } from '../data/legalData';
 import { INITIAL_DIRECTORY_DATA } from '../data/initialDirectoryData';
 import { TreasuryManagementModule } from './TreasuryManagementModule';
 import { OfficialCommunicationsModule } from './OfficialCommunicationsModule';
-import { sendBoardAttendanceEmail } from '../lib/emailService';
+import { sendBoardAttendanceEmail, sendAffiliateWelcomeEmail } from '../lib/emailService';
 import { supabase } from '../lib/supabaseClient';
 import { optimizeImage, formatBytes } from '../lib/imageOptimizer';
 import { 
@@ -587,6 +587,28 @@ export function BoardAdminPortal({ t, onNavigate }) {
       } catch (solEx) {
         console.warn('Sync solicitudes note:', solEx);
       }
+
+      // Merge with initial directory baseline (ensuring verified members like Carolina del Valle are present)
+      INITIAL_DIRECTORY_DATA.forEach(baseItem => {
+        if (baseItem && baseItem.codigo_afiliado && !mergedData.some(m => m.codigo_afiliado === baseItem.codigo_afiliado)) {
+          mergedData.push(baseItem);
+        }
+      });
+
+      // Also preserve any valid local entry not yet synced to Supabase
+      try {
+        const saved = localStorage.getItem('cgem_directorio_agremiados');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(localItem => {
+              if (localItem && localItem.codigo_afiliado && !mergedData.some(m => m.codigo_afiliado === localItem.codigo_afiliado)) {
+                mergedData.push(localItem);
+              }
+            });
+          }
+        }
+      } catch (e) {}
 
       // Filter out any mock/placeholder items and save
       const cleanList = mergedData.filter(item => item && item.id !== 'cgm-dir-001');
@@ -2168,7 +2190,10 @@ export function BoardAdminPortal({ t, onNavigate }) {
       visible_en_guia: true,
       destacado_portada: false,
       monto_inscripcion: 30,
-      monto_cuota_mensual: 10
+      monto_cuota_mensual: 10,
+      is_alianza_estrategica: false,
+      observaciones: '',
+      enviar_correo_bienvenida: true
     });
     setIsMemberModalOpen(true);
   };
@@ -2193,6 +2218,13 @@ export function BoardAdminPortal({ t, onNavigate }) {
       }
     } catch (e) {}
 
+    const isAlianza = !!(
+      member.is_alianza_estrategica || 
+      (member.observaciones && member.observaciones.toLowerCase().includes('alianza')) ||
+      (member.observaciones && member.observaciones.toLowerCase().includes('intercambio')) ||
+      (parseFloat(member.monto_inscripcion) === 0)
+    );
+
     setMemberFormData({
       codigo_afiliado: member.codigo_afiliado || '',
       nombre_establecimiento: member.nombre_establecimiento || '',
@@ -2211,8 +2243,11 @@ export function BoardAdminPortal({ t, onNavigate }) {
       estado_solvencia: member.estado_solvencia || 'Solvente (Activo)',
       visible_en_guia: member.visible_en_guia !== false,
       destacado_portada: member.destacado_portada === true,
-      monto_inscripcion: member.monto_inscripcion || 30,
-      monto_cuota_mensual: member.monto_cuota_mensual || 10
+      monto_inscripcion: member.monto_inscripcion ?? (isAlianza ? 0 : 30),
+      monto_cuota_mensual: member.monto_cuota_mensual ?? 10,
+      is_alianza_estrategica: isAlianza,
+      observaciones: member.observaciones || '',
+      enviar_correo_bienvenida: false
     });
     setIsMemberModalOpen(true);
   };
@@ -2224,19 +2259,45 @@ export function BoardAdminPortal({ t, onNavigate }) {
     const code = memberFormData.codigo_afiliado.trim() || `CGM-2026-${String(directoryMembers.length + 1).padStart(3, '0')}`;
     const lat = Number(parseFloat(memberFormData.latitud).toFixed(6)) || 8.5956;
     const lng = Number(parseFloat(memberFormData.longitud).toFixed(6)) || -71.1437;
+    const isAlianza = memberFormData.is_alianza_estrategica === true;
+    const finalObservaciones = (memberFormData.observaciones || '').trim() || (isAlianza ? 'Afiliación por Alianza Estratégica / Intercambio Institucional (Sede/Locación para eventos de la Cámara).' : '');
+    const finalInscripcion = isAlianza ? 0 : (parseFloat(memberFormData.monto_inscripcion) || 0);
+    const finalCuota = parseFloat(memberFormData.monto_cuota_mensual) || 0;
+    const finalSolvencia = isAlianza ? 'Solvente (Activo)' : (memberFormData.estado_solvencia || 'Solvente (Activo)');
 
-    const memberDataToSave = {
-      ...memberFormData,
+    // 1. Clean payload adhering STRICTLY to public.directorio_agremiados Postgres schema
+    // (Never send latitud, longitud, latitude, longitude, coordinates to avoid PostgREST column errors)
+    const supabasePayload = {
       codigo_afiliado: code,
+      nombre_establecimiento: memberFormData.nombre_establecimiento.trim(),
+      categoria_negocio: memberFormData.categoria_negocio,
+      representante_legal: memberFormData.representante_legal.trim(),
+      rif_cedula: memberFormData.rif_cedula?.trim() || 'Pendiente',
+      telefono: memberFormData.telefono.trim(),
+      email: memberFormData.email.trim(),
+      direccion_completa: memberFormData.direccion_completa?.trim() || '',
+      municipio: memberFormData.municipio || 'Libertador',
+      instagram: memberFormData.instagram?.trim() || '',
+      sitio_web: memberFormData.sitio_web?.trim() || '',
+      numero_empleados: parseInt(memberFormData.numero_empleados, 10) || 1,
+      estado_solvencia: finalSolvencia,
+      monto_inscripcion: finalInscripcion,
+      monto_cuota_mensual: finalCuota,
+      visible_en_guia: memberFormData.visible_en_guia !== false,
+      destacado_portada: memberFormData.destacado_portada === true,
+      observaciones: finalObservaciones,
+      updated_at: new Date().toISOString()
+    };
+
+    // Client/UI data containing geolocation attributes for maps and interactive cards
+    const memberDataToSave = {
+      ...supabasePayload,
       latitud: lat,
       longitud: lng,
       latitude: lat,
       longitude: lng,
       coordinates: { lat, lng },
-      numero_empleados: parseInt(memberFormData.numero_empleados, 10) || 1,
-      monto_inscripcion: parseFloat(memberFormData.monto_inscripcion) || 0,
-      monto_cuota_mensual: parseFloat(memberFormData.monto_cuota_mensual) || 0,
-      updated_at: new Date().toISOString()
+      is_alianza_estrategica: isAlianza
     };
 
     // Save coordinates to localStorage for instant map recalibration
@@ -2247,14 +2308,31 @@ export function BoardAdminPortal({ t, onNavigate }) {
       if (editingMember?.slug) localStorage.setItem(`coords_${editingMember.slug}`, JSON.stringify(coordsObj));
     } catch (e) {}
 
+    // Persist GPS coordinates to affiliate_profiles in Supabase if table is present
+    try {
+      if (supabase) {
+        await supabase.from('affiliate_profiles').upsert({
+          affiliate_code: code,
+          latitude: lat,
+          longitude: lng,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'affiliate_code' });
+      }
+    } catch (profErr) {
+      console.warn('affiliate_profiles sync notice:', profErr);
+    }
+
     if (editingMember) {
       // 1. Update in Supabase
       try {
         if (supabase) {
-          await supabase
+          const { error: updateErr } = await supabase
             .from('directorio_agremiados')
-            .update(memberDataToSave)
+            .update(supabasePayload)
             .eq('id', editingMember.id);
+          if (updateErr) {
+            console.error('Supabase update notice:', updateErr);
+          }
         }
       } catch (err) {
         console.warn('Supabase update notice:', err);
@@ -2268,27 +2346,39 @@ export function BoardAdminPortal({ t, onNavigate }) {
         window.dispatchEvent(new CustomEvent('cgm_coords_updated', { detail: { code, lat, lng } }));
         window.dispatchEvent(new CustomEvent('cgm_business_updated'));
       }
-      setActionSuccessMessage(`Agremiado "${memberFormData.nombre_establecimiento}" (${code}) y su ubicación satelital GPS actualizados con éxito.`);
+      setActionSuccessMessage(`Agremiado "${memberFormData.nombre_establecimiento}" (${code}) y sus datos actualizados con éxito.`);
     } else {
       // 1. Create record
       const recordToInsert = {
-        ...memberDataToSave,
+        ...supabasePayload,
         fecha_registro: new Date().toISOString()
       };
       let createdRecord = {
         id: `cgm-dir-${Date.now()}`,
-        ...recordToInsert
+        ...memberDataToSave,
+        fecha_registro: recordToInsert.fecha_registro
       };
 
       // 2. Insert into Supabase
+      let supabaseSuccess = false;
       try {
         if (supabase) {
           const { data, error } = await supabase
             .from('directorio_agremiados')
             .insert([recordToInsert])
             .select();
-          if (data && data[0]) {
-            createdRecord = data[0];
+          if (error) {
+            console.error('Supabase insert error:', error);
+          } else if (data && data[0]) {
+            createdRecord = { 
+              ...createdRecord, 
+              ...data[0], 
+              latitud: lat, 
+              longitud: lng, 
+              coordinates: { lat, lng },
+              is_alianza_estrategica: isAlianza
+            };
+            supabaseSuccess = true;
           }
         }
       } catch (err) {
@@ -2296,19 +2386,44 @@ export function BoardAdminPortal({ t, onNavigate }) {
       }
 
       // 3. Update local state & localStorage
-      const updatedList = [createdRecord, ...directoryMembers];
+      const updatedList = [createdRecord, ...directoryMembers.filter(m => m.codigo_afiliado !== code)];
       setDirectoryMembers(updatedList);
       localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('cgm_coords_updated', { detail: { code, lat, lng } }));
         window.dispatchEvent(new CustomEvent('cgm_business_updated'));
       }
-      setActionSuccessMessage(`Nuevo agremiado "${memberFormData.nombre_establecimiento}" y su ubicación GPS incorporados al Directorio con código ${code}.`);
+
+      // 4. Send official welcome email with affiliate credentials
+      let emailNotice = '';
+      if (memberFormData.enviar_correo_bienvenida !== false && memberFormData.email && memberFormData.email.includes('@')) {
+        try {
+          await sendAffiliateWelcomeEmail({
+            affiliateCode: code,
+            restaurantName: memberFormData.nombre_establecimiento,
+            ownerName: memberFormData.representante_legal,
+            email: memberFormData.email,
+            phone: memberFormData.telefono,
+            businessType: memberFormData.categoria_negocio,
+            category: memberFormData.categoria_negocio,
+            referenceNumber: isAlianza ? 'CONVENIO-ALIANZA-ESTRATEGICA' : (memberFormData.rif_cedula || 'REGISTRO-PRESIDENCIA'),
+            status: isAlianza ? 'Solvente (Activo - Alianza Estratégica)' : finalSolvencia,
+            isAlliance: isAlianza,
+            allianceDetails: finalObservaciones
+          });
+          emailNotice = ` y se envió el correo de bienvenida a ${memberFormData.email}`;
+        } catch (mailErr) {
+          console.warn('Error enviando correo de bienvenida:', mailErr);
+          emailNotice = ` (aviso: el correo no pudo ser enviado: ${mailErr.message || 'Error de servicio'})`;
+        }
+      }
+
+      setActionSuccessMessage(`Nuevo agremiado "${memberFormData.nombre_establecimiento}" incorporado al Directorio Oficial con código ${code}${emailNotice}.`);
     }
 
     setIsMemberModalOpen(false);
     setEditingMember(null);
-    setTimeout(() => setActionSuccessMessage(''), 5000);
+    setTimeout(() => setActionSuccessMessage(''), 6000);
   };
 
   const handleDeleteMember = async (memberId, name, code) => {
@@ -4690,6 +4805,43 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
             <form onSubmit={handleSaveMember} className="mt-6 space-y-4 text-xs font-sans">
               
+              {/* Modalidad de Afiliación: Regular vs Alianza Estratégica / Convenio */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-amber-50 border border-emerald-300 shadow-sm">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <span className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                      <Landmark className="w-4 h-4 text-emerald-700" />
+                      Modalidad: {memberFormData.is_alianza_estrategica ? '🤝 Alianza Estratégica / Convenio de Intercambio' : 'Membresía Regular Estándar'}
+                    </span>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      {memberFormData.is_alianza_estrategica 
+                        ? 'Afiliación especial formalizada por convenio o canje institucional (ej. préstamo de locación para eventos, patrocinios, alianzas de la Cámara). Inscripción exonerada ($0).'
+                        : 'Afiliación comercial estándar con pago de inscripción regular ($30 USD).'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextVal = !memberFormData.is_alianza_estrategica;
+                      setMemberFormData(prev => ({
+                        ...prev,
+                        is_alianza_estrategica: nextVal,
+                        monto_inscripcion: nextVal ? 0 : 30,
+                        estado_solvencia: nextVal ? 'Solvente (Activo)' : prev.estado_solvencia,
+                        observaciones: nextVal && !prev.observaciones ? 'Agremiado por Alianza Estratégica / Intercambio Institucional (Sede/Locación para eventos de la Cámara).' : prev.observaciones
+                      }));
+                    }}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all border shrink-0 ${
+                      memberFormData.is_alianza_estrategica
+                        ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800 shadow-sm'
+                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
+                    }`}
+                  >
+                    {memberFormData.is_alianza_estrategica ? '✓ Modalidad Alianza Activa' : 'Activar Alianza Estratégica'}
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2">
                   <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
@@ -4872,6 +5024,27 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
                 <div>
                   <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Inscripción (USD)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    disabled={memberFormData.is_alianza_estrategica}
+                    value={memberFormData.is_alianza_estrategica ? 0 : memberFormData.monto_inscripcion}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, monto_inscripcion: e.target.value })}
+                    className={`w-full px-3 py-3 rounded-xl border text-sm focus:outline-none ${
+                      memberFormData.is_alianza_estrategica 
+                        ? 'bg-emerald-50/60 border-emerald-300 text-emerald-800 font-bold' 
+                        : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-emerald-500 focus:bg-white'
+                    }`}
+                  />
+                  {memberFormData.is_alianza_estrategica && (
+                    <span className="text-[10px] text-emerald-700 font-semibold block mt-1">Exonerada (Alianza)</span>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Cuota Mes (USD)
                   </label>
                   <input
@@ -4994,6 +5167,38 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   <Star className={`w-4 h-4 ${memberFormData.destacado_portada ? 'fill-slate-950 text-slate-950' : 'text-amber-600'}`} />
                   <span>{memberFormData.destacado_portada ? '⭐ Destacado en Portada' : 'Fijar en Portada'}</span>
                 </button>
+              </div>
+
+              {/* Observaciones Institucionales / Detalles del Convenio o Alianza */}
+              <div className="space-y-1.5">
+                <label className="block font-bold text-slate-700 uppercase tracking-wider text-[11px]">
+                  Observaciones Institucionales / Convenio de Afiliación
+                </label>
+                <textarea
+                  rows={2}
+                  value={memberFormData.observaciones || ''}
+                  onChange={(e) => setMemberFormData({ ...memberFormData, observaciones: e.target.value })}
+                  placeholder="ej. Afiliación formal por Alianza Estratégica: El establecimiento aportó su local para eventos de la Cámara sin costo a cambio de la membresía gremial..."
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-xs focus:outline-none focus:border-emerald-500 focus:bg-white"
+                />
+              </div>
+
+              {/* Interruptor de Envío de Correo Oficial de Bienvenida con Credenciales */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={memberFormData.enviar_correo_bienvenida !== false}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, enviar_correo_bienvenida: e.target.checked })}
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                  />
+                  <span className="font-bold text-slate-800 text-xs">
+                    Enviar correo oficial de bienvenida y credenciales al agremiado
+                  </span>
+                </label>
+                <span className="text-[11px] text-slate-500 font-mono">
+                  {memberFormData.email ? `Destino: ${memberFormData.email}` : '(Requiere correo válido)'}
+                </span>
               </div>
 
               <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">

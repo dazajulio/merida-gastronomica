@@ -304,5 +304,30 @@ export const INITIAL_DIRECTORY_DATA = [
     fotos_galeria: [],
     destacado_portada: false,
     visible_en_guia: true
+  },
+  {
+    id: "cgm-dir-018-origenes",
+    codigo_afiliado: "CGM-2026-018",
+    nombre_establecimiento: "Orígenes Bistró & Bar",
+    categoria_negocio: "Empresas (5 a 19 empleados)",
+    representante_legal: "Carolina del Valle",
+    rif_cedula: "J-40531507-5",
+    telefono: "+58 274-2529555 / +58 414-3747133",
+    email: "origenesbyb@gmail.com",
+    direccion_completa: "Pasaje Ayacucho (Calle 25 Ayacucho), zona Las Heroínas, diagonal al antiguo Seminario, Mérida",
+    municipio: "Libertador (Mérida Ciudad)",
+    instagram: "@origenesbyb",
+    sitio_web: "",
+    numero_empleados: 6,
+    estado_solvencia: "Solvente (Activo)",
+    monto_inscripcion: 0.00,
+    monto_cuota_mensual: 10.00,
+    fecha_registro: "2026-10-26T12:00:00.000Z",
+    fecha_vencimiento: "2027-12-31T23:59:59.000Z",
+    observaciones: "Afiliación Oficial por Alianza Estratégica / Convenio Institucional: Locación para eventos gremiales de la Cámara Gastronómica del Estado Mérida. Cocina italiana clásica, pastas frescas, mariscos y vinos.",
+    foto_portada: null,
+    fotos_galeria: [],
+    destacado_portada: true,
+    visible_en_guia: true
   }
 ];

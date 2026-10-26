@@ -240,6 +240,9 @@ export async function sendAffiliateWelcomeEmail({
   category,
   referenceNumber,
   amountBs,
+  status,
+  isAlliance,
+  allianceDetails
 }) {
   const subject = `¡Bienvenido a la Cámara Gastronómica de Mérida! Código: ${affiliateCode}`;
 
@@ -254,9 +257,14 @@ export async function sendAffiliateWelcomeEmail({
       <p style="margin: 4px 0;"><strong>Titular / Representante:</strong> ${ownerName}</p>
       <p style="margin: 4px 0;"><strong>Tipo de Negocio:</strong> ${businessType || 'Comercial'}</p>
       <p style="margin: 4px 0;"><strong>Categoría:</strong> ${category || 'Gastronomía'}</p>
-      <p style="margin: 4px 0;"><strong>Referencia Pago Móvil:</strong> ${referenceNumber || 'Registrado'}</p>
-      ${amountBs ? `<p style="margin: 4px 0;"><strong>Monto Cuota:</strong> Bs. ${amountBs}</p>` : ''}
-      <p style="margin: 4px 0;"><strong>Estado:</strong> <span style="color: #059669; font-weight: bold;">Activo (Pago en Verificación)</span></p>
+      ${isAlliance ? `
+        <p style="margin: 4px 0;"><strong>Modalidad de Afiliación:</strong> <span style="color: #047857; font-weight: bold;">Convenio / Alianza Estratégica Institucional</span></p>
+        <p style="margin: 4px 0;"><strong>Detalles del Convenio:</strong> ${allianceDetails || 'Intercambio institucional de locación para eventos y actividades de la Cámara Gastronómica.'}</p>
+      ` : `
+        <p style="margin: 4px 0;"><strong>Referencia de Registro:</strong> ${referenceNumber || 'Registrado'}</p>
+        ${amountBs ? `<p style="margin: 4px 0;"><strong>Monto Cuota:</strong> Bs. ${amountBs}</p>` : ''}
+      `}
+      <p style="margin: 4px 0;"><strong>Estado de Solvencia:</strong> <span style="color: #059669; font-weight: bold;">${status || 'Solvente (Activo)'}</span></p>
     </div>
 
     <h3 style="color: #0f172a; font-size: 16px; margin-top: 24px; margin-bottom: 12px; font-weight: 700; border-bottom: 2px solid #fed7aa; padding-bottom: 6px;">
