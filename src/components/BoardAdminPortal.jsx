@@ -55,7 +55,12 @@ import {
   Loader2,
   PlusCircle,
   CircleDollarSign,
-  Landmark
+  Landmark,
+  Menu,
+  X,
+  ChevronRight,
+  ArrowLeft,
+  LayoutDashboard
 } from 'lucide-react';
 import { BOARD_MEMBERS_DATA, INITIAL_BOARD_AGENDA_DATA } from '../data/boardData';
 import { LEGAL_DATA } from '../data/legalData';
@@ -633,6 +638,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const [selectedMonth, setSelectedMonth] = useState('all'); // 'all' or 1..12
   const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
   const [viewMode, setViewMode] = useState('timeline'); // timeline | directorio | completed_report | courses_management | events_management | board_list | legal_resources
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Admin Event Management Modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -2723,357 +2729,677 @@ export function BoardAdminPortal({ t, onNavigate }) {
     );
   }
 
+  const navSections = [
+    {
+      title: 'Gestión Gremial & Membresía',
+      items: [
+        {
+          id: 'directorio',
+          label: 'Directorio de Agremiados',
+          icon: Building2,
+          badge: countTotalAgremiados,
+          badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+          visible: canAccessDirectory,
+        },
+        {
+          id: 'treasury',
+          label: 'Tesorería & Finanzas',
+          icon: CircleDollarSign,
+          badge: '$ USD',
+          badgeColor: 'bg-teal-500/20 text-teal-300 border-teal-500/30',
+          visible: canAccessTreasury,
+        },
+        {
+          id: 'communications',
+          label: 'Comunicaciones Oficiales',
+          icon: Mail,
+          badge: 'Oficial',
+          badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+          visible: canAccessOfficialCommunications,
+        },
+      ]
+    },
+    {
+      title: 'Agenda & Actividades',
+      items: [
+        {
+          id: 'timeline',
+          label: 'Agenda Cronológica',
+          icon: Clock,
+          badge: agendaEvents.length,
+          badgeColor: 'bg-slate-800 text-slate-300 border-slate-700',
+          visible: true,
+        },
+        {
+          id: 'courses_management',
+          label: 'Cursos & Academia',
+          icon: GraduationCap,
+          badge: officialCourses.length,
+          badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
+          visible: currentUser?.isAdminLevel,
+        },
+        {
+          id: 'events_management',
+          label: 'Eventos & Festivales',
+          icon: Ticket,
+          badge: officialEvents.length,
+          badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+          visible: currentUser?.isAdminLevel,
+        },
+        {
+          id: 'tourist_services',
+          label: 'Servicios Turísticos VIP',
+          icon: Compass,
+          badge: touristServices.length,
+          badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+          visible: currentUser?.isAdminLevel,
+        },
+        {
+          id: 'completed_report',
+          label: 'Eventos Cumplidos (Memoria)',
+          icon: History,
+          badge: completedBoardEvents.length,
+          badgeColor: 'bg-teal-500/20 text-teal-300 border-teal-500/30',
+          visible: true,
+        },
+      ]
+    },
+    {
+      title: 'Gobernanza & Institucional',
+      items: [
+        {
+          id: 'board_list',
+          label: 'Junta Directiva',
+          icon: Users,
+          badge: '12',
+          badgeColor: 'bg-slate-800 text-slate-300 border-slate-700',
+          visible: true,
+        },
+        {
+          id: 'legal_resources',
+          label: 'Marco Jurídico & Actas',
+          icon: BookOpen,
+          badge: totalLegalDocs,
+          badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+          visible: isPresident,
+        },
+      ]
+    }
+  ];
+
+  const getViewModeMeta = (mode) => {
+    switch (mode) {
+      case 'directorio':
+        return {
+          title: 'Directorio de Agremiados',
+          subtitle: 'Base de datos oficial de establecimientos y marcas de la Cámara',
+          category: 'Gestión Gremial',
+          icon: Building2
+        };
+      case 'treasury':
+        return {
+          title: 'Tesorería, Conciliación & Finanzas',
+          subtitle: 'Control de cuotas, recaudación, estados de cuenta y conciliación',
+          category: 'Gestión Gremial',
+          icon: CircleDollarSign
+        };
+      case 'communications':
+        return {
+          title: 'Comunicaciones Oficiales',
+          subtitle: 'Redacción y registro de comunicados institucionales y convocatorias',
+          category: 'Gestión Gremial',
+          icon: Mail
+        };
+      case 'timeline':
+        return {
+          title: 'Agenda Cronológica',
+          subtitle: 'Planificación institucional, asambleas y actividades directivas',
+          category: 'Agenda Institucional',
+          icon: Clock
+        };
+      case 'courses_management':
+        return {
+          title: 'Cursos & Academia Gastronómica',
+          subtitle: 'Talleres formativos, programas de capacitación y certificaciones',
+          category: 'Agenda Institucional',
+          icon: GraduationCap
+        };
+      case 'events_management':
+        return {
+          title: 'Eventos & Festivales Públicos',
+          subtitle: 'Festivales gastronómicos, catas y eventos abiertos al público',
+          category: 'Agenda Institucional',
+          icon: Ticket
+        };
+      case 'tourist_services':
+        return {
+          title: 'Servicios Turísticos VIP',
+          subtitle: 'Rutas culinarias, alianzas turísticas y experiencias exclusivas',
+          category: 'Agenda Institucional',
+          icon: Compass
+        };
+      case 'completed_report':
+        return {
+          title: 'Eventos Cumplidos (Memoria)',
+          subtitle: 'Histórico de actividades, reuniones y eventos ejecutados con asistencia',
+          category: 'Agenda Institucional',
+          icon: History
+        };
+      case 'board_list':
+        return {
+          title: 'Directorio Junta Directiva',
+          subtitle: 'Integrantes, cargos de gobernanza y canales oficiales de contacto',
+          category: 'Gobernanza Institucional',
+          icon: Users
+        };
+      case 'legal_resources':
+        return {
+          title: 'Marco Jurídico & Resoluciones',
+          subtitle: 'Estatutos, actas de asamblea, resoluciones y documentación legal',
+          category: 'Gobernanza Institucional',
+          icon: BookOpen
+        };
+      default:
+        return {
+          title: 'Portal Directivo',
+          subtitle: 'Cámara Gastronómica del Estado Mérida',
+          category: 'Administración',
+          icon: ShieldCheck
+        };
+    }
+  };
+
+  const currentMeta = getViewModeMeta(viewMode);
+
   // =========================================================================
-  // VIEW 2: AUTHENTICATED BOARD DASHBOARD (LIGHT THEME)
+  // VIEW 2: AUTHENTICATED BOARD DASHBOARD (CLEAN SAAS / SOFT UI)
   // =========================================================================
   return (
-    <div className="min-h-screen bg-[#fcfbf9] text-slate-800 pb-24 selection:bg-amber-500 selection:text-white">
+    <div className="min-h-screen bg-[#fcfbf9] text-slate-800 flex flex-col lg:flex-row antialiased selection:bg-amber-500 selection:text-white font-sans">
       
-      {/* Top Banner (Clean Warm Luxury Light Theme) */}
-      <div className="bg-white border-b border-slate-200 pt-28 pb-8 px-4 sm:px-6 lg:px-8 shadow-sm">
-        <div className="max-w-7xl mx-auto">
-          
-          {/* Top Row: User Card & Actions */}
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 pb-6 border-b border-slate-100">
-            
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 p-1 flex items-center justify-center shadow-lg shadow-amber-500/15 shrink-0 border border-amber-300">
-                <ShieldCheck className="w-9 h-9 text-slate-950" />
+      {/* Mobile Drawer Overlay Backdrop */}
+      {isSidebarOpen && (
+        <div 
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-40 lg:hidden transition-opacity"
+        />
+      )}
+
+      {/* 1. DARK SIDEBAR NAVIGATION (Modern Clean SaaS) */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-72 bg-slate-950 text-slate-300 border-r border-slate-800/80
+        flex flex-col shrink-0 transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0
+        ${isSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
+      `}>
+        
+        {/* Brand Header */}
+        <div className="p-5 border-b border-slate-800/80 shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center shadow-md shadow-amber-500/10 shrink-0 border border-amber-300/40">
+                <img 
+                  src="/logo-merida-gastronomica.png" 
+                  alt="Cámara Gastronómica" 
+                  className="w-full h-full object-contain"
+                />
               </div>
-
-              <div>
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-sans">
-                    {currentUser.roleCategory} &bull; {currentUser.role}
-                  </span>
-                  {currentUser.isAdminLevel && (
-                    <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-900 border border-sky-300 font-sans">
-                      Gestión Total / Administrador
-                    </span>
-                  )}
-                  {canAccessDirectory && (
-                    <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 font-sans">
-                      Acceso Directorio Agremiados
-                    </span>
-                  )}
-                </div>
-
-                <h1 className="font-serif font-black text-2xl sm:text-3xl text-slate-900 uppercase tracking-wide">
-                  {currentUser.name}
+              <div className="min-w-0">
+                <span className="text-[9px] font-extrabold uppercase tracking-widest text-amber-400 block font-sans">
+                  Cámara Gastronómica
+                </span>
+                <h1 className="font-serif font-black text-xs text-white uppercase tracking-wider truncate">
+                  Mérida Gastronómica
                 </h1>
-                
-                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 mt-1 font-sans">
-                  {currentUser.instagram && (
-                    <span className="font-sans text-amber-900 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">{currentUser.instagram}</span>
-                  )}
-                  {currentUser.instagram && <span>&bull;</span>}
-                  <span className="font-medium">{currentUser.email}</span>
-                  <span>&bull;</span>
-                  <span className="text-emerald-700 font-bold flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Sesión Directiva Activa
-                  </span>
-                </div>
+                <span className="text-[10px] text-slate-400 block font-sans">
+                  Portal Directivo &bull; Clean SaaS
+                </span>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-              {(viewMode === 'timeline' || viewMode === 'completed_report') && (
-                <button
-                  onClick={handleManualSyncEventsCourses}
-                  disabled={isSyncingCloud}
-                  className="py-3 px-4 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 font-sans font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50"
-                  title="Sincronizar Agenda con Supabase Cloud"
-                >
-                  <RefreshCw className={`w-4 h-4 text-emerald-700 ${isSyncingCloud ? 'animate-spin' : ''}`} />
-                  <span>{isSyncingCloud ? 'Sincronizando...' : 'Sincronizar Agenda Cloud'}</span>
-                </button>
-              )}
-
-              {currentUser.isAdminLevel && viewMode === 'timeline' && (
-                <button
-                  onClick={openNewModal}
-                  className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Nuevo Evento en Agenda</span>
-                </button>
-              )}
-
-              {canAccessDirectory && viewMode === 'directorio' && (
-                <button
-                  onClick={openNewMemberModal}
-                  className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
-                >
-                  <Plus className="w-4 h-4 text-white" />
-                  <span>Nuevo Agremiado</span>
-                </button>
-              )}
-
-              {currentUser.isAdminLevel && viewMode === 'courses_management' && (
-                <button
-                  onClick={openNewCourseModal}
-                  className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
-                >
-                  <Plus className="w-4 h-4 text-white" />
-                  <span>Nuevo Curso / Taller</span>
-                </button>
-              )}
-
-              {currentUser.isAdminLevel && viewMode === 'events_management' && (
-                <button
-                  onClick={openNewPublicEventModal}
-                  className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
-                >
-                  <Plus className="w-4 h-4 text-white" />
-                  <span>Nuevo Evento / Festival</span>
-                </button>
-              )}
-
-              {currentUser.isAdminLevel && viewMode === 'tourist_services' && (
-                <button
-                  onClick={openNewTouristServiceModal}
-                  className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
-                >
-                  <Plus className="w-4 h-4 text-white" />
-                  <span>Nuevo Servicio Turístico</span>
-                </button>
-              )}
-
-              {viewMode === 'completed_report' && (
-                <button
-                  onClick={handleExportCompletedReportCSV}
-                  className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
-                >
-                  <FileSpreadsheet className="w-4 h-4 text-white" />
-                  <span>Descargar Reporte CSV</span>
-                </button>
-              )}
-
-              {isPresident && viewMode === 'legal_resources' && (
-                <button
-                  onClick={() => openNewLegalDocModal('fiscal')}
-                  className="flex-1 sm:flex-initial py-3 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
-                >
-                  <FolderPlus className="w-4 h-4" />
-                  <span>Cargar Documento Jurídico</span>
-                </button>
-              )}
-
-              <button
-                onClick={handleLogout}
-                className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all"
-                title="Cerrar Sesión Directiva"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline font-sans">Cerrar Sesión</span>
-              </button>
-            </div>
-
+            {/* Mobile close button */}
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              title="Cerrar Menú"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* Success / Error Notification Bars */}
+          {/* Back to public portal button */}
+          <button
+            onClick={() => onNavigate ? onNavigate('home') : (window.location.href = '/')}
+            className="w-full mt-3.5 py-1.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800/90 text-slate-400 hover:text-amber-300 border border-slate-800 text-[11px] font-sans font-semibold flex items-center justify-between transition-all group"
+          >
+            <span className="flex items-center gap-2">
+              <ArrowLeft className="w-3.5 h-3.5 text-amber-500 group-hover:-translate-x-0.5 transition-transform" />
+              <span>Portal Público</span>
+            </span>
+            <span className="text-[10px] text-slate-500 group-hover:text-slate-400 font-normal">Salir</span>
+          </button>
+        </div>
+
+        {/* User Profile Pill in Sidebar */}
+        <div className="px-4 pt-4 pb-2 shrink-0">
+          <div className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800/80 flex items-center gap-3 shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 p-0.5 flex items-center justify-center text-slate-950 font-serif font-black text-sm shrink-0 shadow-md shadow-amber-500/20 border border-amber-300/50">
+              <ShieldCheck className="w-5 h-5 text-slate-950" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xs font-bold text-white truncate font-sans">
+                {currentUser?.name || 'Directivo'}
+              </h2>
+              <p className="text-[10px] text-amber-400 truncate font-sans font-medium">
+                {currentUser?.roleCategory} &bull; {currentUser?.role}
+              </p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[9px] text-emerald-400 font-semibold tracking-wider font-sans uppercase">
+                  Sesión Activa
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Categories */}
+        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-5 scrollbar-thin scrollbar-thumb-slate-800">
+          {navSections.map((sec, idx) => {
+            const visibleItems = sec.items.filter(item => item.visible);
+            if (visibleItems.length === 0) return null;
+
+            return (
+              <div key={idx} className="space-y-1">
+                <span className="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block font-sans">
+                  {sec.title}
+                </span>
+
+                <div className="space-y-1 mt-1">
+                  {visibleItems.map((item) => {
+                    const ItemIcon = item.icon;
+                    const isActive = viewMode === item.id;
+
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setViewMode(item.id);
+                          setIsSidebarOpen(false);
+                        }}
+                        className={`w-full py-2.5 px-3 rounded-xl text-xs font-sans transition-all flex items-center justify-between group ${
+                          isActive
+                            ? 'bg-gradient-to-r from-amber-500/20 to-amber-500/5 text-amber-300 border-l-[3px] border-amber-500 font-bold shadow-xs'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-900/70 font-medium'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <ItemIcon className={`w-4 h-4 shrink-0 transition-colors ${
+                            isActive ? 'text-amber-400' : 'text-slate-400 group-hover:text-slate-200'
+                          }`} />
+                          <span className="truncate">{item.label}</span>
+                        </div>
+
+                        {item.badge !== undefined && (
+                          <span className={`text-[10px] font-sans font-bold px-2 py-0.5 rounded-full border shrink-0 ${
+                            isActive
+                              ? 'bg-amber-500/20 text-amber-200 border-amber-500/40'
+                              : item.badgeColor || 'bg-slate-800 text-slate-400 border-slate-700'
+                          }`}>
+                            {item.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* Sidebar Footer */}
+        <div className="p-3 border-t border-slate-800/80 shrink-0 space-y-1.5 bg-slate-950">
+          <button
+            onClick={handleManualSyncEventsCourses}
+            disabled={isSyncingCloud}
+            className="w-full py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-emerald-300 border border-slate-800 text-[11px] font-sans font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+            title="Sincronizar datos con Supabase Cloud"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isSyncingCloud ? 'animate-spin' : ''}`} />
+            <span>{isSyncingCloud ? 'Sincronizando...' : 'Sincronizar Cloud'}</span>
+          </button>
+
+          <button
+            onClick={handleLogout}
+            className="w-full py-2 px-3 rounded-xl bg-slate-900/60 hover:bg-rose-950/40 text-slate-400 hover:text-rose-300 border border-slate-800/80 hover:border-rose-900/50 text-[11px] font-sans font-medium flex items-center justify-center gap-2 transition-all"
+            title="Cerrar Sesión Directiva"
+          >
+            <LogOut className="w-3.5 h-3.5 text-rose-400" />
+            <span>Cerrar Sesión</span>
+          </button>
+        </div>
+
+      </aside>
+
+      {/* 2. LIGHT MAIN WORKSPACE */}
+      <main className="flex-1 min-w-0 flex flex-col bg-[#fcfbf9] min-h-screen">
+        
+        {/* Sticky Top Header Bar */}
+        <header className="sticky top-0 z-30 bg-[#fcfbf9]/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Mobile Toggle Button */}
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 shadow-xs transition-colors shrink-0"
+              title="Abrir menú directivo"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            {/* View Breadcrumb & Title */}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-sans">
+                  {currentMeta.category}
+                </span>
+                <span className="text-slate-400 text-xs hidden sm:inline">&bull;</span>
+                <span className="text-xs text-slate-500 font-sans hidden sm:inline">
+                  {currentUser?.roleCategory} &bull; {currentUser?.role}
+                </span>
+              </div>
+              <h1 className="font-sans font-black text-xl sm:text-2xl text-slate-900 tracking-tight truncate">
+                {currentMeta.title}
+              </h1>
+            </div>
+          </div>
+
+          {/* Contextual Action Buttons in Header */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            
+            {/* Manual Sync (for timeline / completed_report) */}
+            {(viewMode === 'timeline' || viewMode === 'completed_report') && (
+              <button
+                onClick={handleManualSyncEventsCourses}
+                disabled={isSyncingCloud}
+                className="py-2.5 px-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs disabled:opacity-50 font-sans"
+                title="Sincronizar Agenda con Supabase Cloud"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-amber-600 ${isSyncingCloud ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">{isSyncingCloud ? 'Sincronizando...' : 'Sincronizar Cloud'}</span>
+              </button>
+            )}
+
+            {/* Directory quick actions */}
+            {viewMode === 'directorio' && canAccessDirectory && (
+              <>
+                <button
+                  onClick={fetchDirectoryFromSupabase}
+                  disabled={isLoadingDirectory}
+                  className="py-2.5 px-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs disabled:opacity-50 font-sans"
+                  title="Sincronizar Directorio con Supabase Cloud"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 ${isLoadingDirectory ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">{isLoadingDirectory ? 'Actualizando...' : 'Actualizar'}</span>
+                </button>
+                <button
+                  onClick={handleExportCSV}
+                  className="py-2.5 px-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs font-sans"
+                  title="Exportar a CSV / Excel"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="hidden sm:inline">Exportar CSV</span>
+                </button>
+                <button
+                  onClick={handleCopyEmails}
+                  className="py-2.5 px-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs font-sans"
+                  title="Copiar correos al portapapeles"
+                >
+                  <Copy className="w-3.5 h-3.5 text-sky-600" />
+                  <span className="hidden sm:inline">Copiar Correos</span>
+                </button>
+              </>
+            )}
+
+            {/* Primary Warm Terracotta / Orange CTAs */}
+            {canAccessDirectory && viewMode === 'directorio' && (
+              <button
+                onClick={openNewMemberModal}
+                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-amber-600/20 transition-all active:scale-98"
+              >
+                <Plus className="w-4 h-4 text-white" />
+                <span>Nuevo Agremiado</span>
+              </button>
+            )}
+
+            {currentUser?.isAdminLevel && viewMode === 'timeline' && (
+              <button
+                onClick={openNewModal}
+                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-amber-600/20 transition-all active:scale-98"
+              >
+                <Plus className="w-4 h-4 text-white" />
+                <span>Nuevo Evento</span>
+              </button>
+            )}
+
+            {currentUser?.isAdminLevel && viewMode === 'courses_management' && (
+              <button
+                onClick={openNewCourseModal}
+                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-amber-600/20 transition-all active:scale-98"
+              >
+                <Plus className="w-4 h-4 text-white" />
+                <span>Nuevo Curso</span>
+              </button>
+            )}
+
+            {currentUser?.isAdminLevel && viewMode === 'events_management' && (
+              <button
+                onClick={openNewPublicEventModal}
+                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-amber-600/20 transition-all active:scale-98"
+              >
+                <Plus className="w-4 h-4 text-white" />
+                <span>Nuevo Festival</span>
+              </button>
+            )}
+
+            {currentUser?.isAdminLevel && viewMode === 'tourist_services' && (
+              <button
+                onClick={openNewTouristServiceModal}
+                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-amber-600/20 transition-all active:scale-98"
+              >
+                <Plus className="w-4 h-4 text-white" />
+                <span>Nuevo Servicio VIP</span>
+              </button>
+            )}
+
+            {viewMode === 'completed_report' && (
+              <button
+                onClick={handleExportCompletedReportCSV}
+                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-emerald-600/20 transition-all active:scale-98"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-white" />
+                <span>Descargar CSV</span>
+              </button>
+            )}
+
+            {isPresident && viewMode === 'legal_resources' && (
+              <button
+                onClick={() => openNewLegalDocModal('fiscal')}
+                className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-sans font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-amber-600/20 transition-all active:scale-98"
+              >
+                <FolderPlus className="w-4 h-4 text-white" />
+                <span>Cargar Documento</span>
+              </button>
+            )}
+
+          </div>
+        </header>
+
+        {/* Inner Content Area */}
+        <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+          {/* Success / Error Notification Alerts */}
           {actionSuccessMessage && (
-            <div className="mt-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs flex items-center gap-3 animate-fadeIn shadow-sm font-sans">
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs flex items-center gap-3 animate-fadeIn shadow-xs font-sans">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
               <span className="font-medium">{actionSuccessMessage}</span>
             </div>
           )}
 
           {actionErrorMessage && (
-            <div className="mt-4 p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-center gap-3 animate-fadeIn shadow-sm font-sans">
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-center gap-3 animate-fadeIn shadow-xs font-sans">
               <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
               <span className="font-bold">{actionErrorMessage}</span>
             </div>
           )}
 
-          {/* Navigation Controls: View Modes */}
-          <div className="mt-6 space-y-4">
+          {/* Soft UI Pastel Metric Cards (Clean SaaS KPIs with Watermark Icons) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 font-sans">
             
-            {/* View Mode Switcher */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              
-              {/* View Mode Buttons */}
-              <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-                
-                {/* 1. Agenda Cronológica */}
-                <button
-                  onClick={() => setViewMode('timeline')}
-                  className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
-                    viewMode === 'timeline'
-                      ? 'bg-white text-amber-900 border border-amber-300 shadow-sm font-extrabold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Clock className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Agenda Cronológica</span>
-                </button>
-
-                {/* 2. DIRECTORIO DE AGREMIADOS */}
-                {canAccessDirectory && (
-                  <button
-                    onClick={() => setViewMode('directorio')}
-                    className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
-                      viewMode === 'directorio'
-                        ? 'bg-emerald-600 text-white shadow-sm font-extrabold'
-                        : 'text-emerald-900 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'
-                    }`}
-                  >
-                    <Building2 className={`w-3.5 h-3.5 ${viewMode === 'directorio' ? 'text-white' : 'text-emerald-700'}`} />
-                    <span>DIRECTORIO AGREMIADOS ({countTotalAgremiados})</span>
-                  </button>
-                )}
-
-                {/* 3. Reporte de Eventos Cumplidos (Últimos 3 Meses) */}
-                <button
-                  onClick={() => setViewMode('completed_report')}
-                  className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
-                    viewMode === 'completed_report'
-                      ? 'bg-teal-600 text-white shadow-sm font-extrabold'
-                      : 'text-teal-900 hover:text-teal-950 bg-teal-50 hover:bg-teal-100 border border-teal-200'
-                  }`}
-                >
-                  <History className={`w-3.5 h-3.5 ${viewMode === 'completed_report' ? 'text-white' : 'text-teal-700'}`} />
-                  <span>Eventos Cumplidos ({completedBoardEvents.length})</span>
-                </button>
-
-                {/* 4. Gestión de Cursos & Capacitaciones (Presidente / Directiva) */}
-                {currentUser.isAdminLevel && (
-                  <button
-                    onClick={() => setViewMode('courses_management')}
-                    className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
-                      viewMode === 'courses_management'
-                        ? 'bg-sky-600 text-white shadow-sm font-extrabold'
-                        : 'text-sky-900 hover:text-sky-950 bg-sky-50 hover:bg-sky-100 border border-sky-200'
-                    }`}
-                  >
-                    <GraduationCap className={`w-3.5 h-3.5 ${viewMode === 'courses_management' ? 'text-white' : 'text-sky-700'}`} />
-                    <span>Cursos & Academia ({officialCourses.length})</span>
-                  </button>
-                )}
-
-                {/* 5. Gestión de Eventos & Festivales Públicos (Presidente / Directiva) */}
-                {currentUser.isAdminLevel && (
-                  <button
-                    onClick={() => setViewMode('events_management')}
-                    className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
-                      viewMode === 'events_management'
-                        ? 'bg-amber-600 text-white shadow-sm font-extrabold'
-                        : 'text-amber-900 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 border border-amber-200'
-                    }`}
-                  >
-                    <Ticket className={`w-3.5 h-3.5 ${viewMode === 'events_management' ? 'text-white' : 'text-amber-700'}`} />
-                    <span>Eventos & Festivales ({officialEvents.length})</span>
-                  </button>
-                )}
-
-                {/* 6. Vinculaciones Turísticas & Servicios VIP (Presidente / Directiva) */}
-                {currentUser.isAdminLevel && (
-                  <button
-                    onClick={() => setViewMode('tourist_services')}
-                    className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
-                      viewMode === 'tourist_services'
-                        ? 'bg-purple-600 text-white shadow-sm font-extrabold'
-                        : 'text-purple-900 hover:text-purple-950 bg-purple-50 hover:bg-purple-100 border border-purple-200'
-                    }`}
-                  >
-                    <Compass className={`w-3.5 h-3.5 ${viewMode === 'tourist_services' ? 'text-white' : 'text-purple-700'}`} />
-                    <span>Servicios Turísticos ({touristServices.length})</span>
-                  </button>
-                )}
-
-                {/* 7. Directorio de Junta Directiva */}
-                <button
-                  onClick={() => setViewMode('board_list')}
-                  className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
-                    viewMode === 'board_list'
-                      ? 'bg-white text-amber-900 border border-amber-300 shadow-sm font-extrabold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Users className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Junta Directiva</span>
-                </button>
-
-                {/* 8. Gestor de Recursos Jurídicos (Exclusivo Presidente) */}
-                {isPresident && (
-                  <button
-                    onClick={() => setViewMode('legal_resources')}
-                    className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
-                      viewMode === 'legal_resources'
-                        ? 'bg-indigo-600 text-white shadow-sm font-extrabold'
-                        : 'text-indigo-900 hover:text-indigo-950 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200'
-                    }`}
-                  >
-                    <BookOpen className={`w-3.5 h-3.5 ${viewMode === 'legal_resources' ? 'text-white' : 'text-indigo-700'}`} />
-                    <span>Marco Jurídico ({totalLegalDocs})</span>
-                  </button>
-                )}
-
-                {/* 9. MÓDULO DE TESORERÍA, CONCILIACIÓN & FINANZAS (Tesorero / Directiva) */}
-                {canAccessTreasury && (
-                  <button
-                    onClick={() => setViewMode('treasury')}
-                    className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
-                      viewMode === 'treasury'
-                        ? 'bg-teal-700 text-white shadow-sm font-extrabold ring-2 ring-teal-400/30'
-                        : 'text-teal-900 hover:text-teal-950 bg-teal-50 hover:bg-teal-100 border border-teal-200'
-                    }`}
-                  >
-                    <CircleDollarSign className={`w-3.5 h-3.5 ${viewMode === 'treasury' ? 'text-white' : 'text-teal-700'}`} />
-                    <span>TESORERÍA & FINANZAS</span>
-                  </button>
-                )}
-
-                {/* 10. COMUNICACIONES OFICIALES (Exclusivo Presidente & Director Ejecutivo) */}
-                {canAccessOfficialCommunications && (
-                  <button
-                    onClick={() => setViewMode('communications')}
-                    className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 font-sans ${
-                      viewMode === 'communications'
-                        ? 'bg-gradient-to-r from-amber-700 to-rose-900 text-white shadow-sm font-extrabold ring-2 ring-amber-400/40'
-                        : 'text-amber-950 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200'
-                    }`}
-                  >
-                    <Mail className={`w-3.5 h-3.5 ${viewMode === 'communications' ? 'text-amber-300' : 'text-amber-700'}`} />
-                    <span>COMUNICACIONES OFICIALES</span>
-                  </button>
-                )}
+            {/* Card 1: Warm Amber / Terracotta Pastel */}
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#fffbeb] via-[#fffdf5] to-[#fef3c7] border border-amber-200/80 p-5 shadow-xs hover:shadow-md transition-all">
+              <Building2 className="w-24 h-24 text-amber-500/10 absolute -right-4 -bottom-4 pointer-events-none transition-transform group-hover:scale-110" />
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-900/80 font-sans">
+                  Total Agremiados
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-900 border border-amber-300/60 font-sans">
+                  Directorio
+                </span>
               </div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-sans font-black text-3xl sm:text-4xl text-amber-950 tracking-tight">
+                  {countTotalAgremiados}
+                </span>
+                <span className="text-xs text-amber-800 font-semibold">afiliados</span>
+              </div>
+              <p className="text-[11px] text-amber-800/70 mt-1 font-sans">
+                Establecimientos & marcas registradas
+              </p>
+            </div>
 
-              {/* Year tabs (only in timeline view) */}
-              {viewMode === 'timeline' && (
-                <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider px-3 font-sans">
+            {/* Card 2: Mint Green Pastel */}
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#f0fdf4] via-[#f7fee7]/40 to-[#dcfce7] border border-emerald-200/80 p-5 shadow-xs hover:shadow-md transition-all">
+              <CheckCircle2 className="w-24 h-24 text-emerald-500/10 absolute -right-4 -bottom-4 pointer-events-none transition-transform group-hover:scale-110" />
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-900/80 font-sans">
+                  Solventes (Activos)
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-900 border border-emerald-300/60 font-sans">
+                  Al Día
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-sans font-black text-3xl sm:text-4xl text-emerald-950 tracking-tight">
+                  {countSolventes}
+                </span>
+                <span className="text-xs text-emerald-800 font-semibold">solventes</span>
+              </div>
+              <p className="text-[11px] text-emerald-800/70 mt-1 font-sans">
+                {countEnRevision} en validación / trámite
+              </p>
+            </div>
+
+            {/* Card 3: Sky Blue Pastel */}
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#f0f9ff] via-[#f8fafc] to-[#e0f2fe] border border-sky-200/80 p-5 shadow-xs hover:shadow-md transition-all">
+              <CalendarDays className="w-24 h-24 text-sky-500/10 absolute -right-4 -bottom-4 pointer-events-none transition-transform group-hover:scale-110" />
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-sky-900/80 font-sans">
+                  Agenda & Eventos
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-900 border border-sky-300/60 font-sans">
+                  {agendaEvents.length} en agenda
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-sans font-black text-3xl sm:text-4xl text-sky-950 tracking-tight">
+                  {agendaEvents.length + officialEvents.length}
+                </span>
+                <span className="text-xs text-sky-800 font-semibold">actividades</span>
+              </div>
+              <p className="text-[11px] text-sky-800/70 mt-1 font-sans">
+                {officialEvents.length} festivales &bull; {completedBoardEvents.length} cumplidos
+              </p>
+            </div>
+
+            {/* Card 4: Lavender / Purple Pastel */}
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#faf5ff] via-[#fdf4ff]/40 to-[#f3e8ff] border border-purple-200/80 p-5 shadow-xs hover:shadow-md transition-all">
+              <GraduationCap className="w-24 h-24 text-purple-500/10 absolute -right-4 -bottom-4 pointer-events-none transition-transform group-hover:scale-110" />
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-purple-900/80 font-sans">
+                  Academia & VIP
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-900 border border-purple-300/60 font-sans">
+                  Formación
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-sans font-black text-3xl sm:text-4xl text-purple-950 tracking-tight">
+                  {officialCourses.length + touristServices.length}
+                </span>
+                <span className="text-xs text-purple-800 font-semibold">programas</span>
+              </div>
+              <p className="text-[11px] text-purple-800/70 mt-1 font-sans">
+                {officialCourses.length} cursos &bull; {touristServices.length} servicios turísticos
+              </p>
+            </div>
+
+          </div>
+
+          {/* Timeline View Filter Controls (rendered when viewing timeline) */}
+          {viewMode === 'timeline' && (
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3 font-sans">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                     Año:
                   </span>
-                  {[2026, 2027, 'all'].map((yr) => (
+                  <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                    {[2026, 2027, 'all'].map((yr) => (
+                      <button
+                        key={yr}
+                        onClick={() => setSelectedYear(yr)}
+                        className={`py-1 px-3 rounded-lg text-xs font-serif font-black transition-all ${
+                          selectedYear === yr
+                            ? 'bg-amber-500 text-slate-950 shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                        }`}
+                      >
+                        {yr === 'all' ? 'Ver Todos' : yr}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Category Filter Chips */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 shrink-0 flex items-center gap-1">
+                    <ListFilter className="w-3 h-3 text-slate-400" />
+                    Filtrar:
+                  </span>
+                  {EVENT_TYPES.map((type) => (
                     <button
-                      key={yr}
-                      onClick={() => setSelectedYear(yr)}
-                      className={`py-1.5 px-4 rounded-xl text-xs font-serif font-black transition-all ${
-                        selectedYear === yr
-                          ? 'bg-amber-500 text-slate-950 shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                      key={type.id}
+                      onClick={() => setActiveCategoryFilter(type.id)}
+                      className={`py-1 px-2.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all border ${
+                        activeCategoryFilter === type.id
+                          ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold shadow-2xs'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'
                       }`}
                     >
-                      {yr === 'all' ? 'Ver Todos' : yr}
+                      {type.label}
                     </button>
                   ))}
                 </div>
-              )}
+              </div>
 
-            </div>
-
-            {/* Month Ribbon (only in timeline view) */}
-            {viewMode === 'timeline' && (
-              <div className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-thin">
+              {/* Month Ribbon */}
+              <div className="flex items-center gap-1 overflow-x-auto pt-1 pb-1 border-t border-slate-100 scrollbar-thin">
                 <button
                   onClick={() => setSelectedMonth('all')}
-                  className={`py-2 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all font-sans ${
+                  className={`py-1.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all font-sans ${
                     selectedMonth === 'all'
-                      ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
-                      : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
+                      ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
+                      : 'bg-slate-50 text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   Todos los Meses
@@ -3083,9 +3409,9 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   <button
                     key={m.num}
                     onClick={() => setSelectedMonth(m.num)}
-                    className={`py-2 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all font-sans ${
+                    className={`py-1.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all font-sans ${
                       selectedMonth === m.num
-                        ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
+                        ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
                         : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
                     }`}
                   >
@@ -3093,38 +3419,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   </button>
                 ))}
               </div>
-            )}
-
-            {/* Category Filter Chips (only in timeline view) */}
-            {viewMode === 'timeline' && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 shrink-0 flex items-center gap-1 font-sans">
-                  <ListFilter className="w-3 h-3 text-slate-400" />
-                  Filtrar:
-                </span>
-                {EVENT_TYPES.map((type) => (
-                  <button
-                    key={type.id}
-                    onClick={() => setActiveCategoryFilter(type.id)}
-                    className={`py-1.5 px-3 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border font-sans ${
-                      activeCategoryFilter === type.id
-                        ? 'bg-amber-100 text-amber-900 border-amber-400 font-bold shadow-xs'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900'
-                    }`}
-                  >
-                    {type.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-          </div>
-
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+            </div>
+          )}
         
         {/* =========================================================================
             VIEW MODE 1: DIRECTORIO DE AGREMIADOS (PRESIDENTE & DIRECCIÓN EJECUTIVA)
@@ -4771,7 +5067,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
           />
         )}
 
-      </div>
+        </div>
+      </main>
 
       {/* =========================================================================
           MODAL: CREATE / EDIT DIRECTORIO AGREMIADO (SUPABASE BACKED)
