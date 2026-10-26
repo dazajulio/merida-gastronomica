@@ -295,13 +295,15 @@ export function App() {
     <div className="min-h-screen bg-[#fcfbf9] text-slate-800 flex flex-col font-sans selection:bg-amber-500 selection:text-white">
       
       {/* Fixed Navigation (Hidden when on private board admin portal for clean executive focus) */}
-      <Navbar 
-        activeTab={activeTab} 
-        setActiveTab={(tab) => navigateTo(tab)}
-        lang={lang} 
-        setLang={setLang} 
-        t={t}
-      />
+      {activeTab !== 'admin' && (
+        <Navbar 
+          activeTab={activeTab} 
+          setActiveTab={(tab) => navigateTo(tab)}
+          lang={lang} 
+          setLang={setLang} 
+          t={t}
+        />
+      )}
 
       {/* Main Content Areas */}
       <main className="flex-1">
@@ -702,8 +704,8 @@ export function App() {
         />
       )}
 
-      {/* Footer */}
-      <Footer setActiveTab={(tab) => navigateTo(tab)} t={t} />
+      {/* Footer (Hidden when on private board admin portal) */}
+      {activeTab !== 'admin' && <Footer setActiveTab={(tab) => navigateTo(tab)} t={t} />}
 
     </div>
   );

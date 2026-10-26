@@ -652,6 +652,8 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
   const [viewMode, setViewMode] = useState('dashboard'); // dashboard | timeline | directorio | completed_report | courses_management | events_management | board_list | legal_resources
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [calendarViewDate, setCalendarViewDate] = useState(() => new Date(2026, 9, 26));
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState(() => 26);
 
   // Admin Event Management Modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -3237,10 +3239,10 @@ export function BoardAdminPortal({ t, onNavigate }) {
           {viewMode === 'dashboard' && (
             <div className="space-y-6 animate-fadeIn font-sans">
               
-              {/* Row 1: Top 3 Bento Metric Cards */}
+              {/* Row 1: Directorio & Membresías (5 cols) + Calendario de Actividades (7 cols) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
                 
-                {/* Card 1: Main Hero Metric Card (Account Balance style) - 5 cols */}
+                {/* 1. Directorio & Membresías (Hero Card) - 5 cols */}
                 <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between pb-3">
@@ -3267,7 +3269,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                       </div>
                     </div>
 
-                    {/* Dual Action Buttons (Send Money / Request Money style) */}
+                    {/* Dual Action Buttons */}
                     <div className="grid grid-cols-2 gap-2.5 mt-5">
                       {canAccessDirectory && (
                         <button
@@ -3288,7 +3290,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     </div>
                   </div>
 
-                  {/* Sub-breakdown: My Wallet style in reference */}
+                  {/* Sub-breakdown */}
                   <div className="pt-5 mt-5 border-t border-slate-100">
                     <div className="flex items-center justify-between mb-2.5">
                       <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
@@ -3338,107 +3340,188 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   </div>
                 </div>
 
-                {/* Card 2: Recaudación Cuotas Mensual (Total Expenses style) - 3.5 cols */}
-                <div className="lg:col-span-3.5 bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between pb-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200/60 text-emerald-700 flex items-center justify-center">
-                          <CircleDollarSign className="w-4 h-4" />
+                {/* 2. Calendario de Actividades (Image 1 & 2 Style) - 7 cols */}
+                {(() => {
+                  const calYear = calendarViewDate.getFullYear();
+                  const calMonth = calendarViewDate.getMonth();
+                  const monthNames = [
+                    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+                  ];
+                  const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay(); // 0 = Sunday
+                  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+                  const daysInPrevMonth = new Date(calYear, calMonth, 0).getDate();
+
+                  const prevDays = [];
+                  for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+                    prevDays.push({ day: daysInPrevMonth - i, isCurrent: false });
+                  }
+
+                  const currDays = [];
+                  for (let d = 1; d <= daysInMonth; d++) {
+                    const dateKey = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    const hasEvent = agendaEvents.some(ev => ev.date === dateKey) ||
+                                     officialEvents.some(ev => ev.date === dateKey || ev.fecha === dateKey);
+                    currDays.push({ day: d, isCurrent: true, dateKey, hasEvent });
+                  }
+
+                  const totalCells = prevDays.length + currDays.length;
+                  const nextPadding = totalCells > 35 ? 42 - totalCells : 35 - totalCells;
+                  const nextDays = [];
+                  for (let d = 1; d <= nextPadding; d++) {
+                    nextDays.push({ day: d, isCurrent: false });
+                  }
+
+                  const allDays = [...prevDays, ...currDays, ...nextDays];
+
+                  const selectedDateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(selectedCalendarDay).padStart(2, '0')}`;
+                  const eventsForSelectedDay = [
+                    ...agendaEvents.filter(ev => ev.date === selectedDateStr),
+                    ...officialEvents.filter(ev => ev.date === selectedDateStr || ev.fecha === selectedDateStr)
+                  ];
+
+                  return (
+                    <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+                      <div>
+                        {/* Calendar Header with Navigation */}
+                        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200/60 text-emerald-700 flex items-center justify-center">
+                              <CalendarIcon className="w-4 h-4" />
+                            </div>
+                            <span className="font-sans font-black text-sm text-slate-900 tracking-tight">
+                              Calendario de Actividades
+                            </span>
+                          </div>
+
+                          {/* Month Selector < Mes Año > */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setCalendarViewDate(new Date(calYear, calMonth - 1, 1))}
+                              className="w-7 h-7 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-colors shadow-2xs"
+                              title="Mes anterior"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </button>
+
+                            <span className="font-sans font-bold text-xs text-emerald-700 min-w-[110px] text-center">
+                              {monthNames[calMonth]} {calYear}
+                            </span>
+
+                            <button
+                              onClick={() => setCalendarViewDate(new Date(calYear, calMonth + 1, 1))}
+                              className="w-7 h-7 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-colors shadow-2xs"
+                              title="Mes siguiente"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
-                        <span className="text-xs font-bold text-slate-800 tracking-tight">Recaudación Estimada</span>
-                      </div>
-                      <button 
-                        onClick={() => setViewMode('treasury')}
-                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                        title="Opciones de Tesorería"
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
-                    </div>
 
-                    <div className="mt-2">
-                      <span className="font-sans font-black text-3xl sm:text-4xl text-slate-900 tracking-tight block">
-                        ${totalMonthlyIncomeUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
-                          <CheckCircle2 className="w-3 h-3" /> Solvencia mensual
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 mt-4 border-t border-slate-100">
-                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                      Estimación de aportes por membresías activas. Conciliación y recibos disponibles en Tesorería.
-                    </p>
-                    <button
-                      onClick={() => setViewMode('treasury')}
-                      className="w-full mt-3 py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-emerald-200/50"
-                    >
-                      <span>Ir a Tesorería & Finanzas</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Card 3: Agenda Institucional (Total Savings style) - 3.5 cols */}
-                <div className="lg:col-span-3.5 bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between pb-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-sky-50 border border-sky-200/60 text-sky-700 flex items-center justify-center">
-                          <CalendarDays className="w-4 h-4" />
+                        {/* Weekday Labels (Su Mo Tu We Th Fr Sa) */}
+                        <div className="grid grid-cols-7 text-center text-[11px] font-bold text-slate-500 py-3 border-b border-slate-50">
+                          <span>Do</span>
+                          <span>Lu</span>
+                          <span>Ma</span>
+                          <span>Mi</span>
+                          <span>Ju</span>
+                          <span>Vi</span>
+                          <span>Sá</span>
                         </div>
-                        <span className="text-xs font-bold text-slate-800 tracking-tight">Agenda & Actividades</span>
-                      </div>
-                      <button 
-                        onClick={() => setViewMode('timeline')}
-                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                        title="Opciones de Agenda"
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
-                    </div>
 
-                    <div className="mt-2">
-                      <span className="font-sans font-black text-3xl sm:text-4xl text-slate-900 tracking-tight block">
-                        {agendaEvents.length + officialEvents.length}
-                      </span>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200/60">
-                          {officialEvents.length} públicos
-                        </span>
-                        <span className="text-[11px] text-slate-400 font-medium">&bull; {completedBoardEvents.length} cumplidos</span>
+                        {/* Days Grid */}
+                        <div className="grid grid-cols-7 gap-y-1.5 gap-x-1 text-center pt-2">
+                          {allDays.map((cell, idx) => {
+                            const isSelected = cell.isCurrent && selectedCalendarDay === cell.day;
+
+                            if (!cell.isCurrent) {
+                              return (
+                                <div key={idx} className="py-1 text-center">
+                                  <span className="text-[11px] font-medium text-slate-300 block">
+                                    {cell.day}
+                                  </span>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div key={idx} className="py-0.5 text-center relative flex justify-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedCalendarDay(cell.day)}
+                                  className={`w-8 h-8 rounded-full text-xs transition-all flex items-center justify-center relative font-sans ${
+                                    isSelected
+                                      ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
+                                      : cell.hasEvent
+                                      ? 'font-bold text-slate-900 hover:bg-amber-50 hover:text-amber-800'
+                                      : 'font-medium text-slate-700 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  {cell.day}
+                                  {cell.hasEvent && !isSelected && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 absolute bottom-1" />
+                                  )}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Selected Day Agenda Footnote & Actions */}
+                      <div className="pt-4 mt-4 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                            Compromisos para el {selectedCalendarDay} de {monthNames[calMonth]}:
+                          </span>
+                          {eventsForSelectedDay.length > 0 ? (
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                              <span className="text-xs font-bold text-slate-800 truncate">
+                                {eventsForSelectedDay[0].title || eventsForSelectedDay[0].nombre}
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                ({eventsForSelectedDay[0].timeStart || '09:00'})
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-500 italic mt-0.5 block">
+                              Sin actividades agendadas para esta fecha.
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {currentUser?.isAdminLevel && (
+                            <button
+                              onClick={openNewModal}
+                              className="py-1.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/60 font-sans font-bold text-xs flex items-center gap-1.5 transition-colors"
+                            >
+                              <Plus className="w-3.5 h-3.5 text-amber-600" />
+                              <span>+ Agendar</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setViewMode('timeline')}
+                            className="py-1.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/60 font-sans font-bold text-xs flex items-center gap-1 transition-colors"
+                          >
+                            <span>Ver Agenda</span>
+                            <ArrowUpRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="pt-4 mt-4 border-t border-slate-100">
-                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                      Próximas asambleas, cursos formativos y festivales culinarios calendarizados.
-                    </p>
-                    <button
-                      onClick={() => setViewMode('timeline')}
-                      className="w-full mt-3 py-2 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-900 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-sky-200/50"
-                    >
-                      <span>Ver Agenda Cronológica</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
+                  );
+                })()}
 
               </div>
 
-              {/* Row 2: 2-Column Split (Left 5 cols / Right 7 cols) */}
+              {/* Row 2: Distribución por Sectores (4 cols) + Agremiados Recientes (8 cols) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
                 
-                {/* Left Column (5 cols): Distribution & Governance */}
-                <div className="lg:col-span-5 space-y-5">
-                  
-                  {/* Box 1: Categorías (My Savings Plan style) */}
-                  <div className="bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
+                {/* 3. Distribución por Sectores - 4 cols */}
+                <div className="lg:col-span-4 bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+                  <div>
                     <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 border border-purple-200/60 flex items-center justify-center">
@@ -3449,7 +3532,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                       <span className="text-[11px] text-slate-400 font-semibold">{countTotalAgremiados} total</span>
                     </div>
 
-                    <div className="space-y-4 mt-4">
+                    <div className="space-y-4 mt-5">
                       <div>
                         <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
                           <span>Restaurantes, Bistrós & Bares</span>
@@ -3482,212 +3565,93 @@ export function BoardAdminPortal({ t, onNavigate }) {
                     </div>
                   </div>
 
-                  {/* Box 2: Accesos Directos Institucionales */}
-                  <div className="bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                        Accesos Directivos Rápidos
-                      </span>
-                      <ShieldCheck className="w-4 h-4 text-amber-600" />
-                    </div>
-
-                    <div className="space-y-2 mt-3">
-                      <button
-                        onClick={() => setViewMode('communications')}
-                        className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-amber-50/60 border border-slate-100 text-left flex items-center justify-between transition-colors group"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-xl bg-white border border-slate-200/70 text-amber-700 shadow-2xs">
-                            <Mail className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <h5 className="text-xs font-bold text-slate-800 group-hover:text-amber-950">Comunicaciones Oficiales</h5>
-                            <p className="text-[10px] text-slate-400">Emisión y registro de circulares</p>
-                          </div>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-amber-600 group-hover:translate-x-0.5 transition-transform" />
-                      </button>
-
-                      <button
-                        onClick={() => setViewMode('courses_management')}
-                        className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-sky-50/60 border border-slate-100 text-left flex items-center justify-between transition-colors group"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-xl bg-white border border-slate-200/70 text-sky-700 shadow-2xs">
-                            <GraduationCap className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <h5 className="text-xs font-bold text-slate-800 group-hover:text-sky-950">Academia Gastronómica</h5>
-                            <p className="text-[10px] text-slate-400">{officialCourses.length} cursos activos</p>
-                          </div>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-sky-600 group-hover:translate-x-0.5 transition-transform" />
-                      </button>
-
-                      {isPresident && (
-                        <button
-                          onClick={() => setViewMode('legal_resources')}
-                          className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-indigo-50/60 border border-slate-100 text-left flex items-center justify-between transition-colors group"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-xl bg-white border border-slate-200/70 text-indigo-700 shadow-2xs">
-                              <BookOpen className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <h5 className="text-xs font-bold text-slate-800 group-hover:text-indigo-950">Marco Jurídico & Actas</h5>
-                              <p className="text-[10px] text-slate-400">{totalLegalDocs} resoluciones registradas</p>
-                            </div>
-                          </div>
-                          <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-transform" />
-                        </button>
-                      )}
-                    </div>
+                  <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                    <span>Base de datos oficial CGEM</span>
+                    <button
+                      onClick={() => setViewMode('directorio')}
+                      className="text-amber-700 font-bold hover:underline"
+                    >
+                      Ver Directorio &rarr;
+                    </button>
                   </div>
-
                 </div>
 
-                {/* Right Column (7 cols): Overview Chart & Recent Members */}
-                <div className="lg:col-span-7 space-y-5">
-                  
-                  {/* Box 1: Overview Chart (Overview Bar Chart style) */}
-                  <div className="bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/60 flex items-center justify-center">
-                          <BarChart3 className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-slate-800 block">Actividad Institucional Anual</span>
-                          <span className="text-[10px] text-slate-400">Distribución de reuniones, asambleas y catas</span>
-                        </div>
+                {/* 4. Agremiados Recientes (Table) - 8 cols */}
+                <div className="lg:col-span-8 bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 border border-amber-200/60 flex items-center justify-center">
+                        <Users className="w-4 h-4" />
                       </div>
-
-                      <div className="flex items-center gap-3 text-xs">
-                        <span className="flex items-center gap-1.5 text-slate-600 font-medium">
-                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
-                          Actividades
-                        </span>
-                        <span className="font-semibold text-slate-700 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200/60">
-                          2026 ▾
-                        </span>
+                      <div>
+                        <span className="text-xs font-bold text-slate-800 block">Agremiados Recientes</span>
+                        <span className="text-[10px] text-slate-400">Últimos establecimientos registrados en la Cámara</span>
                       </div>
                     </div>
 
-                    {/* Clean Visual Bar Chart */}
-                    <div className="pt-6">
-                      <div className="flex items-end justify-between gap-2 h-36 px-2">
-                        {[
-                          { m: 'Ene', v: 35 },
-                          { m: 'Feb', v: 45 },
-                          { m: 'Mar', v: 60 },
-                          { m: 'Abr', v: 30 },
-                          { m: 'May', v: 75 },
-                          { m: 'Jun', v: 50 },
-                          { m: 'Jul', v: 25 },
-                          { m: 'Ago', v: 95, active: true, label: 'Festival Agosto' },
-                          { m: 'Sep', v: 40 },
-                          { m: 'Oct', v: 70 },
-                          { m: 'Nov', v: 55 },
-                          { m: 'Dic', v: 65 }
-                        ].map((item, idx) => (
-                          <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
-                            {item.active && (
-                              <span className="text-[9px] font-extrabold text-white bg-slate-900 px-1.5 py-0.5 rounded shadow-xs -mb-1 animate-pulse">
-                                Pico
-                              </span>
-                            )}
-                            <div
-                              style={{ height: `${item.v}%` }}
-                              className={`w-full max-w-[28px] rounded-t-lg transition-all ${
-                                item.active
-                                  ? 'bg-gradient-to-t from-emerald-600 to-teal-500 shadow-sm'
-                                  : 'bg-emerald-100/70 hover:bg-emerald-200'
-                              }`}
-                            />
-                            <span className={`text-[10px] font-sans ${item.active ? 'font-bold text-slate-900' : 'text-slate-400'}`}>
-                              {item.m}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    <button
+                      onClick={() => setViewMode('directorio')}
+                      className="text-xs font-semibold text-amber-700 hover:text-amber-800 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200/60 transition-colors"
+                    >
+                      Ver Directorio ({countTotalAgremiados}) &rarr;
+                    </button>
                   </div>
 
-                  {/* Box 2: Recent Incorporations Table (Recent Transactions style) */}
-                  <div className="bg-white rounded-3xl p-6 border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
-                    <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 border border-amber-200/60 flex items-center justify-center">
-                          <Users className="w-4 h-4" />
-                        </div>
-                        <span className="text-xs font-bold text-slate-800">Agremiados Recientes</span>
-                      </div>
-
-                      <button
-                        onClick={() => setViewMode('directorio')}
-                        className="text-xs font-semibold text-amber-700 hover:text-amber-800 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200/60 transition-colors"
-                      >
-                        Ver Directorio ({countTotalAgremiados}) &rarr;
-                      </button>
-                    </div>
-
-                    <div className="overflow-x-auto mt-2">
-                      <table className="w-full text-left font-sans">
-                        <thead>
-                          <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                            <th className="py-2.5 pr-3">Establecimiento</th>
-                            <th className="py-2.5 px-3">Código</th>
-                            <th className="py-2.5 px-3">Municipio</th>
-                            <th className="py-2.5 pl-3 text-right">Estado</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 text-xs">
-                          {directoryMembers.slice(0, 5).map((member) => (
-                            <tr key={member.id} className="hover:bg-slate-50/60 transition-colors">
-                              <td className="py-3 pr-3">
-                                <div className="flex items-center gap-2.5">
-                                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-300/40 text-amber-800 flex items-center justify-center font-bold text-xs shrink-0">
-                                    {(member.nombre_establecimiento || 'M')[0]}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <span className="font-bold text-slate-800 block truncate max-w-[160px]">
-                                      {member.nombre_establecimiento}
-                                    </span>
-                                    <span className="text-[10px] text-slate-400 block truncate max-w-[160px]">
-                                      {member.representante_legal || 'Representante'}
-                                    </span>
-                                  </div>
+                  <div className="overflow-x-auto mt-2">
+                    <table className="w-full text-left font-sans">
+                      <thead>
+                        <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                          <th className="py-2.5 pr-3">Establecimiento</th>
+                          <th className="py-2.5 px-3">Código</th>
+                          <th className="py-2.5 px-3">Municipio</th>
+                          <th className="py-2.5 pl-3 text-right">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-xs">
+                        {directoryMembers.slice(0, 5).map((member) => (
+                          <tr key={member.id} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="py-3 pr-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-300/40 text-amber-800 flex items-center justify-center font-bold text-xs shrink-0">
+                                  {(member.nombre_establecimiento || 'M')[0]}
                                 </div>
-                              </td>
-                              <td className="py-3 px-3">
-                                <span className="font-mono text-[11px] font-semibold text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200/60">
-                                  {member.codigo_afiliado || 'CGM'}
-                                </span>
-                              </td>
-                              <td className="py-3 px-3 text-slate-500 text-[11px]">
-                                {member.municipio || 'Libertador'}
-                              </td>
-                              <td className="py-3 pl-3 text-right">
-                                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                                <div className="min-w-0">
+                                  <span className="font-bold text-slate-800 block truncate max-w-[200px]">
+                                    {member.nombre_establecimiento}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 block truncate max-w-[200px]">
+                                    {member.representante_legal || 'Representante'}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="font-mono text-[11px] font-semibold text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200/60">
+                                {member.codigo_afiliado || 'CGM'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-slate-500 text-[11px]">
+                              {member.municipio || 'Libertador'}
+                            </td>
+                            <td className="py-3 pl-3 text-right">
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                                (member.estado_solvencia || '').toLowerCase().includes('solvente') || (member.estado_solvencia || '').toLowerCase().includes('activo')
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200/60'
+                                  : 'bg-amber-50 text-amber-800 border-amber-200/60'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${
                                   (member.estado_solvencia || '').toLowerCase().includes('solvente') || (member.estado_solvencia || '').toLowerCase().includes('activo')
-                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200/60'
-                                    : 'bg-amber-50 text-amber-800 border-amber-200/60'
-                                }`}>
-                                  <span className={`w-1.5 h-1.5 rounded-full ${
-                                    (member.estado_solvencia || '').toLowerCase().includes('solvente') || (member.estado_solvencia || '').toLowerCase().includes('activo')
-                                      ? 'bg-emerald-500'
-                                      : 'bg-amber-500'
-                                  }`} />
-                                  {member.estado_solvencia || 'Solvente'}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                                    ? 'bg-emerald-500'
+                                    : 'bg-amber-500'
+                                }`} />
+                                {member.estado_solvencia || 'Solvente'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-
                 </div>
 
               </div>
