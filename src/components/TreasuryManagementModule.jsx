@@ -149,8 +149,21 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
       ]);
 
       let finalPayments = Array.isArray(paymentsData) ? [...paymentsData] : [];
+      // Depurar cualquier registro fantasma (ej. CGM-2026-383)
+      finalPayments = finalPayments.filter(p => p && p.codigo_afiliado !== 'CGM-2026-383' && p.id !== 'pago-CGM-2026-383');
+
       if (Array.isArray(directoryMembers) && directoryMembers.length > 0) {
-        directoryMembers.forEach((m, idx) => {
+        const cleanMembers = directoryMembers.filter(m => m && m.codigo_afiliado !== 'CGM-2026-383');
+        const validCodes = new Set(cleanMembers.map(m => m.codigo_afiliado).filter(Boolean));
+        const validEmails = new Set(cleanMembers.map(m => m.email?.toLowerCase()).filter(Boolean));
+        
+        // Mantener exclusivamente los pagos correspondientes a agremiados activos en el directorio
+        finalPayments = finalPayments.filter(p => 
+          (p.codigo_afiliado && validCodes.has(p.codigo_afiliado)) ||
+          (p.email && validEmails.has(p.email.toLowerCase()))
+        );
+
+        cleanMembers.forEach((m) => {
           const exists = finalPayments.some(p => 
             (m.codigo_afiliado && p.codigo_afiliado === m.codigo_afiliado) ||
             (m.email && p.email && p.email.toLowerCase() === m.email.toLowerCase()) ||
@@ -163,6 +176,9 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
       }
 
       setPayments(finalPayments);
+      try {
+        localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(finalPayments));
+      } catch (e) {}
       setExpenses(expensesData || []);
     } catch (err) {
       console.warn('Error loading treasury data:', err);

@@ -498,7 +498,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.filter(item => item && item.id !== 'cgm-dir-001').map(item => {
+          return parsed.filter(item => item && item.id !== 'cgm-dir-001' && item.codigo_afiliado !== 'CGM-2026-383').map(item => {
             if (item.codigo_afiliado === 'CGM-2026-001' && item.email === 'kaffia@meridagastronomica.com') {
               return {
                 ...item,
@@ -512,7 +512,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
         }
       }
     } catch (e) {}
-    return INITIAL_DIRECTORY_DATA;
+    return INITIAL_DIRECTORY_DATA.filter(item => item && item.codigo_afiliado !== 'CGM-2026-383');
   });
 
   const [isLoadingDirectory, setIsLoadingDirectory] = useState(false);
@@ -558,91 +558,38 @@ export function BoardAdminPortal({ t, onNavigate }) {
         console.warn('Supabase directorio notice:', dirError.message);
       }
 
-      let mergedData = (dirData && Array.isArray(dirData)) ? [...dirData] : [];
+      let mergedData = [];
 
-      // 2. Fetch from solicitudes_afiliacion to auto-sync any web registrations
-      try {
-        const { data: solData, error: solError } = await supabase
-          .from('solicitudes_afiliacion')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (!solError && solData && solData.length > 0) {
-          for (const sol of solData) {
-            const alreadyInDirectory = mergedData.some(m => 
-              (sol.codigo_afiliado && m.codigo_afiliado === sol.codigo_afiliado) ||
-              (sol.rif && m.rif_cedula === sol.rif) ||
-              (sol.correo && m.email && m.email.toLowerCase() === sol.correo.toLowerCase())
-            );
-
-            if (!alreadyInDirectory) {
-              const newEntry = {
-                codigo_afiliado: sol.codigo_afiliado || `CGM-2026-${Math.floor(Math.random() * 899 + 100)}`,
-                nombre_establecimiento: sol.nombre_comercial || 'Establecimiento Solicitante',
-                categoria_negocio: sol.tipo_negocio || 'Empresas (5 a 19 empleados)',
-                representante_legal: sol.titular_propietario || 'Representante Legal',
-                rif_cedula: sol.rif || 'Pendiente',
-                telefono: sol.telefono || 'Sin teléfono',
-                email: sol.correo || 'sin-correo@meridagastronomica.com',
-                direccion_completa: `${sol.direccion || ''}${sol.ciudad_poblacion ? `, ${sol.ciudad_poblacion}` : ''}`,
-                municipio: sol.municipio || 'Libertador',
-                instagram: sol.instagram || '',
-                sitio_web: '',
-                numero_empleados: sol.tipo_negocio?.includes('20 o más') ? 20 : sol.tipo_negocio?.includes('5 y 19') ? 8 : 2,
-                estado_solvencia: 'En Trámite (Verificación Pago)',
-                monto_inscripcion: sol.tipo_negocio?.includes('20 o más') ? 50 : sol.tipo_negocio?.includes('5 y 19') ? 30 : 20,
-                monto_cuota_mensual: sol.tipo_negocio?.includes('20 o más') ? 20 : 10,
-                fecha_registro: sol.created_at || new Date().toISOString(),
-                observaciones: `Registro Web: Ref. ${sol.referencia_pago_movil || 'N/A'} - Banco: ${sol.banco_pago_movil || 'Provincial'} - Tel. Pagador: ${sol.telefono_pagador || ''} - Monto: Bs. ${sol.monto_bs || '0'}`
-              };
-
-              // Persist into directorio_agremiados
-              try {
-                const { data: inserted } = await supabase
-                  .from('directorio_agremiados')
-                  .insert([newEntry])
-                  .select();
-                if (inserted && inserted[0]) {
-                  mergedData.push(inserted[0]);
-                } else {
-                  mergedData.push(newEntry);
-                }
-              } catch (insErr) {
-                mergedData.push(newEntry);
-              }
-            }
-          }
-        }
-      } catch (solEx) {
-        console.warn('Sync solicitudes note:', solEx);
+      // Supabase es la fuente oficial y única de verdad del Directorio
+      if (dirData && Array.isArray(dirData) && dirData.length > 0) {
+        mergedData = [...dirData];
+      } else {
+        // Respaldo de contingencia solo si Supabase está inaccesible o vacío
+        mergedData = [...INITIAL_DIRECTORY_DATA];
       }
 
-      // Merge with initial directory baseline (ensuring verified members like Carolina del Valle are present)
-      INITIAL_DIRECTORY_DATA.forEach(baseItem => {
-        if (baseItem && baseItem.codigo_afiliado && !mergedData.some(m => m.codigo_afiliado === baseItem.codigo_afiliado)) {
-          mergedData.push(baseItem);
-        }
-      });
+      // Depurar cualquier registro fantasma o duplicado (ej. código residual CGM-2026-383)
+      const cleanList = mergedData.filter(item => 
+        item && 
+        item.id !== 'cgm-dir-001' && 
+        item.codigo_afiliado !== 'CGM-2026-383' &&
+        item.id !== '805e5642-ba25-459d-bbf2-7676c513bd75'
+      );
 
-      // Also preserve any valid local entry not yet synced to Supabase
-      try {
-        const saved = localStorage.getItem('cgem_directorio_agremiados');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            parsed.forEach(localItem => {
-              if (localItem && localItem.codigo_afiliado && !mergedData.some(m => m.codigo_afiliado === localItem.codigo_afiliado)) {
-                mergedData.push(localItem);
-              }
-            });
-          }
-        }
-      } catch (e) {}
-
-      // Filter out any mock/placeholder items and save
-      const cleanList = mergedData.filter(item => item && item.id !== 'cgm-dir-001');
       setDirectoryMembers(cleanList);
       localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(cleanList));
+
+      // Depurar cualquier pago residual vinculado al código fantasma en el almacenamiento local
+      try {
+        const savedPagos = localStorage.getItem('cgem_pagos_tesoreria');
+        if (savedPagos) {
+          const parsedPagos = JSON.parse(savedPagos);
+          if (Array.isArray(parsedPagos)) {
+            const cleanPagos = parsedPagos.filter(p => p.codigo_afiliado !== 'CGM-2026-383' && p.id !== 'pago-CGM-2026-383' && p.id !== 'pago-805e5642-ba25-459d-bbf2-7676c513bd75');
+            localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(cleanPagos));
+          }
+        }
+      } catch (payEx) {}
 
     } catch (err) {
       console.warn('Supabase connection note:', err);

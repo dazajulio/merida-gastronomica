@@ -125,7 +125,7 @@ export const generateReceiptNumber = (existingPayments = []) => {
 // Obtener pagos desde Supabase o localStorage con auto-sincronización de registros reales
 export async function fetchLivePayments() {
   try {
-    let baseList = [...INITIAL_PAYMENTS];
+    let baseList = [...INITIAL_PAYMENTS].filter(p => p.codigo_afiliado !== 'CGM-2026-383');
 
     // 1. Intentar cargar desde Supabase directorio_agremiados & pagos_tesoreria
     if (supabase) {
@@ -136,8 +136,9 @@ export async function fetchLivePayments() {
           .order('fecha_pago', { ascending: false });
 
         if (!pagosErr && Array.isArray(pagosData) && pagosData.length > 0) {
-          localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(pagosData));
-          return pagosData;
+          const cleanPagos = pagosData.filter(p => p.codigo_afiliado !== 'CGM-2026-383');
+          localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(cleanPagos));
+          return cleanPagos;
         }
 
         const { data: dirData, error: dirErr } = await supabase
@@ -146,7 +147,8 @@ export async function fetchLivePayments() {
           .order('created_at', { ascending: false });
 
         if (!dirErr && Array.isArray(dirData) && dirData.length > 0) {
-          const mapped = dirData.map((m, idx) => parsePaymentFromMember(m, idx + 1));
+          const cleanDir = dirData.filter(m => m.codigo_afiliado !== 'CGM-2026-383');
+          const mapped = cleanDir.map((m, idx) => parsePaymentFromMember(m, idx + 1));
           localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(mapped));
           return mapped;
         }
@@ -160,13 +162,14 @@ export async function fetchLivePayments() {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        const cleanSaved = parsed.filter(p => p.codigo_afiliado !== 'CGM-2026-383');
+        return cleanSaved;
       }
     }
 
     return baseList;
   } catch (e) {
-    return INITIAL_PAYMENTS;
+    return INITIAL_PAYMENTS.filter(p => p.codigo_afiliado !== 'CGM-2026-383');
   }
 }
 
