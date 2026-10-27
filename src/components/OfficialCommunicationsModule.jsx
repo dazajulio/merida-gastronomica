@@ -42,7 +42,9 @@ import {
   Smartphone,
   Monitor,
   Printer,
-  RotateCcw
+  RotateCcw,
+  Undo,
+  Redo
 } from 'lucide-react';
 import { BOARD_MEMBERS_DATA } from '../data/boardData';
 import { sendOfficialCommunication, getOfficialCommunicationTemplate } from '../lib/emailService';
@@ -172,6 +174,7 @@ export function OfficialCommunicationsModule({ currentUser, directoryMembers = [
   // Rich Text Editor State
   const editorRef = useRef(null);
   const [editorHtml, setEditorHtml] = useState(QUICK_TEMPLATES[0].content);
+  const lastHtmlRef = useRef(QUICK_TEMPLATES[0].content);
 
   // Sending State & Modals
   const [isSending, setIsSending] = useState(false);
@@ -345,15 +348,40 @@ export function OfficialCommunicationsModule({ currentUser, directoryMembers = [
 
   // Update contentEditable when editorHtml changes programmatically
   useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== editorHtml) {
-      editorRef.current.innerHTML = editorHtml;
+    if (activeTab === 'editor' && editorRef.current) {
+      // Only set innerHTML if it's empty or changed from an external source (template, clear, clone)
+      if (editorHtml !== lastHtmlRef.current || !editorRef.current.innerHTML.trim()) {
+        editorRef.current.innerHTML = editorHtml;
+        lastHtmlRef.current = editorHtml;
+      }
     }
   }, [editorHtml, activeTab]);
 
-  // Synchronize contentEditable changes to state
+  // Synchronize contentEditable changes to state without resetting caret or breaking Ctrl+Z
   const handleEditorInput = () => {
     if (editorRef.current) {
-      setEditorHtml(editorRef.current.innerHTML);
+      const currentHtml = editorRef.current.innerHTML;
+      lastHtmlRef.current = currentHtml;
+      setEditorHtml(currentHtml);
+    }
+  };
+
+  // Keyboard shortcut handler for native Undo (Ctrl+Z) & Redo (Ctrl+Y / Ctrl+Shift+Z)
+  const handleKeyDown = (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      if (e.shiftKey) {
+        e.preventDefault();
+        document.execCommand('redo');
+        handleEditorInput();
+      } else {
+        e.preventDefault();
+        document.execCommand('undo');
+        handleEditorInput();
+      }
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+      e.preventDefault();
+      document.execCommand('redo');
+      handleEditorInput();
     }
   };
 
@@ -362,7 +390,9 @@ export function OfficialCommunicationsModule({ currentUser, directoryMembers = [
     if (editorRef.current) {
       editorRef.current.focus();
       document.execCommand(command, false, value);
-      setEditorHtml(editorRef.current.innerHTML);
+      const currentHtml = editorRef.current.innerHTML;
+      lastHtmlRef.current = currentHtml;
+      setEditorHtml(currentHtml);
     }
   };
 
@@ -370,9 +400,11 @@ export function OfficialCommunicationsModule({ currentUser, directoryMembers = [
   const insertHighlightBox = () => {
     if (editorRef.current) {
       editorRef.current.focus();
-      const highlightHtml = `<div class="info-box"><p style="margin: 0; font-weight: bold;">Punto Clave / Nota Institucional:</p><p style="margin: 4px 0 0 0;">Escribe aquí la información destacada del comunicado.</p></div><p></p>`;
+      const highlightHtml = `<div class="info-box"><p style="margin: 0; font-weight: bold;">Punto Clave / Nota Institucional:</p><p style="margin: 4px 0 0 0;">Escribe aquí la información destacada del comunicado.</p></div><p><br/></p>`;
       document.execCommand('insertHTML', false, highlightHtml);
-      setEditorHtml(editorRef.current.innerHTML);
+      const currentHtml = editorRef.current.innerHTML;
+      lastHtmlRef.current = currentHtml;
+      setEditorHtml(currentHtml);
     }
   };
 
@@ -381,7 +413,9 @@ export function OfficialCommunicationsModule({ currentUser, directoryMembers = [
     if (editorRef.current) {
       editorRef.current.focus();
       document.execCommand('insertHorizontalRule', false, null);
-      setEditorHtml(editorRef.current.innerHTML);
+      const currentHtml = editorRef.current.innerHTML;
+      lastHtmlRef.current = currentHtml;
+      setEditorHtml(currentHtml);
     }
   };
 
@@ -401,7 +435,9 @@ export function OfficialCommunicationsModule({ currentUser, directoryMembers = [
 
     document.execCommand('insertHTML', false, paragraphs || text);
     if (editorRef.current) {
-      setEditorHtml(editorRef.current.innerHTML);
+      const currentHtml = editorRef.current.innerHTML;
+      lastHtmlRef.current = currentHtml;
+      setEditorHtml(currentHtml);
     }
   };
 
@@ -411,6 +447,7 @@ export function OfficialCommunicationsModule({ currentUser, directoryMembers = [
       setCategory(tpl.category);
       setSubject(tpl.subject);
       setSignaturesMode(tpl.signaturesMode || 'both');
+      lastHtmlRef.current = tpl.content;
       setEditorHtml(tpl.content);
       if (editorRef.current) {
         editorRef.current.innerHTML = tpl.content;
@@ -421,9 +458,11 @@ export function OfficialCommunicationsModule({ currentUser, directoryMembers = [
   // Reset editor
   const handleClearEditor = () => {
     if (window.confirm('¿Seguro que deseas vaciar el contenido del comunicado?')) {
-      setEditorHtml('<p>Escribe o pega aquí el contenido oficial del comunicado...</p>');
+      const defaultContent = '<p>Escribe o pega aquí el contenido oficial del comunicado...</p>';
+      lastHtmlRef.current = defaultContent;
+      setEditorHtml(defaultContent);
       if (editorRef.current) {
-        editorRef.current.innerHTML = '<p>Escribe o pega aquí el contenido oficial del comunicado...</p>';
+        editorRef.current.innerHTML = defaultContent;
       }
     }
   };
@@ -1276,6 +1315,27 @@ export function OfficialCommunicationsModule({ currentUser, directoryMembers = [
             {/* FORMATTING TOOLBAR */}
             <div className="bg-slate-100/80 p-2 rounded-2xl border border-slate-200 flex flex-wrap items-center gap-1">
               
+              {/* Deshacer / Rehacer (Historial & Ctrl+Z) */}
+              <button
+                type="button"
+                onClick={() => executeFormat('undo')}
+                className="p-2 rounded-xl text-slate-700 hover:text-slate-950 hover:bg-white transition-all"
+                title="Deshacer última acción (Ctrl+Z)"
+              >
+                <Undo className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => executeFormat('redo')}
+                className="p-2 rounded-xl text-slate-700 hover:text-slate-950 hover:bg-white transition-all"
+                title="Rehacer acción (Ctrl+Y / Ctrl+Shift+Z)"
+              >
+                <Redo className="w-4 h-4" />
+              </button>
+
+              <div className="w-px h-5 bg-slate-300 mx-1"></div>
+
               {/* Text Styles */}
               <button
                 type="button"
@@ -1416,10 +1476,11 @@ export function OfficialCommunicationsModule({ currentUser, directoryMembers = [
               <div
                 ref={editorRef}
                 contentEditable
+                suppressContentEditableWarning
                 onInput={handleEditorInput}
+                onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
                 className="prose prose-slate max-w-none focus:outline-none min-h-[320px] font-sans text-slate-800 leading-relaxed [&_h2]:text-slate-900 [&_h2]:font-bold [&_h2]:border-b [&_h2]:border-amber-200 [&_h2]:pb-2 [&_h2]:mt-4 [&_h3]:text-slate-900 [&_h3]:font-bold [&_h3]:mt-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_.info-box]:bg-[#fdf8f6] [&_.info-box]:border-l-4 [&_.info-box]:border-[#b45309] [&_.info-box]:p-3.5 [&_.info-box]:rounded-md [&_.info-box]:my-4"
-                dangerouslySetInnerHTML={{ __html: editorHtml }}
               />
             </div>
 
@@ -1825,6 +1886,7 @@ export function OfficialCommunicationsModule({ currentUser, directoryMembers = [
                                   setSubject(`[SEGUIMIENTO] ${item.subject}`);
                                   setCategory(item.category || 'CIRCULAR INFORMATIVA');
                                   if (item.bodyHtml) {
+                                    lastHtmlRef.current = item.bodyHtml;
                                     setEditorHtml(item.bodyHtml);
                                     if (editorRef.current) editorRef.current.innerHTML = item.bodyHtml;
                                   }
@@ -1891,6 +1953,7 @@ export function OfficialCommunicationsModule({ currentUser, directoryMembers = [
                     setSubject(selectedSentItem.subject);
                     setCategory(selectedSentItem.category || 'COMUNICADO OFICIAL');
                     if (selectedSentItem.bodyHtml) {
+                      lastHtmlRef.current = selectedSentItem.bodyHtml;
                       setEditorHtml(selectedSentItem.bodyHtml);
                       if (editorRef.current) editorRef.current.innerHTML = selectedSentItem.bodyHtml;
                     }
