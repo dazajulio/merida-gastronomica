@@ -17,6 +17,20 @@ export function parsePaymentFromMember(member, index = 1) {
   const telMatch = obs.match(/Tel\.\s*Pagador:\s*([^\s.]+)/i);
   const telefonoPagador = telMatch ? telMatch[1] : (member.telefono || '');
 
+  // Detectar si ingresó formalmente por Convenio / Alianza Estratégica con pago inicial $0
+  const isConvenio = !!(
+    member.is_alianza_estrategica || 
+    member.modalidad_ingreso === 'convenio' || 
+    member.modalidad_ingreso === 'exoneracion' || 
+    member.monto_inscripcion === 0 ||
+    member.monto_inscripcion === 0.00 ||
+    member.monto_inscripcion === '0' ||
+    member.monto_inscripcion === '0.00' ||
+    obs.toLowerCase().includes('alianza') ||
+    obs.toLowerCase().includes('convenio') ||
+    obs.toLowerCase().includes('intercambio')
+  );
+
   // Extraer monto Bs exacto reportado en el comprobante
   const bsMatch = obs.match(/Monto\s*Bs:\s*([0-9.,]+)/i);
   let montoBs = 0;
@@ -25,28 +39,41 @@ export function parsePaymentFromMember(member, index = 1) {
     montoBs = parseFloat(rawBs) || 0;
   }
 
-  const totalUsd = parseFloat(member.monto_inscripcion) || (member.categoria_negocio?.toLowerCase().includes('emprend') || member.categoria_negocio?.toLowerCase().includes('creador') ? 20.00 : 30.00);
-  
-  // Desglose oficial:
-  // Si paga $30 -> $20 Inscripción + $10 Cuota Primer Mes
-  // Si paga $20 -> $10 Inscripción + $10 Cuota Primer Mes
-  const cuotaMesUsd = 10.00;
-  const inscripcionUsd = totalUsd > 20.00 ? 20.00 : 10.00;
+  let totalUsd = 0;
+  let cuotaMesUsd = parseFloat(member.monto_cuota_mensual);
+  if (isNaN(cuotaMesUsd) || cuotaMesUsd <= 0) cuotaMesUsd = 10.00;
+  let inscripcionUsd = 0;
 
-  // Si montoBs no vino en observaciones, calculamos con tasa estimada de la fecha
-  if (montoBs === 0) {
-    if (member.codigo_afiliado === 'CGM-2026-001') {
-      montoBs = 26141.07;
-    } else {
-      montoBs = totalUsd === 30 ? 26241.96 : 17494.64;
+  if (isConvenio) {
+    totalUsd = 0.00;
+    inscripcionUsd = 0.00;
+    montoBs = 0.00;
+  } else {
+    const parsedInscripcion = parseFloat(member.monto_inscripcion);
+    totalUsd = !isNaN(parsedInscripcion) && parsedInscripcion > 0 
+      ? parsedInscripcion 
+      : (member.categoria_negocio?.toLowerCase().includes('emprend') || member.categoria_negocio?.toLowerCase().includes('creador') ? 20.00 : 30.00);
+    inscripcionUsd = totalUsd > 20.00 ? 20.00 : 10.00;
+
+    // Si montoBs no vino en observaciones, calculamos con tasa estimada de la fecha
+    if (montoBs === 0) {
+      if (member.codigo_afiliado === 'CGM-2026-001') {
+        montoBs = 26141.07;
+      } else {
+        montoBs = totalUsd === 30 ? 26241.96 : 17494.64;
+      }
     }
   }
 
   // Tasa BCV fijada al día del pago
-  const tasaBcvFijada = totalUsd > 0 ? (montoBs / totalUsd).toFixed(2) : '874.73';
+  const tasaBcvFijada = (totalUsd > 0 && montoBs > 0) ? (montoBs / totalUsd).toFixed(2) : '874.73';
 
   const isSolvent = (member.estado_solvencia || '').toLowerCase().includes('solvente');
   const padIndex = String(index).padStart(4, '0');
+
+  const fechaPrimerPago = member.fecha_primer_pago || (member.fecha_registro ? member.fecha_registro.split('T')[0] : new Date().toISOString().split('T')[0]);
+  const diaPagoMensual = parseInt(member.dia_pago_mensual, 10) || 5;
+  const fechaInicioCobro = member.fecha_inicio_cobro || 'Noviembre 2026';
 
   return {
     id: `pago-${member.id || member.codigo_afiliado}`,
@@ -57,23 +84,27 @@ export function parsePaymentFromMember(member, index = 1) {
     rif_cedula: member.rif_cedula || '',
     telefono: member.telefono || '',
     email: member.email || '',
-    concepto: 'Inscripción + 1er Mes de Membresía',
-    periodo_mes: 'Octubre 2026',
+    modalidad_ingreso: isConvenio ? 'convenio' : (member.modalidad_ingreso || 'pago_ordinario'),
+    concepto: isConvenio ? 'Ingreso por Convenio / Alianza Estratégica ($0 Inicial)' : 'Inscripción + 1er Mes de Membresía',
+    periodo_mes: member.primer_mes_cobro || 'Octubre 2026',
     monto_inscripcion_usd: inscripcionUsd,
     monto_cuota_mes_usd: cuotaMesUsd,
     monto_usd: totalUsd,
     monto_bs: montoBs,
     tasa_bcv: parseFloat(tasaBcvFijada) || 874.73,
-    metodo_pago: bancoEmisor.toLowerCase().includes('provincial') ? 'pago_movil' : 'transferencia_nacional',
-    banco_emisor: bancoEmisor,
+    metodo_pago: isConvenio ? 'convenio_institucional' : (bancoEmisor.toLowerCase().includes('provincial') ? 'pago_movil' : 'transferencia_nacional'),
+    banco_emisor: isConvenio ? 'Convenio Institucional / Alianza' : bancoEmisor,
     banco_receptor: 'Banco Provincial (0108)',
-    referencia: referencia,
+    referencia: isConvenio ? (member.referencia || 'CONVENIO-ALIANZA') : referencia,
     telefono_pagador: telefonoPagador,
     estado: isSolvent ? 'conciliado' : 'pendiente',
-    fecha_pago: member.fecha_registro || member.created_at || new Date().toISOString(),
+    fecha_pago: member.fecha_primer_pago || member.fecha_registro || member.created_at || new Date().toISOString(),
+    fecha_primer_pago: fechaPrimerPago,
+    dia_pago_mensual: diaPagoMensual,
+    fecha_inicio_cobro: fechaInicioCobro,
     fecha_conciliacion: isSolvent ? (member.updated_at || member.fecha_registro || new Date().toISOString()) : null,
     conciliado_por: isSolvent ? 'Edixon Xavier Reyes Dávila (Tesorero)' : null,
-    observaciones: member.observaciones || 'Registro Web Público'
+    observaciones: member.observaciones || (isConvenio ? 'Afiliación por Convenio / Alianza Estratégica (Inscripción $0)' : 'Registro Web Público')
   };
 }
 
@@ -212,19 +243,20 @@ export async function submitPaymentRecord(paymentData) {
   return newRecord;
 }
 
-// Conciliar un pago (Aprobación del Tesorero)
-export async function reconcilePaymentRecord(paymentId, conciliatorName = 'Edixon Xavier Reyes Dávila (Tesorero)') {
+// Conciliar un pago (Aprobación del Tesorero o Presidente)
+export async function reconcilePaymentRecord(paymentId, conciliatorName = 'Edixon Xavier Reyes Dávila (Tesorero)', extraDetails = {}) {
   const updateData = {
     estado: 'conciliado',
     fecha_conciliacion: new Date().toISOString(),
-    conciliado_por: conciliatorName
+    conciliado_por: conciliatorName,
+    ...extraDetails
   };
 
   try {
     const saved = localStorage.getItem('cgem_pagos_tesoreria');
     if (saved) {
       const list = JSON.parse(saved);
-      const updated = list.map(p => p.id === paymentId ? { ...p, ...updateData } : p);
+      const updated = list.map(p => (p.id === paymentId || p.codigo_afiliado === paymentId) ? { ...p, ...updateData } : p);
       localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(updated));
     }
   } catch (e) {}
@@ -234,9 +266,37 @@ export async function reconcilePaymentRecord(paymentId, conciliatorName = 'Edixo
       await supabase
         .from('pagos_tesoreria')
         .update(updateData)
-        .eq('id', paymentId);
+        .or(`id.eq.${paymentId},codigo_afiliado.eq.${paymentId}`);
     } catch (err) {
       console.warn('Supabase update payment notice:', err);
+    }
+  }
+}
+
+// Actualizar detalles de facturación y cobro mensual de un pago o agremiado
+export async function updatePaymentBillingDetails(paymentIdOrCode, details = {}) {
+  const updateData = {
+    ...details,
+    updated_at: new Date().toISOString()
+  };
+
+  try {
+    const saved = localStorage.getItem('cgem_pagos_tesoreria');
+    if (saved) {
+      const list = JSON.parse(saved);
+      const updated = list.map(p => (p.id === paymentIdOrCode || p.codigo_afiliado === paymentIdOrCode) ? { ...p, ...updateData } : p);
+      localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(updated));
+    }
+  } catch (e) {}
+
+  if (supabase) {
+    try {
+      await supabase
+        .from('pagos_tesoreria')
+        .update(updateData)
+        .or(`id.eq.${paymentIdOrCode},codigo_afiliado.eq.${paymentIdOrCode}`);
+    } catch (err) {
+      console.warn('Supabase update payment billing details notice:', err);
     }
   }
 }

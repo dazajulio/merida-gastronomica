@@ -73,7 +73,8 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   ArrowLeft,
-  LayoutDashboard
+  LayoutDashboard,
+  Receipt
 } from 'lucide-react';
 import { BOARD_MEMBERS_DATA, INITIAL_BOARD_AGENDA_DATA } from '../data/boardData';
 import { LEGAL_DATA } from '../data/legalData';
@@ -81,6 +82,7 @@ import { INITIAL_DIRECTORY_DATA } from '../data/initialDirectoryData';
 import { TreasuryManagementModule } from './TreasuryManagementModule';
 import { OfficialCommunicationsModule } from './OfficialCommunicationsModule';
 import { sendBoardAttendanceEmail, sendAffiliateWelcomeEmail } from '../lib/emailService';
+import { reconcilePaymentRecord, updatePaymentBillingDetails } from '../lib/treasurySync';
 import { supabase } from '../lib/supabaseClient';
 import { optimizeImage, formatBytes } from '../lib/imageOptimizer';
 import { 
@@ -460,6 +462,15 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const canAccessDirectory = currentUser?.isAdminLevel || isPresident || isExecutiveDirector || isTesorero;
   const canAccessTreasury = currentUser?.isAdminLevel || isPresident || isExecutiveDirector || isTesorero;
   const canAccessOfficialCommunications = isPresident || isExecutiveDirector;
+  const canEditBillingSchedule = isPresident || isTesorero || currentUser?.isAdminLevel;
+
+  // Sincronización en tiempo real de Tesorería & Pagos
+  const [treasurySyncKey, setTreasurySyncKey] = useState(0);
+  useEffect(() => {
+    const handleTreasuryUpdate = () => setTreasurySyncKey(k => k + 1);
+    window.addEventListener('cgm_treasury_updated', handleTreasuryUpdate);
+    return () => window.removeEventListener('cgm_treasury_updated', handleTreasuryUpdate);
+  }, []);
 
   // Legal Resources State (Synchronized with localStorage)
   const [legalCategories, setLegalCategories] = useState(() => {
@@ -2213,6 +2224,10 @@ export function BoardAdminPortal({ t, onNavigate }) {
       monto_inscripcion: 30,
       monto_cuota_mensual: 10,
       is_alianza_estrategica: false,
+      modalidad_ingreso: 'pago_ordinario',
+      fecha_primer_pago: new Date().toISOString().split('T')[0],
+      dia_pago_mensual: 5,
+      fecha_inicio_cobro: 'Noviembre 2026',
       observaciones: '',
       enviar_correo_bienvenida: true
     });
@@ -2241,10 +2256,14 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
     const isAlianza = !!(
       member.is_alianza_estrategica || 
+      member.modalidad_ingreso === 'convenio' ||
       (member.observaciones && member.observaciones.toLowerCase().includes('alianza')) ||
       (member.observaciones && member.observaciones.toLowerCase().includes('intercambio')) ||
       (parseFloat(member.monto_inscripcion) === 0)
     );
+
+    const initialDate = member.fecha_primer_pago || (member.fecha_registro ? member.fecha_registro.split('T')[0] : new Date().toISOString().split('T')[0]);
+    let initialDay = parseInt(member.dia_pago_mensual, 10) || 5;
 
     setMemberFormData({
       codigo_afiliado: member.codigo_afiliado || '',
@@ -2267,10 +2286,77 @@ export function BoardAdminPortal({ t, onNavigate }) {
       monto_inscripcion: member.monto_inscripcion ?? (isAlianza ? 0 : 30),
       monto_cuota_mensual: member.monto_cuota_mensual ?? 10,
       is_alianza_estrategica: isAlianza,
+      modalidad_ingreso: isAlianza ? 'convenio' : (member.modalidad_ingreso || 'pago_ordinario'),
+      fecha_primer_pago: initialDate,
+      dia_pago_mensual: initialDay,
+      fecha_inicio_cobro: member.fecha_inicio_cobro || 'Noviembre 2026',
       observaciones: member.observaciones || '',
       enviar_correo_bienvenida: false
     });
     setIsMemberModalOpen(true);
+  };
+
+  // Historial de Pagos del Agremiado (Cargados en tiempo real desde Tesorería)
+  const memberPayments = React.useMemo(() => {
+    if (!editingMember && !isMemberModalOpen) return [];
+    const targetCode = memberFormData.codigo_afiliado || editingMember?.codigo_afiliado;
+    const targetEmail = memberFormData.email || editingMember?.email;
+    try {
+      const saved = localStorage.getItem('cgem_pagos_tesoreria');
+      const allPagos = saved ? JSON.parse(saved) : [];
+      const filtered = allPagos.filter(p => 
+        (targetCode && p.codigo_afiliado === targetCode) ||
+        (targetEmail && p.email && p.email.toLowerCase() === targetEmail.toLowerCase()) ||
+        (editingMember && p.id && (p.id === `pago-${editingMember.id}` || p.id === `pago-${editingMember.codigo_afiliado}`))
+      );
+      if (filtered.length > 0) return filtered;
+
+      // Registro simulado inicial si aún no existe en tesorería
+      const isConv = memberFormData.modalidad_ingreso === 'convenio' || memberFormData.is_alianza_estrategica || parseFloat(memberFormData.monto_inscripcion) === 0;
+      return [{
+        id: `pago-${targetCode || 'temp'}`,
+        numero_recibo: `REC-2026-${targetCode?.replace(/\D/g, '').slice(-3).padStart(4, '0') || '0018'}`,
+        codigo_afiliado: targetCode,
+        nombre_establecimiento: memberFormData.nombre_establecimiento || editingMember?.nombre_establecimiento,
+        concepto: isConv ? 'Ingreso por Convenio / Alianza Estratégica ($0 Inicial)' : 'Inscripción + 1er Mes de Membresía',
+        monto_usd: isConv ? 0 : (parseFloat(memberFormData.monto_inscripcion) || 30),
+        monto_bs: 0,
+        referencia: isConv ? 'CONVENIO-ALIANZA' : (memberFormData.rif_cedula || 'REGISTRO-WEB'),
+        banco_emisor: isConv ? 'Convenio Institucional' : 'Banco Provincial',
+        estado: (memberFormData.estado_solvencia || '').includes('Solvente') ? 'conciliado' : 'pendiente',
+        fecha_pago: memberFormData.fecha_primer_pago || new Date().toISOString(),
+        modalidad_ingreso: isConv ? 'convenio' : 'pago_ordinario',
+        dia_pago_mensual: memberFormData.dia_pago_mensual || 5,
+        fecha_inicio_cobro: memberFormData.fecha_inicio_cobro || 'Noviembre 2026'
+      }];
+    } catch (e) {
+      return [];
+    }
+  }, [editingMember, isMemberModalOpen, memberFormData.codigo_afiliado, memberFormData.email, memberFormData.modalidad_ingreso, memberFormData.monto_inscripcion, memberFormData.is_alianza_estrategica, treasurySyncKey]);
+
+  // Validación rápida de un pago directamente desde la ficha del agremiado
+  const handleQuickValidateMemberPayment = async (payment) => {
+    try {
+      const conciliator = currentUser?.name ? `${currentUser.name} (${isPresident ? 'Presidente' : 'Tesorero'})` : 'Edixon Xavier Reyes Dávila (Tesorero)';
+      await reconcilePaymentRecord(payment.id, conciliator, {
+        fecha_primer_pago: memberFormData.fecha_primer_pago,
+        dia_pago_mensual: memberFormData.dia_pago_mensual,
+        fecha_inicio_cobro: memberFormData.fecha_inicio_cobro,
+        modalidad_ingreso: memberFormData.modalidad_ingreso
+      });
+
+      setMemberFormData(prev => ({
+        ...prev,
+        estado_solvencia: 'Solvente (Activo)'
+      }));
+
+      setTreasurySyncKey(k => k + 1);
+      window.dispatchEvent(new CustomEvent('cgm_treasury_updated'));
+      setActionSuccessMessage(`✓ ¡Pago validado y conciliado con éxito para ${payment.nombre_establecimiento || memberFormData.nombre_establecimiento}!`);
+      setTimeout(() => setActionSuccessMessage(''), 5000);
+    } catch (err) {
+      console.warn('Error validando pago:', err);
+    }
   };
 
   const handleSaveMember = async (e) => {
@@ -2280,10 +2366,14 @@ export function BoardAdminPortal({ t, onNavigate }) {
     const code = memberFormData.codigo_afiliado.trim() || `CGM-2026-${String(directoryMembers.length + 1).padStart(3, '0')}`;
     const lat = Number(parseFloat(memberFormData.latitud).toFixed(6)) || 8.5956;
     const lng = Number(parseFloat(memberFormData.longitud).toFixed(6)) || -71.1437;
-    const isAlianza = memberFormData.is_alianza_estrategica === true;
+    const isAlianza = memberFormData.modalidad_ingreso === 'convenio' || memberFormData.is_alianza_estrategica === true;
+    const finalModalidad = isAlianza ? 'convenio' : (memberFormData.modalidad_ingreso || 'pago_ordinario');
+    const finalFechaPrimerPago = memberFormData.fecha_primer_pago || (editingMember?.fecha_primer_pago || new Date().toISOString().split('T')[0]);
+    const finalDiaPago = parseInt(memberFormData.dia_pago_mensual, 10) || 5;
+    const finalFechaInicioCobro = memberFormData.fecha_inicio_cobro || 'Noviembre 2026';
     const finalObservaciones = (memberFormData.observaciones || '').trim() || (isAlianza ? 'Afiliación por Alianza Estratégica / Intercambio Institucional (Sede/Locación para eventos de la Cámara).' : '');
     const finalInscripcion = isAlianza ? 0 : (parseFloat(memberFormData.monto_inscripcion) || 0);
-    const finalCuota = parseFloat(memberFormData.monto_cuota_mensual) || 0;
+    const finalCuota = parseFloat(memberFormData.monto_cuota_mensual) || 10;
     const finalSolvencia = isAlianza ? 'Solvente (Activo)' : (memberFormData.estado_solvencia || 'Solvente (Activo)');
 
     // 1. Clean payload adhering STRICTLY to public.directorio_agremiados Postgres schema
@@ -2318,7 +2408,11 @@ export function BoardAdminPortal({ t, onNavigate }) {
       latitude: lat,
       longitude: lng,
       coordinates: { lat, lng },
-      is_alianza_estrategica: isAlianza
+      is_alianza_estrategica: isAlianza,
+      modalidad_ingreso: finalModalidad,
+      fecha_primer_pago: finalFechaPrimerPago,
+      dia_pago_mensual: finalDiaPago,
+      fecha_inicio_cobro: finalFechaInicioCobro
     };
 
     // Save coordinates to localStorage for instant map recalibration
@@ -2440,6 +2534,37 @@ export function BoardAdminPortal({ t, onNavigate }) {
       }
 
       setActionSuccessMessage(`Nuevo agremiado "${memberFormData.nombre_establecimiento}" incorporado al Directorio Oficial con código ${code}${emailNotice}.`);
+    }
+
+    // Sincronizar comprobante contable en Tesorería (evitando balances falsos por convenios)
+    try {
+      const paymentRecord = {
+        id: `pago-${code}`,
+        codigo_afiliado: code,
+        nombre_establecimiento: memberFormData.nombre_establecimiento.trim(),
+        representante_legal: memberFormData.representante_legal.trim(),
+        rif_cedula: memberFormData.rif_cedula?.trim() || '',
+        telefono: memberFormData.telefono.trim(),
+        email: memberFormData.email.trim(),
+        modalidad_ingreso: finalModalidad,
+        concepto: isAlianza ? 'Ingreso por Convenio / Alianza Estratégica ($0 Inicial)' : 'Inscripción + 1er Mes de Membresía',
+        monto_inscripcion_usd: isAlianza ? 0 : (finalInscripcion > 20 ? 20 : 10),
+        monto_cuota_mes_usd: isAlianza ? 0 : finalCuota,
+        monto_usd: finalInscripcion,
+        monto_bs: 0,
+        estado: isAlianza ? 'conciliado' : (finalSolvencia.includes('Solvente') ? 'conciliado' : 'pendiente'),
+        fecha_pago: finalFechaPrimerPago,
+        fecha_primer_pago: finalFechaPrimerPago,
+        dia_pago_mensual: finalDiaPago,
+        fecha_inicio_cobro: finalFechaInicioCobro,
+        conciliado_por: isAlianza ? (currentUser?.name ? `${currentUser.name} (Directiva)` : 'Presidencia / Tesorería') : null,
+        observaciones: finalObservaciones
+      };
+      await updatePaymentBillingDetails(code, paymentRecord);
+      setTreasurySyncKey(k => k + 1);
+      window.dispatchEvent(new CustomEvent('cgm_treasury_updated'));
+    } catch (payErr) {
+      console.warn('Error syncing treasury payment on save:', payErr);
     }
 
     setIsMemberModalOpen(false);
@@ -5389,7 +5514,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
           ========================================================================= */}
       {isMemberModalOpen && canAccessDirectory && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto">
             
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -5810,6 +5935,333 @@ export function BoardAdminPortal({ t, onNavigate }) {
                 <span className="text-[11px] text-slate-500 font-mono">
                   {memberFormData.email ? `Destino: ${memberFormData.email}` : '(Requiere correo válido)'}
                 </span>
+              </div>
+
+              {/* =========================================================================
+                  GESTIÓN DE FORMA DE INGRESO, CALENDARIO FORMAL & HISTORIAL DE PAGOS
+                  ========================================================================= */}
+              <div className="pt-4 border-t border-slate-200/80 space-y-4">
+                
+                {/* Header de Sección Financiera */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      <Receipt className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-serif font-black text-sm text-slate-900 uppercase tracking-wider">
+                        Modalidad de Ingreso, Historial de Pagos & Cobro Mensual
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Auditoría contable transparente, gestión de convenios ($0 inicial) y fijación de fecha de cobro recurrente.
+                      </p>
+                    </div>
+                  </div>
+                  {canEditBillingSchedule ? (
+                    <span className="self-start sm:self-auto px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      AUTORIZADO (PRESIDENCIA / TESORERÍA)
+                    </span>
+                  ) : (
+                    <span className="self-start sm:self-auto px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1">
+                      <Lock className="w-3 h-3" /> Solo Presidencia / Tesorería
+                    </span>
+                  )}
+                </div>
+
+                {/* 1. Selector de Modalidad de Ingreso */}
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-50 to-emerald-50/40 border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                      Modalidad Contable de Incorporación *
+                    </label>
+                    <span className="text-[10px] text-slate-500">
+                      Afecta directamente la contabilidad y los balances de Tesorería
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {/* Modalidad 1: Pago Ordinario */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const defaultInscripcion = memberFormData.categoria_negocio?.toLowerCase().includes('emprend') ? 20 : 30;
+                        setMemberFormData(prev => ({
+                          ...prev,
+                          modalidad_ingreso: 'pago_ordinario',
+                          is_alianza_estrategica: false,
+                          monto_inscripcion: defaultInscripcion,
+                          monto_cuota_mensual: prev.monto_cuota_mensual || 10
+                        }));
+                      }}
+                      className={`p-3 rounded-2xl border text-left transition-all relative ${
+                        memberFormData.modalidad_ingreso === 'pago_ordinario' && !memberFormData.is_alianza_estrategica
+                          ? 'bg-white border-emerald-600 ring-2 ring-emerald-500/20 shadow-sm'
+                          : 'bg-white/80 border-slate-200 hover:bg-white text-slate-600'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5">
+                          <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
+                          Pago Ordinario
+                        </span>
+                        {memberFormData.modalidad_ingreso === 'pago_ordinario' && !memberFormData.is_alianza_estrategica && (
+                          <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-500 leading-tight">
+                        Inscripción comercial estándar (${memberFormData.categoria_negocio?.toLowerCase().includes('emprend') ? '20' : '30'} USD) + 1er mes.
+                      </p>
+                    </button>
+
+                    {/* Modalidad 2: Convenio / Alianza Estratégica ($0 Inicial) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMemberFormData(prev => ({
+                          ...prev,
+                          modalidad_ingreso: 'convenio',
+                          is_alianza_estrategica: true,
+                          monto_inscripcion: 0,
+                          monto_cuota_mensual: prev.monto_cuota_mensual || 10,
+                          estado_solvencia: 'Solvente (Activo)',
+                          observaciones: prev.observaciones || 'Afiliación por Convenio / Alianza Estratégica: Locación para eventos gremiales de la Cámara sin costo a cambio de la membresía formal.'
+                        }));
+                      }}
+                      className={`p-3 rounded-2xl border text-left transition-all relative ${
+                        memberFormData.modalidad_ingreso === 'convenio' || memberFormData.is_alianza_estrategica
+                          ? 'bg-emerald-50/90 border-emerald-600 ring-2 ring-emerald-500/20 shadow-sm text-emerald-950'
+                          : 'bg-white/80 border-slate-200 hover:bg-white text-slate-600'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-extrabold text-xs text-emerald-900 flex items-center gap-1.5">
+                          <Landmark className="w-3.5 h-3.5 text-emerald-700" />
+                          Convenio / Alianza ($0)
+                        </span>
+                        {(memberFormData.modalidad_ingreso === 'convenio' || memberFormData.is_alianza_estrategica) && (
+                          <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-emerald-800 leading-tight font-medium">
+                        Pago inicial de $0.00 por canje institucional o sede para eventos de la Cámara.
+                      </p>
+                    </button>
+
+                    {/* Modalidad 3: Exoneración Institucional */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMemberFormData(prev => ({
+                          ...prev,
+                          modalidad_ingreso: 'exoneracion',
+                          is_alianza_estrategica: true,
+                          monto_inscripcion: 0,
+                          monto_cuota_mensual: 0,
+                          estado_solvencia: 'Solvente (Activo)',
+                          observaciones: prev.observaciones || 'Exoneración total extraordinaria autorizada por la Junta Directiva.'
+                        }));
+                      }}
+                      className={`p-3 rounded-2xl border text-left transition-all relative ${
+                        memberFormData.modalidad_ingreso === 'exoneracion'
+                          ? 'bg-amber-50/90 border-amber-600 ring-2 ring-amber-500/20 shadow-sm text-amber-950'
+                          : 'bg-white/80 border-slate-200 hover:bg-white text-slate-600'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-extrabold text-xs text-amber-900 flex items-center gap-1.5">
+                          <Award className="w-3.5 h-3.5 text-amber-700" />
+                          Exoneración Total
+                        </span>
+                        {memberFormData.modalidad_ingreso === 'exoneracion' && (
+                          <span className="w-2 h-2 rounded-full bg-amber-600"></span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-amber-800 leading-tight font-medium">
+                        Beca de honor o caso especial decretado por la Presidencia.
+                      </p>
+                    </button>
+                  </div>
+
+                  {/* Alerta de regla contable: Convenio $0 NO exime de pagos mensuales futuros */}
+                  {(memberFormData.modalidad_ingreso === 'convenio' || memberFormData.is_alianza_estrategica) && (
+                    <div className="p-3.5 rounded-xl bg-amber-50/90 border border-amber-300 flex items-start gap-3 text-amber-950 animate-fadeIn">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="text-[11px] leading-relaxed space-y-1">
+                        <p className="font-extrabold text-amber-900">
+                          Régimen Contable y Flujo de Cobro Mensual (Alianzas Estratégicas):
+                        </p>
+                        <p className="text-amber-800">
+                          El pago inicial de <strong>$0.00 USD</strong> aplica únicamente a la cuota de registro / mes 1, garantizando que la Tesorería <strong>no registre ingresos falsos o ficticios</strong>.
+                        </p>
+                        <p className="font-bold text-emerald-800">
+                          ✓ El agremiado <strong>NO queda eximido de sus mensualidades posteriores</strong>: entrará formalmente al flujo de facturación mensual a partir de <strong>{memberFormData.fecha_inicio_cobro || 'el mes siguiente'}</strong> con su cuota fijada de <strong>${memberFormData.monto_cuota_mensual || 10}.00 USD/mes</strong>.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Calendario Formal de Cobro & Fechas (Modificable por Presidente y Tesorero) */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <CalendarDays className="w-4 h-4 text-emerald-600" />
+                      Asignación del Calendario Formal de Cobro
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      (Concordancia fecha de ingreso vs primer cobro)
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Fecha de Primer Pago */}
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Fecha Primer Pago / Entrada *
+                      </label>
+                      <input
+                        type="date"
+                        disabled={!canEditBillingSchedule}
+                        value={memberFormData.fecha_primer_pago || ''}
+                        onChange={(e) => setMemberFormData({ ...memberFormData, fecha_primer_pago: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-mono focus:outline-none focus:border-emerald-500 disabled:opacity-75 disabled:bg-slate-100"
+                      />
+                      <span className="text-[9px] text-slate-400 block mt-0.5">Día calendario en que formalizó</span>
+                    </div>
+
+                    {/* Día Formal de Pago Mensual */}
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Día Formal de Pago Mensual *
+                      </label>
+                      <select
+                        disabled={!canEditBillingSchedule}
+                        value={memberFormData.dia_pago_mensual || 5}
+                        onChange={(e) => setMemberFormData({ ...memberFormData, dia_pago_mensual: parseInt(e.target.value, 10) })}
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-bold focus:outline-none focus:border-emerald-500 disabled:opacity-75 disabled:bg-slate-100"
+                      >
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                          <option key={d} value={d}>
+                            Día {d} de cada mes
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-[9px] text-slate-400 block mt-0.5">Día recurrente de cobro mensual</span>
+                    </div>
+
+                    {/* Mes de Inicio de Cobro Mensual */}
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Mes de Inicio de Cobro Ordinario *
+                      </label>
+                      <input
+                        type="text"
+                        disabled={!canEditBillingSchedule}
+                        value={memberFormData.fecha_inicio_cobro || ''}
+                        onChange={(e) => setMemberFormData({ ...memberFormData, fecha_inicio_cobro: e.target.value })}
+                        placeholder="ej: Noviembre 2026"
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs font-medium focus:outline-none focus:border-emerald-500 disabled:opacity-75 disabled:bg-slate-100"
+                      />
+                      <span className="text-[9px] text-slate-400 block mt-0.5">Mes donde arranca cuota recurrente</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Historial de Pagos Realizados por este Agremiado */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <Receipt className="w-3.5 h-3.5 text-slate-700" />
+                      Comprobantes Registrados en Tesorería ({memberPayments.length})
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      Sincronizado con base de datos de tesorería
+                    </span>
+                  </div>
+
+                  <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+                    {memberPayments.length === 0 ? (
+                      <div className="p-4 text-center text-slate-500 text-xs bg-slate-50">
+                        No hay pagos previos registrados. Al guardar se generará el recibo contable correspondiente.
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-slate-50 text-[10px] font-extrabold text-slate-500 uppercase border-b border-slate-200">
+                            <tr>
+                              <th className="py-2.5 px-3">Recibo</th>
+                              <th className="py-2.5 px-3">Fecha</th>
+                              <th className="py-2.5 px-3">Concepto</th>
+                              <th className="py-2.5 px-3">Monto USD</th>
+                              <th className="py-2.5 px-3">Referencia / Banco</th>
+                              <th className="py-2.5 px-3 text-center">Estatus</th>
+                              {canEditBillingSchedule && <th className="py-2.5 px-3 text-right">Acción</th>}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 font-sans">
+                            {memberPayments.map((p, idx) => {
+                              const isConvPay = p.modalidad_ingreso === 'convenio' || parseFloat(p.monto_usd) === 0;
+                              const isVal = (p.estado || '').toLowerCase() === 'conciliado';
+                              return (
+                                <tr key={p.id || idx} className="hover:bg-slate-50/70 transition-colors">
+                                  <td className="py-2.5 px-3 font-mono font-bold text-slate-800 text-[11px]">
+                                    {p.numero_recibo || `REC-2026-${String(idx + 1).padStart(4, '0')}`}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-slate-600 text-[11px]">
+                                    {p.fecha_pago ? p.fecha_pago.split('T')[0] : 'Hoy'}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-slate-700 text-[11px] max-w-[200px] truncate" title={p.concepto}>
+                                    {p.concepto}
+                                  </td>
+                                  <td className="py-2.5 px-3 font-extrabold">
+                                    {isConvPay ? (
+                                      <span className="text-emerald-700">$0.00 (Convenio)</span>
+                                    ) : (
+                                      <span className="text-slate-900">${parseFloat(p.monto_usd || 0).toFixed(2)} USD</span>
+                                    )}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-slate-600 text-[10px]">
+                                    <span className="font-mono font-semibold">{p.referencia || 'S/R'}</span>
+                                    {p.banco_emisor && <span className="block text-slate-400 text-[9px]">{p.banco_emisor}</span>}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-center">
+                                    {isConvPay ? (
+                                      <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                        Convenio ($0)
+                                      </span>
+                                    ) : isVal ? (
+                                      <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-teal-100 text-teal-800 border border-teal-300">
+                                        ✓ Validado
+                                      </span>
+                                    ) : (
+                                      <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
+                                        Por Validar
+                                      </span>
+                                    )}
+                                  </td>
+                                  {canEditBillingSchedule && (
+                                    <td className="py-2.5 px-3 text-right">
+                                      {!isVal && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleQuickValidateMemberPayment(p)}
+                                          className="py-1 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-sm transition-all active:scale-95"
+                                        >
+                                          ✓ Validar
+                                        </button>
+                                      )}
+                                    </td>
+                                  )}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
               </div>
 
               <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">

@@ -33,7 +33,8 @@ import {
   Mail,
   Send,
   Sparkles,
-  ArrowUpRight
+  ArrowUpRight,
+  Lock
 } from 'lucide-react';
 import { 
   fetchLivePayments, 
@@ -65,6 +66,18 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
   const [toastMessage, setToastMessage] = useState(null);
   const [isSendingReceiptEmail, setIsSendingReceiptEmail] = useState(false);
 
+  // Roles & Permisos Financieros
+  const isPresident = currentUser?.id === 'dir-presidente' || 
+    currentUser?.email?.toLowerCase() === 'dazajulio@gmail.com' || 
+    (currentUser?.role && currentUser?.role.toLowerCase().includes('presidente') && !currentUser?.role.toLowerCase().includes('vicepresidente'));
+
+  const isTesorero = currentUser?.id === 'dir-tesorero' || 
+    currentUser?.isTesorero ||
+    currentUser?.email?.toLowerCase() === 'edreyesda@gmail.com' || 
+    (currentUser?.role && currentUser?.role.toLowerCase().includes('tesorero'));
+
+  const canEditBillingSchedule = isPresident || isTesorero || currentUser?.isAdminLevel;
+
   // Modals
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -72,6 +85,15 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectingPayment, setRejectingPayment] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [isReconcileModalOpen, setIsReconcileModalOpen] = useState(false);
+  const [reconcilingPayment, setReconcilingPayment] = useState(null);
+  const [reconciliationTerms, setReconciliationTerms] = useState({
+    fecha_primer_pago: '',
+    dia_pago_mensual: 5,
+    fecha_inicio_cobro: 'Noviembre 2026',
+    modalidad_ingreso: 'pago_ordinario',
+    monto_usd: 30
+  });
 
   // Form Data: Manual Payment
   const [manualFormData, setManualFormData] = useState({
@@ -167,11 +189,21 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
   }, [reconciledPayments]);
 
   const reconciledInscripcionUSD = useMemo(() => {
-    return reconciledPayments.reduce((sum, p) => sum + (parseFloat(p.monto_inscripcion_usd) || (p.monto_usd > 20 ? 20 : 10)), 0);
+    return reconciledPayments.reduce((sum, p) => {
+      const isConvenio = p.modalidad_ingreso === 'convenio' || parseFloat(p.monto_usd) === 0;
+      if (isConvenio) return sum;
+      const val = parseFloat(p.monto_inscripcion_usd);
+      return sum + (!isNaN(val) ? val : (p.monto_usd > 20 ? 20 : 10));
+    }, 0);
   }, [reconciledPayments]);
 
   const reconciledCuotaUSD = useMemo(() => {
-    return reconciledPayments.reduce((sum, p) => sum + (parseFloat(p.monto_cuota_mes_usd) || 10), 0);
+    return reconciledPayments.reduce((sum, p) => {
+      const isConvenio = p.modalidad_ingreso === 'convenio' || parseFloat(p.monto_usd) === 0;
+      if (isConvenio) return sum;
+      const val = parseFloat(p.monto_cuota_mes_usd);
+      return sum + (!isNaN(val) ? val : 10);
+    }, 0);
   }, [reconciledPayments]);
 
   // Por Conciliar
@@ -184,11 +216,21 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
   }, [pendingPayments]);
 
   const pendingInscripcionUSD = useMemo(() => {
-    return pendingPayments.reduce((sum, p) => sum + (parseFloat(p.monto_inscripcion_usd) || (p.monto_usd > 20 ? 20 : 10)), 0);
+    return pendingPayments.reduce((sum, p) => {
+      const isConvenio = p.modalidad_ingreso === 'convenio' || parseFloat(p.monto_usd) === 0;
+      if (isConvenio) return sum;
+      const val = parseFloat(p.monto_inscripcion_usd);
+      return sum + (!isNaN(val) ? val : (p.monto_usd > 20 ? 20 : 10));
+    }, 0);
   }, [pendingPayments]);
 
   const pendingCuotaUSD = useMemo(() => {
-    return pendingPayments.reduce((sum, p) => sum + (parseFloat(p.monto_cuota_mes_usd) || 10), 0);
+    return pendingPayments.reduce((sum, p) => {
+      const isConvenio = p.modalidad_ingreso === 'convenio' || parseFloat(p.monto_usd) === 0;
+      if (isConvenio) return sum;
+      const val = parseFloat(p.monto_cuota_mes_usd);
+      return sum + (!isNaN(val) ? val : 10);
+    }, 0);
   }, [pendingPayments]);
 
   // Total Global (Cartera)
@@ -341,6 +383,117 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
       // Automatically dispatch email receipt
       handleSendReceiptDirectly(payment);
       showToast(`✓ Pago conciliado y registrado como Solvente: ${payment.nombre_establecimiento}`);
+    } catch (err) {
+      alert('Error al conciliar pago: ' + err.message);
+    }
+  };
+
+  // Open Reconcile Modal (Prompt President / Treasurer for billing terms)
+  const handleOpenReconcileModal = (payment) => {
+    const isConvenio = payment.modalidad_ingreso === 'convenio' || parseFloat(payment.monto_usd) === 0;
+    const initialDate = payment.fecha_primer_pago || (payment.fecha_pago ? payment.fecha_pago.split('T')[0] : new Date().toISOString().split('T')[0]);
+    let initialDay = payment.dia_pago_mensual || 5;
+    try {
+      const d = new Date(initialDate);
+      if (!payment.dia_pago_mensual && !isNaN(d.getDate())) initialDay = d.getDate();
+    } catch (e) {}
+
+    setReconcilingPayment(payment);
+    setReconciliationTerms({
+      fecha_primer_pago: initialDate,
+      dia_pago_mensual: initialDay,
+      fecha_inicio_cobro: payment.fecha_inicio_cobro || 'Noviembre 2026',
+      modalidad_ingreso: isConvenio ? 'convenio' : (payment.modalidad_ingreso || 'pago_ordinario'),
+      monto_usd: isConvenio ? 0 : (parseFloat(payment.monto_usd) || 30)
+    });
+    setIsReconcileModalOpen(true);
+  };
+
+  const handleConfirmReconcile = async () => {
+    if (!reconcilingPayment) return;
+    const payment = reconcilingPayment;
+    const isConvenio = reconciliationTerms.modalidad_ingreso === 'convenio';
+    const finalAmountUsd = isConvenio ? 0 : (parseFloat(reconciliationTerms.monto_usd) || 0);
+    const finalInscripcionUsd = isConvenio ? 0 : (finalAmountUsd > 20 ? 20 : 10);
+    const finalCuotaUsd = isConvenio ? 0 : 10;
+    const finalBs = isConvenio ? 0 : payment.monto_bs;
+
+    try {
+      const conciliator = currentUser?.name ? `${currentUser.name} (${isPresident ? 'Presidente' : 'Tesorero'})` : 'Edixon Xavier Reyes Dávila (Tesorero)';
+      const updatePayload = {
+        estado: 'conciliado',
+        fecha_conciliacion: new Date().toISOString(),
+        conciliado_por: conciliator,
+        modalidad_ingreso: reconciliationTerms.modalidad_ingreso,
+        fecha_primer_pago: reconciliationTerms.fecha_primer_pago,
+        dia_pago_mensual: reconciliationTerms.dia_pago_mensual,
+        fecha_inicio_cobro: reconciliationTerms.fecha_inicio_cobro,
+        monto_usd: finalAmountUsd,
+        monto_inscripcion_usd: finalInscripcionUsd,
+        monto_cuota_mes_usd: finalCuotaUsd,
+        monto_bs: finalBs,
+        concepto: isConvenio ? 'Ingreso por Convenio / Alianza Estratégica ($0 Inicial)' : payment.concepto
+      };
+
+      await reconcilePaymentRecord(payment.id, conciliator, updatePayload);
+
+      // Update state
+      setPayments(prev => prev.map(p => p.id === payment.id ? {
+        ...p,
+        ...updatePayload
+      } : p));
+
+      // Update member in directory to 'Solvente (Activo)' & assign billing calendar
+      if (payment.codigo_afiliado || payment.email) {
+        try {
+          const localSaved = localStorage.getItem('cgem_directorio_agremiados');
+          if (localSaved) {
+            const list = JSON.parse(localSaved);
+            const updated = list.map(m => {
+              if (
+                (payment.codigo_afiliado && m.codigo_afiliado === payment.codigo_afiliado) ||
+                (payment.email && m.email && m.email.toLowerCase() === payment.email.toLowerCase())
+              ) {
+                return {
+                  ...m,
+                  estado_solvencia: 'Solvente (Activo)',
+                  fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                  is_alianza_estrategica: isConvenio,
+                  modalidad_ingreso: reconciliationTerms.modalidad_ingreso,
+                  monto_inscripcion: finalInscripcionUsd,
+                  fecha_primer_pago: reconciliationTerms.fecha_primer_pago,
+                  dia_pago_mensual: reconciliationTerms.dia_pago_mensual,
+                  fecha_inicio_cobro: reconciliationTerms.fecha_inicio_cobro
+                };
+              }
+              return m;
+            });
+            localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updated));
+            if (onDirectoryUpdate) onDirectoryUpdate(updated);
+          }
+
+          if (supabase) {
+            await supabase
+              .from('directorio_agremiados')
+              .update({
+                estado_solvencia: 'Solvente (Activo)',
+                monto_inscripcion: finalInscripcionUsd,
+                fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+              })
+              .or(`codigo_afiliado.eq.${payment.codigo_afiliado},email.eq.${payment.email}`);
+          }
+        } catch (e) {
+          console.warn('Error updating member status:', e);
+        }
+      }
+
+      // Automatically dispatch email receipt with updated payment object
+      handleSendReceiptDirectly({ ...payment, ...updatePayload });
+      setIsReconcileModalOpen(false);
+      setReconcilingPayment(null);
+      showToast(`✓ Pago conciliado y registrado como Solvente: ${payment.nombre_establecimiento}`);
+      window.dispatchEvent(new CustomEvent('cgm_treasury_updated'));
+      window.dispatchEvent(new CustomEvent('cgm_business_updated'));
     } catch (err) {
       alert('Error al conciliar pago: ' + err.message);
     }
@@ -877,9 +1030,9 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                               {/* 1. Botón Conciliar */}
                               {isPending && (
                                 <button
-                                  onClick={() => handleApprovePayment(p)}
+                                  onClick={() => handleOpenReconcileModal(p)}
                                   className="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-sm transition-all active:scale-98"
-                                  title="Aprobar pago y actualizar solvencia a 'Solvente (Activo)'"
+                                  title="Aprobar pago y asignar fechas formales de cobro mensual"
                                 >
                                   <Check className="w-3.5 h-3.5" />
                                   <span>Conciliar</span>
@@ -1618,6 +1771,168 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                 className="py-2 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm"
               >
                 Confirmar Rechazo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL 5: CONCILIAR & ASIGNAR FECHAS DE PAGO / COBRO MENSUAL
+          ========================================================================= */}
+      {isReconcileModalOpen && reconcilingPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 relative">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 uppercase tracking-wider">
+                  Conciliación & Concordancia Contable
+                </span>
+                <h3 className="font-serif font-black text-lg text-slate-900 mt-1">
+                  Validar Pago & Fijar Calendario
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Establecimiento: <strong>{reconcilingPayment.nombre_establecimiento}</strong> ({reconcilingPayment.codigo_afiliado})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsReconcileModalOpen(false)}
+                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Selector de Modalidad: Regular vs Convenio $0 */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                Modalidad de Afiliación / Ingreso
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReconciliationTerms(prev => ({
+                    ...prev,
+                    modalidad_ingreso: 'pago_ordinario',
+                    monto_usd: reconcilingPayment.monto_usd > 0 ? reconcilingPayment.monto_usd : 30
+                  }))}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all text-left ${
+                    reconciliationTerms.modalidad_ingreso === 'pago_ordinario'
+                      ? 'bg-white border-emerald-600 text-emerald-800 shadow-sm'
+                      : 'bg-slate-100/70 border-slate-200 text-slate-600 hover:bg-white'
+                  }`}
+                >
+                  <p className="font-black">Pago Ordinario</p>
+                  <p className="text-[10px] opacity-75">Inscripción regular (${reconcilingPayment.monto_usd || 30})</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setReconciliationTerms(prev => ({
+                    ...prev,
+                    modalidad_ingreso: 'convenio',
+                    monto_usd: 0
+                  }))}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all text-left ${
+                    reconciliationTerms.modalidad_ingreso === 'convenio'
+                      ? 'bg-emerald-50 border-emerald-600 text-emerald-900 shadow-sm'
+                      : 'bg-slate-100/70 border-slate-200 text-slate-600 hover:bg-white'
+                  }`}
+                >
+                  <p className="font-black text-emerald-800">Convenio / Alianza</p>
+                  <p className="text-[10px] text-emerald-700">Pago inicial $0.00 (Sin ingreso falso)</p>
+                </button>
+              </div>
+
+              {reconciliationTerms.modalidad_ingreso === 'convenio' && (
+                <div className="p-2.5 rounded-xl bg-amber-50/90 border border-amber-200 text-[11px] text-amber-900">
+                  <p className="font-bold">⚡ Convenio Institucional ($0.00)</p>
+                  <p className="text-[10px] text-amber-800 mt-0.5">
+                    Este registro registrará $0.00 en tesorería para evitar balances ficticios. No exime de mensualidades posteriores: entrará al cobro mensual de $10 USD a partir del mes de inicio seleccionado.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Asignación de Calendario de Cobro Formal */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                  Fechas de Cobro & Concordancia
+                </span>
+                {!canEditBillingSchedule && (
+                  <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                    <Lock className="w-3 h-3" /> Solo Presidencia / Tesorería
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                    Fecha Primer Pago *
+                  </label>
+                  <input
+                    type="date"
+                    disabled={!canEditBillingSchedule}
+                    value={reconciliationTerms.fecha_primer_pago}
+                    onChange={(e) => setReconciliationTerms(prev => ({ ...prev, fecha_primer_pago: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-mono text-slate-800 focus:outline-none focus:border-emerald-600 disabled:opacity-70"
+                  />
+                  <span className="text-[9px] text-slate-400">Día real de pago</span>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                    Día Formal Mensual *
+                  </label>
+                  <select
+                    disabled={!canEditBillingSchedule}
+                    value={reconciliationTerms.dia_pago_mensual}
+                    onChange={(e) => setReconciliationTerms(prev => ({ ...prev, dia_pago_mensual: parseInt(e.target.value, 10) }))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-600 disabled:opacity-70"
+                  >
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                      <option key={d} value={d}>Día {d} de cada mes</option>
+                    ))}
+                  </select>
+                  <span className="text-[9px] text-slate-400">Corte recurrente</span>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                    Mes Inicio de Cobro *
+                  </label>
+                  <input
+                    type="text"
+                    disabled={!canEditBillingSchedule}
+                    value={reconciliationTerms.fecha_inicio_cobro}
+                    onChange={(e) => setReconciliationTerms(prev => ({ ...prev, fecha_inicio_cobro: e.target.value }))}
+                    placeholder="ej: Noviembre 2026"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-600 disabled:opacity-70"
+                  />
+                  <span className="text-[9px] text-slate-400">Inicio cuota $10</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsReconcileModalOpen(false)}
+                className="py-2.5 px-4 rounded-xl text-slate-600 hover:bg-slate-100 font-bold text-xs"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReconcile}
+                className="py-2.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-md active:scale-98"
+              >
+                <Check className="w-4 h-4" />
+                <span>Confirmar y Conciliar</span>
               </button>
             </div>
           </div>
