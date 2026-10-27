@@ -74,9 +74,10 @@ import {
   ArrowDownLeft,
   ArrowLeft,
   LayoutDashboard,
-  Receipt
+  Receipt,
+  RotateCcw
 } from 'lucide-react';
-import { BOARD_MEMBERS_DATA, INITIAL_BOARD_AGENDA_DATA } from '../data/boardData';
+import { BOARD_MEMBERS_DATA, INITIAL_BOARD_AGENDA_DATA, INITIAL_BOARD_COMPLETED_DATA } from '../data/boardData';
 import { LEGAL_DATA } from '../data/legalData';
 import { INITIAL_DIRECTORY_DATA } from '../data/initialDirectoryData';
 import { TreasuryManagementModule } from './TreasuryManagementModule';
@@ -401,7 +402,12 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const [agendaEvents, setAgendaEvents] = useState(() => {
     try {
       const saved = localStorage.getItem('cgem_board_agenda_v2');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(ev => ev && ev.status !== 'cumplido');
+        }
+      }
     } catch (e) {}
     return INITIAL_BOARD_AGENDA_DATA;
   });
@@ -645,7 +651,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       const saved = localStorage.getItem('cgem_completed_board_events');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
           return parsed.filter(ev => {
             const time = ev.completedAt ? new Date(ev.completedAt).getTime() : new Date(ev.date).getTime();
@@ -654,7 +660,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
         }
       }
     } catch (e) {}
-    return [];
+    return INITIAL_BOARD_COMPLETED_DATA || [];
   });
 
   // Auto-clean and persist completed events
@@ -961,8 +967,28 @@ export function BoardAdminPortal({ t, onNavigate }) {
     setPasswordInput('');
   };
 
+  // Conjunto de IDs cumplidos/archivados para aislamiento y seguridad absoluta
+  const completedIdsSet = useMemo(() => {
+    const s = new Set();
+    completedBoardEvents.forEach(ev => {
+      const cId = String(ev.id || '').replace(/^board_(agenda|completed)::/, '');
+      if (cId) s.add(cId);
+    });
+    return s;
+  }, [completedBoardEvents]);
+
+  // Lista de actividades activas: EXCLUYE rigurosamente cualquier evento con status 'cumplido' o registrado en el histórico
+  const activeAgendaEvents = useMemo(() => {
+    return agendaEvents.filter(ev => {
+      if (!ev) return false;
+      if (ev.status === 'cumplido') return false;
+      const cleanId = String(ev.id || '').replace(/^board_(agenda|completed)::/, '');
+      return !completedIdsSet.has(cleanId);
+    });
+  }, [agendaEvents, completedIdsSet]);
+
   // Filter events based on selections
-  const filteredEvents = agendaEvents.filter(event => {
+  const filteredEvents = activeAgendaEvents.filter(event => {
     const eventYear = parseInt(event.date.split('-')[0], 10);
     const eventMonth = parseInt(event.date.split('-')[1], 10);
 
@@ -2005,17 +2031,101 @@ export function BoardAdminPortal({ t, onNavigate }) {
   // =========================================================================
   const handleMarkEventCompleted = async (event) => {
     if (!currentUser?.isAdminLevel) return;
-    if (window.confirm(`¿Marcar la actividad "${event.title}" como EVENTO CUMPLIDO?\n\nEsta actividad se archivará formalmente en el Reporte de Gestión de los últimos 3 meses con el registro de sus asistentes confirmados.`)) {
+    if (window.confirm(`¿Marcar la actividad "${event.title}" como EVENTO CUMPLIDO?\n\nEsta actividad se retirará de inmediato de la programación activa y se archivará formalmente en el Registro de Eventos Cumplidos con su lista de asistentes.`)) {
+      const cleanId = String(event.id).replace(/^board_(agenda|completed)::/, '');
       const completedItem = {
         ...event,
+        id: cleanId,
         status: 'cumplido',
         completedAt: new Date().toISOString()
       };
-      setCompletedBoardEvents(prev => [completedItem, ...prev]);
-      setAgendaEvents(prev => prev.filter(ev => ev.id !== event.id));
+
+      // 1. Desalojar inmediatamente de la agenda activa y añadir a completados (en memoria React)
+      setAgendaEvents(prev => prev.filter(ev => String(ev.id).replace(/^board_(agenda|completed)::/, '') !== cleanId));
+      setCompletedBoardEvents(prev => [completedItem, ...prev.filter(ev => String(ev.id).replace(/^board_(agenda|completed)::/, '') !== cleanId)]);
+
+      // 2. Persistir de forma síncrona en localStorage para blindar contra re-sincronizaciones en segundo plano
+      try {
+        const savedAgenda = localStorage.getItem('cgem_board_agenda_v2');
+        if (savedAgenda) {
+          const parsed = JSON.parse(savedAgenda);
+          const filtered = parsed.filter(ev => String(ev.id).replace(/^board_(agenda|completed)::/, '') !== cleanId);
+          localStorage.setItem('cgem_board_agenda_v2', JSON.stringify(filtered));
+        }
+        const savedCompleted = localStorage.getItem('cgem_completed_board_events');
+        const parsedComp = savedCompleted ? JSON.parse(savedCompleted) : [];
+        const filteredComp = [completedItem, ...parsedComp.filter(ev => String(ev.id).replace(/^board_(agenda|completed)::/, '') !== cleanId)];
+        localStorage.setItem('cgem_completed_board_events', JSON.stringify(filteredComp));
+      } catch (e) {}
+
+      // 3. Sincronizar en Supabase Cloud
       await markBoardEventCompletedInSupabase(completedItem);
-      setActionSuccessMessage(`Actividad "${event.title}" marcada como CUMPLIDA y sincronizada en el Reporte Histórico para toda la Junta Directiva.`);
-      setTimeout(() => setActionSuccessMessage(''), 4000);
+
+      setActionSuccessMessage(`Actividad "${event.title}" marcada como CUMPLIDA y trasladada al Registro de Eventos Cumplidos.`);
+      setTimeout(() => setActionSuccessMessage(''), 4500);
+    }
+  };
+
+  const handleReactivateCompletedEvent = async (event) => {
+    if (!currentUser?.isAdminLevel) return;
+    if (window.confirm(`¿Reactivar la actividad "${event.title}" y devolverla a la Agenda Cronológica activa?`)) {
+      const cleanId = String(event.id).replace(/^board_(agenda|completed)::/, '');
+      const reactivatedItem = {
+        ...event,
+        id: cleanId,
+        status: 'confirmado',
+        completedAt: null
+      };
+
+      setCompletedBoardEvents(prev => prev.filter(ev => String(ev.id).replace(/^board_(agenda|completed)::/, '') !== cleanId));
+      setAgendaEvents(prev => [reactivatedItem, ...prev.filter(ev => String(ev.id).replace(/^board_(agenda|completed)::/, '') !== cleanId)]);
+
+      try {
+        const savedAgenda = localStorage.getItem('cgem_board_agenda_v2');
+        const parsedAgenda = savedAgenda ? JSON.parse(savedAgenda) : [];
+        const updatedAgenda = [reactivatedItem, ...parsedAgenda.filter(ev => String(ev.id).replace(/^board_(agenda|completed)::/, '') !== cleanId)];
+        localStorage.setItem('cgem_board_agenda_v2', JSON.stringify(updatedAgenda));
+
+        const savedCompleted = localStorage.getItem('cgem_completed_board_events');
+        if (savedCompleted) {
+          const parsed = JSON.parse(savedCompleted);
+          const filtered = parsed.filter(ev => String(ev.id).replace(/^board_(agenda|completed)::/, '') !== cleanId);
+          localStorage.setItem('cgem_completed_board_events', JSON.stringify(filtered));
+        }
+      } catch (e) {}
+
+      await saveBoardAgendaEventToSupabase(reactivatedItem);
+      if (supabase) {
+        await supabase.from('eventos_oficiales').delete().in('id', [`board_completed::${cleanId}`, cleanId]);
+      }
+
+      setActionSuccessMessage(`Actividad "${event.title}" devuelta a la Agenda Cronológica activa.`);
+      setTimeout(() => setActionSuccessMessage(''), 4500);
+    }
+  };
+
+  const handleDeleteCompletedEvent = async (eventId) => {
+    if (!currentUser?.isAdminLevel) return;
+    if (window.confirm('¿Eliminar permanentemente este registro del histórico de eventos cumplidos?')) {
+      const cleanId = String(eventId).replace(/^board_(agenda|completed)::/, '');
+      setCompletedBoardEvents(prev => prev.filter(ev => String(ev.id).replace(/^board_(agenda|completed)::/, '') !== cleanId));
+      try {
+        const saved = localStorage.getItem('cgem_completed_board_events');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const filtered = parsed.filter(ev => String(ev.id).replace(/^board_(agenda|completed)::/, '') !== cleanId);
+          localStorage.setItem('cgem_completed_board_events', JSON.stringify(filtered));
+        }
+      } catch (e) {}
+
+      if (supabase) {
+        try {
+          await supabase.from('eventos_oficiales').delete().in('id', [`board_completed::${cleanId}`, cleanId]);
+        } catch (e) {}
+      }
+
+      setActionSuccessMessage('Registro eliminado permanentemente del histórico.');
+      setTimeout(() => setActionSuccessMessage(''), 3000);
     }
   };
 
@@ -2863,7 +2973,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
           id: 'timeline',
           label: 'Agenda Cronológica',
           icon: Clock,
-          badge: agendaEvents.length,
+          badge: activeAgendaEvents.length,
           visible: true,
         },
         {
@@ -3432,7 +3542,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
                   const currDays = [];
                   for (let d = 1; d <= daysInMonth; d++) {
                     const dateKey = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                    const hasEvent = agendaEvents.some(ev => ev.date === dateKey) ||
+                    const hasEvent = activeAgendaEvents.some(ev => ev.date === dateKey) ||
                                      officialEvents.some(ev => ev.date === dateKey || ev.fecha === dateKey);
                     currDays.push({ day: d, isCurrent: true, dateKey, hasEvent });
                   }
@@ -3448,7 +3558,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
                   const selectedDateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(selectedCalendarDay).padStart(2, '0')}`;
                   const eventsForSelectedDay = [
-                    ...agendaEvents.filter(ev => ev.date === selectedDateStr),
+                    ...activeAgendaEvents.filter(ev => ev.date === selectedDateStr),
                     ...officialEvents.filter(ev => ev.date === selectedDateStr || ev.fecha === selectedDateStr)
                   ];
 
@@ -4615,6 +4725,28 @@ export function BoardAdminPortal({ t, onNavigate }) {
                           </div>
                         )}
                       </div>
+
+                      {currentUser?.isAdminLevel && (
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleReactivateCompletedEvent(event)}
+                            className="py-1.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition-colors text-xs font-bold font-sans flex items-center gap-1.5 shadow-2xs active:scale-98"
+                            title="Reactivar y devolver a la Agenda Cronológica activa"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+                            <span>Reactivar a Programación</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteCompletedEvent(event.id)}
+                            className="py-1.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors text-xs font-bold font-sans flex items-center gap-1.5 shadow-2xs active:scale-98"
+                            title="Eliminar permanentemente del histórico"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Eliminar del Registro</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

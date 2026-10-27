@@ -158,7 +158,172 @@ export const BOARD_MEMBERS_DATA = [
 ];
 
 // Agenda Oficial y Cronograma Ejecutivo de la Junta Directiva (2026 - 2027)
+// Solo actividades activas y próximas por ejecutar
 export const INITIAL_BOARD_AGENDA_DATA = [
+  {
+    id: "agenda-005",
+    title: "Taller: Comida Navideña No Tradicional",
+    type: "capacitacion",
+    typeLabel: "Formación & Taller",
+    date: "2026-11-13",
+    timeStart: "09:00",
+    timeEnd: "15:00",
+    year: 2026,
+    month: 11,
+    location: "Tovar Umami, Tovar, Mérida",
+    isVirtual: false,
+    virtualLink: "",
+    organizer: "Chef Valentina Inglessis & Cámara Gastronómica",
+    description: "Taller culinario de alta cocina navideña de autor, técnicas de preservación y reinterpretación de sabores andinos. Asiste la Directiva en pleno.",
+    maxAttendees: 12,
+    status: "confirmado",
+    confirmedAttendees: [
+      {
+        memberId: "dir-presidente",
+        name: "Julio Alberto Daza Celis",
+        role: "Presidente",
+        confirmedAt: "2026-09-29T12:40:00Z"
+      },
+      {
+        memberId: "dir-ejecutivo",
+        name: "Mary Giovanna Vera",
+        role: "Director Ejecutivo",
+        confirmedAt: "2026-09-29T12:41:00Z"
+      },
+      {
+        memberId: "dir-vice-1",
+        name: "Maryuri Carolina Carmona Campos",
+        role: "Primera Vicepresidente",
+        confirmedAt: "2026-09-29T12:42:00Z"
+      },
+      {
+        memberId: "dir-vice-2",
+        name: "María Laura Molina Barillas",
+        role: "Segunda Vicepresidente",
+        confirmedAt: "2026-09-29T12:43:00Z"
+      },
+      {
+        memberId: "dir-operativo",
+        name: "Marisabel Prieto Pérez",
+        role: "Director Operativo",
+        confirmedAt: "2026-09-29T12:44:00Z"
+      },
+      {
+        memberId: "dir-tesorero",
+        name: "Edixon Xavier Reyes Dávila",
+        role: "Tesorero",
+        confirmedAt: "2026-09-29T12:45:00Z"
+      }
+    ]
+  },
+  {
+    id: "agenda-1793060265892",
+    title: "FAMTRIP BONAVITA SOY GOURMET",
+    type: "medios",
+    typeLabel: "Medios & Radio",
+    date: "2026-10-27",
+    timeStart: "09:00",
+    timeEnd: "15:00",
+    year: 2026,
+    month: 10,
+    location: "LA JOYA. EL VALLE",
+    isVirtual: false,
+    virtualLink: "",
+    organizer: "LA CABAÑA DEL ABUELO",
+    description: "AFILIACION AL GREMIO Y CONOCIMIENTO DEL DESTINO",
+    maxAttendees: 1,
+    status: "confirmado",
+    confirmedAttendees: [
+      {
+        memberId: "dir-presidente",
+        name: "Julio Alberto Daza Celis",
+        role: "Presidente",
+        confirmedAt: "2026-10-27T00:17:45.892Z"
+      }
+    ]
+  },
+  {
+    id: "agenda-1793065468130",
+    title: "RADIO. Todo Incluido 88.7 FM ",
+    type: "medios",
+    typeLabel: "Medios & Radio",
+    date: "2026-10-27",
+    timeStart: "09:00",
+    timeEnd: "10:00",
+    year: 2026,
+    month: 10,
+    location: "Plaza Bolivar",
+    isVirtual: false,
+    virtualLink: "",
+    organizer: "Frank Andrade",
+    description: "PARA INVITAR AL EVENTO DEL 30 EN VENETUR. ",
+    maxAttendees: 4,
+    status: "confirmado",
+    confirmedAttendees: [
+      {
+        memberId: "dir-presidente",
+        name: "Julio Alberto Daza Celis",
+        role: "Presidente",
+        confirmedAt: "2026-10-27T01:44:28.130Z"
+      }
+    ]
+  },
+  {
+    id: "agenda-1793060420415",
+    title: "PRE LANZAMIENTO MARCA MERIDA",
+    type: "institucional",
+    typeLabel: "Institucional & Gala",
+    date: "2026-10-29",
+    timeStart: "08:30",
+    timeEnd: "12:00",
+    year: 2026,
+    month: 10,
+    location: "GRUPO OPTIMUS",
+    isVirtual: false,
+    virtualLink: "",
+    organizer: "GRUPO OPTIMUS",
+    description: "EVENTO PRIVADO POR INVITACION. NOS ASIGNARON SOLO UN CUPO POR EL ESPACIO FISICO. ASISTE PRESIDENCIA",
+    maxAttendees: 1,
+    status: "confirmado",
+    confirmedAttendees: [
+      {
+        memberId: "dir-presidente",
+        name: "Julio Alberto Daza Celis",
+        role: "Presidente",
+        confirmedAt: "2026-10-27T00:20:20.415Z"
+      }
+    ]
+  },
+  {
+    id: "agenda-1793060058603",
+    title: "Encuentro Gastronómico y Empresarial: Evolución, Servicio y Tecnología 2026–2027",
+    type: "gremial",
+    typeLabel: "Encuentro Gremial & Turismo",
+    date: "2026-10-30",
+    timeStart: "13:00",
+    timeEnd: "18:00",
+    year: 2026,
+    month: 10,
+    location: "Salón Bella Vista, Hotel Venetur Mérida",
+    isVirtual: false,
+    virtualLink: "",
+    organizer: "Presidencia & Dirección Ejecutiva",
+    description: "Ejes centrales de la jornada\nConferencias orientadas al panorama 2026–2027, profundizando en:\nExcelencia operativa y transformación del servicio en sala y cocina.\nAdopción de herramientas tecnológicas.\nAnálisis de los nuevos hábitos del comensal y estrategias modernas de fidelización.\nCompetitividad, estándares de calidad y proyección regional.",
+    maxAttendees: 12,
+    status: "confirmado",
+    confirmedAttendees: [
+      {
+        memberId: "dir-presidente",
+        name: "Julio Alberto Daza Celis",
+        role: "Presidente",
+        confirmedAt: "2026-10-27T00:14:18.603Z"
+      }
+    ]
+  }
+];
+
+// Registro Histórico de Actividades y Eventos Cumplidos (Memoria de Gestión)
+export const INITIAL_BOARD_COMPLETED_DATA = [
   {
     id: "agenda-001",
     title: "Conversaciones Institucionales con el IUPTM",
@@ -175,7 +340,8 @@ export const INITIAL_BOARD_AGENDA_DATA = [
     organizer: "IUPTM & Cámara Gastronómica",
     description: "Reunión de vinculación estratégica y convenios formativos entre el Instituto Universitario Politécnico Territorial del Estado Mérida y la Cámara Gastronómica.",
     maxAttendees: 5,
-    status: "confirmado",
+    status: "cumplido",
+    completedAt: "2026-10-27T01:46:59.943Z",
     confirmedAttendees: [
       {
         memberId: "dir-presidente",
@@ -213,7 +379,8 @@ export const INITIAL_BOARD_AGENDA_DATA = [
     organizer: "Dirección de Medios CDR / Cámara Gastronómica",
     description: "Entrevista matutina en vivo sobre los avances gremiales, la Ruta del Café de Especialidad, el Sello de Calidad AAA y la agenda gastronómica del estado Mérida.",
     maxAttendees: 2,
-    status: "confirmado",
+    status: "cumplido",
+    completedAt: "2026-10-03T03:41:34.825Z",
     confirmedAttendees: [
       {
         memberId: "dir-presidente",
@@ -245,7 +412,8 @@ export const INITIAL_BOARD_AGENDA_DATA = [
     organizer: "Cámara de Turismo del Estado Mérida (CATUREM)",
     description: "Magno evento de articulación turística regional. Invitación formal de la Cámara de Turismo a todo el equipo directivo de la Cámara Gastronómica.",
     maxAttendees: 10,
-    status: "confirmado",
+    status: "cumplido",
+    completedAt: "2026-10-03T03:41:39.703Z",
     confirmedAttendees: [
       {
         memberId: "dir-presidente",
@@ -301,7 +469,8 @@ export const INITIAL_BOARD_AGENDA_DATA = [
     organizer: "Comité Organizador Premios MUCUTATUY",
     description: "Ceremonia solemne de entrega del Premio al Mérito Turístico y Gastronómico de trayectoria en el estado Mérida. Asiste el equipo directivo.",
     maxAttendees: 10,
-    status: "confirmado",
+    status: "cumplido",
+    completedAt: "2026-10-27T00:12:22.666Z",
     confirmedAttendees: [
       {
         memberId: "dir-presidente",
@@ -330,58 +499,29 @@ export const INITIAL_BOARD_AGENDA_DATA = [
     ]
   },
   {
-    id: "agenda-005",
-    title: "Taller: Comida Navideña No Tradicional",
-    type: "capacitacion",
-    typeLabel: "Formación & Taller",
-    date: "2026-11-13",
+    id: "agenda-1792807451224",
+    title: "Congreso Meme",
+    type: "medios",
+    typeLabel: "Medios & Radio",
+    date: "2026-10-24",
     timeStart: "09:00",
-    timeEnd: "15:00",
+    timeEnd: "12:00",
     year: 2026,
-    month: 11,
-    location: "Tovar Umami, Tovar, Mérida",
+    month: 10,
+    location: "Micumbarila",
     isVirtual: false,
     virtualLink: "",
-    organizer: "Chef Valentina Inglessis & Cámara Gastronómica",
-    description: "Taller culinario de alta cocina navideña de autor, técnicas de preservación y reinterpretación de sabores andinos. Asiste la Directiva en pleno.",
+    organizer: "Presidencia & Dirección Ejecutiva",
+    description: "Cobertura y participación en el Congreso Meme.",
     maxAttendees: 12,
-    status: "confirmado",
+    status: "cumplido",
+    completedAt: "2026-10-27T00:12:18.352Z",
     confirmedAttendees: [
-      {
-        memberId: "dir-presidente",
-        name: "Julio Alberto Daza Celis",
-        role: "Presidente",
-        confirmedAt: "2026-09-29T12:40:00Z"
-      },
       {
         memberId: "dir-ejecutivo",
         name: "Mary Giovanna Vera",
         role: "Director Ejecutivo",
-        confirmedAt: "2026-09-29T12:41:00Z"
-      },
-      {
-        memberId: "dir-vice-1",
-        name: "Maryuri Carolina Carmona Campos",
-        role: "Primera Vicepresidente",
-        confirmedAt: "2026-09-29T12:42:00Z"
-      },
-      {
-        memberId: "dir-vice-2",
-        name: "María Laura Molina Barillas",
-        role: "Segunda Vicepresidente",
-        confirmedAt: "2026-09-29T12:43:00Z"
-      },
-      {
-        memberId: "dir-operativo",
-        name: "Marisabel Prieto Pérez",
-        role: "Director Operativo",
-        confirmedAt: "2026-09-29T12:44:00Z"
-      },
-      {
-        memberId: "dir-tesorero",
-        name: "Edixon Xavier Reyes Dávila",
-        role: "Tesorero",
-        confirmedAt: "2026-09-29T12:45:00Z"
+        confirmedAt: "2026-10-24T02:04:11.224Z"
       }
     ]
   }

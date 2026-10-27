@@ -575,25 +575,59 @@ export async function fetchLiveBoardAgenda(initialAgendaData = []) {
 
   if (supabase) {
     try {
-      const [agendaRes, deletedIds] = await Promise.all([
+      const [agendaRes, completedRes, deletedIds] = await Promise.all([
         supabase
           .from('eventos_oficiales')
           .select('*')
           .eq('category', BOARD_AGENDA_CATEGORY)
           .order('date', { ascending: true }),
+        supabase
+          .from('eventos_oficiales')
+          .select('id, price_tiers')
+          .eq('category', BOARD_COMPLETED_CATEGORY),
         getDeletedBoardEventIds()
       ]);
 
+      // Construir conjunto exhaustivo de IDs que ya han sido cumplidos o eliminados
+      const completedOrDeletedIds = new Set(Array.from(deletedIds || []));
+      if (!completedRes.error && Array.isArray(completedRes.data)) {
+        completedRes.data.forEach(row => {
+          const cleanRowId = String(row.id || '').replace(/^board_(agenda|completed)::/, '');
+          if (cleanRowId) completedOrDeletedIds.add(cleanRowId);
+          if (Array.isArray(row.price_tiers) && row.price_tiers[0]?.id) {
+            completedOrDeletedIds.add(String(row.price_tiers[0].id).replace(/^board_(agenda|completed)::/, ''));
+          }
+        });
+      }
+
       if (!agendaRes.error && Array.isArray(agendaRes.data)) {
-        const cloudEvents = agendaRes.data
-          .map(parseBoardEventFromSupabase)
-          .filter(ev => !deletedIds.has(String(ev.id)));
+        const staleActiveRowIds = [];
+        const cloudEvents = [];
 
-        const cloudMap = new Map(cloudEvents.map(ev => [String(ev.id), ev]));
+        agendaRes.data.forEach(row => {
+          const parsed = parseBoardEventFromSupabase(row);
+          const cleanId = String(parsed.id || '').replace(/^board_(agenda|completed)::/, '');
+          
+          if (completedOrDeletedIds.has(cleanId) || parsed.status === 'cumplido') {
+            staleActiveRowIds.push(row.id);
+          } else {
+            cloudEvents.push(parsed);
+          }
+        });
 
-        // Si la nube aún no tenía actividades inicializadas y no han sido borradas, sembrar datos iniciales + locales
-        if (cloudEvents.length === 0 && deletedIds.size === 0) {
-          const seedSource = localEvents.length > 0 ? localEvents : initialAgendaData;
+        // Limpieza automática en segundo plano de cualquier residuo cumplido en la tabla activa
+        if (staleActiveRowIds.length > 0) {
+          supabase.from('eventos_oficiales').delete().in('id', staleActiveRowIds).then(() => {});
+        }
+
+        const cloudMap = new Map(
+          cloudEvents.map(ev => [String(ev.id).replace(/^board_(agenda|completed)::/, ''), ev])
+        );
+
+        // Si la nube aún no tenía actividades inicializadas y no han sido borradas ni cumplidas
+        if (cloudEvents.length === 0 && completedOrDeletedIds.size === 0) {
+          const seedSource = (localEvents.length > 0 ? localEvents : initialAgendaData)
+            .filter(ev => ev && ev.status !== 'cumplido' && !completedOrDeletedIds.has(String(ev.id)));
           if (seedSource.length > 0) {
             const payloads = seedSource.map(ev => formatBoardEventForSupabase(ev, BOARD_AGENDA_CATEGORY));
             await supabase.from('eventos_oficiales').upsert(payloads, { onConflict: 'id' });
@@ -604,19 +638,27 @@ export async function fetchLiveBoardAgenda(initialAgendaData = []) {
           }
         }
 
-        // Si el navegador actual (ej. Directora Ejecutiva o Presidente) tiene actividades creadas localmente
-        // que aún no estaban en Supabase y no fueron eliminadas, subirlas automáticamente a la nube
-        const unsyncedLocalEvents = localEvents.filter(
-          loc => loc && loc.id && !cloudMap.has(String(loc.id)) && !deletedIds.has(String(loc.id))
-        );
+        // Subir a la nube SOLO actividades locales auténticas NO cumplidas y NO eliminadas
+        const unsyncedLocalEvents = localEvents.filter(loc => {
+          if (!loc || !loc.id) return false;
+          if (loc.status === 'cumplido') return false;
+          const cleanLocId = String(loc.id).replace(/^board_(agenda|completed)::/, '');
+          return !cloudMap.has(cleanLocId) && !completedOrDeletedIds.has(cleanLocId);
+        });
 
         if (unsyncedLocalEvents.length > 0) {
           const payloads = unsyncedLocalEvents.map(ev => formatBoardEventForSupabase(ev, BOARD_AGENDA_CATEGORY));
           await supabase.from('eventos_oficiales').upsert(payloads, { onConflict: 'id' });
-          unsyncedLocalEvents.forEach(ev => cloudMap.set(String(ev.id), ev));
+          unsyncedLocalEvents.forEach(ev => {
+            const cleanId = String(ev.id).replace(/^board_(agenda|completed)::/, '');
+            cloudMap.set(cleanId, ev);
+          });
         }
 
-        const mergedList = Array.from(cloudMap.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
+        const mergedList = Array.from(cloudMap.values())
+          .filter(ev => ev.status !== 'cumplido' && !completedOrDeletedIds.has(String(ev.id).replace(/^board_(agenda|completed)::/, '')))
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+
         try {
           localStorage.setItem('cgem_board_agenda_v2', JSON.stringify(mergedList));
         } catch (e) {}
@@ -627,7 +669,8 @@ export async function fetchLiveBoardAgenda(initialAgendaData = []) {
     }
   }
 
-  return localEvents.length > 0 ? localEvents : initialAgendaData;
+  return (localEvents.length > 0 ? localEvents : initialAgendaData)
+    .filter(ev => ev && ev.status !== 'cumplido');
 }
 
 export async function saveBoardAgendaEventToSupabase(event) {
@@ -656,10 +699,10 @@ export async function saveBoardAgendaEventToSupabase(event) {
 export async function deleteBoardAgendaEventFromSupabase(eventId) {
   if (!supabase || !eventId) return { success: false };
   try {
-    const cleanId = String(eventId).replace(/^board_agenda::/, '');
+    const cleanId = String(eventId).replace(/^board_(agenda|completed)::/, '');
     const rowId = `board_agenda::${cleanId}`;
     await Promise.all([
-      supabase.from('eventos_oficiales').delete().eq('id', rowId),
+      supabase.from('eventos_oficiales').delete().in('id', [rowId, cleanId]),
       addDeletedBoardEventId(cleanId)
     ]);
     return { success: true };
@@ -704,16 +747,30 @@ export async function fetchLiveCompletedBoardEvents() {
             return t >= ninetyDaysAgo;
           });
 
-        const cloudMap = new Map(cloudCompleted.map(ev => [String(ev.id), ev]));
-        const unsyncedLocal = localCompleted.filter(loc => loc && loc.id && !cloudMap.has(String(loc.id)));
+        const cloudMap = new Map(
+          cloudCompleted.map(ev => [String(ev.id).replace(/^board_(agenda|completed)::/, ''), ev])
+        );
+        const unsyncedLocal = localCompleted.filter(loc => {
+          if (!loc || !loc.id) return false;
+          const cleanLocId = String(loc.id).replace(/^board_(agenda|completed)::/, '');
+          return !cloudMap.has(cleanLocId);
+        });
 
         if (unsyncedLocal.length > 0) {
           const payloads = unsyncedLocal.map(ev => formatBoardEventForSupabase(ev, BOARD_COMPLETED_CATEGORY));
           await supabase.from('eventos_oficiales').upsert(payloads, { onConflict: 'id' });
-          unsyncedLocal.forEach(ev => cloudMap.set(String(ev.id), ev));
+          unsyncedLocal.forEach(ev => {
+            const cleanId = String(ev.id).replace(/^board_(agenda|completed)::/, '');
+            cloudMap.set(cleanId, ev);
+          });
         }
 
-        const merged = Array.from(cloudMap.values());
+        const merged = Array.from(cloudMap.values()).sort((a, b) => {
+          const tA = a.completedAt ? new Date(a.completedAt).getTime() : new Date(a.date).getTime();
+          const tB = b.completedAt ? new Date(b.completedAt).getTime() : new Date(b.date).getTime();
+          return tB - tA;
+        });
+
         try {
           localStorage.setItem('cgem_completed_board_events', JSON.stringify(merged));
         } catch (e) {}
@@ -736,11 +793,27 @@ export async function markBoardEventCompletedInSupabase(completedEvent) {
       BOARD_COMPLETED_CATEGORY
     );
 
-    await Promise.all([
-      supabase.from('eventos_oficiales').upsert(completedPayload, { onConflict: 'id' }),
-      supabase.from('eventos_oficiales').delete().eq('id', `board_agenda::${cleanId}`),
-      addDeletedBoardEventId(cleanId)
-    ]);
+    // 1. Guardar en categoría de eventos cumplidos
+    await supabase.from('eventos_oficiales').upsert(completedPayload, { onConflict: 'id' });
+
+    // 2. Eliminar activamente de la programación activa (todas las variantes de ID)
+    await supabase.from('eventos_oficiales').delete().in('id', [`board_agenda::${cleanId}`, cleanId]);
+
+    // 3. Registrar en lista de IDs procesados para evitar re-subidas
+    await addDeletedBoardEventId(cleanId);
+
+    // 4. Limpiar localStorage de manera preventiva
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const savedAgenda = localStorage.getItem('cgem_board_agenda_v2');
+        if (savedAgenda) {
+          const parsed = JSON.parse(savedAgenda);
+          const filtered = parsed.filter(ev => String(ev.id).replace(/^board_(agenda|completed)::/, '') !== cleanId);
+          localStorage.setItem('cgem_board_agenda_v2', JSON.stringify(filtered));
+        }
+      } catch (e) {}
+    }
+
     return { success: true };
   } catch (err) {
     console.warn('Supabase mark completed board event err:', err);
