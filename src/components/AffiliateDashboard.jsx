@@ -18,6 +18,12 @@ import {
   X,
   Send,
   Building2,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  ArrowUpRight,
+  Gift,
   DollarSign,
   Lock,
   ArrowRight,
@@ -58,6 +64,7 @@ import { supabase } from '../lib/supabaseClient';
 import { sendAffiliateWelcomeEmail, sendCourseRegistrationEmail } from '../lib/emailService';
 import { optimizeImage, uploadAffiliateImageToStorage, formatBytes } from '../lib/imageOptimizer';
 import { submitPaymentRecord } from '../lib/treasurySync';
+import { fetchLiveEvents } from '../lib/eventsCoursesSync';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -722,6 +729,45 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
   const [contactMessage, setContactMessage] = useState('');
   const [isSendingBoardMsg, setIsSendingBoardMsg] = useState(false);
   const [boardMsgSuccess, setBoardMsgSuccess] = useState(false);
+
+  // Calendario y Eventos Oficiales Publicados para el Público y Afiliados
+  const [calendarViewDate, setCalendarViewDate] = useState(() => new Date());
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState(() => new Date().getDate());
+  const [publishedEvents, setPublishedEvents] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cgem_official_events');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
+
+  // Sincronizar eventos públicos oficiales
+  useEffect(() => {
+    let isMounted = true;
+    fetchLiveEvents().then(events => {
+      if (isMounted && Array.isArray(events) && events.length > 0) {
+        setPublishedEvents(events);
+      }
+    }).catch(() => {});
+
+    const handleEventsUpdate = () => {
+      try {
+        const saved = localStorage.getItem('cgem_official_events');
+        if (saved) setPublishedEvents(JSON.parse(saved));
+      } catch (e) {}
+    };
+
+    window.addEventListener('cgem_events_updated', handleEventsUpdate);
+    window.addEventListener('storage', handleEventsUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('cgem_events_updated', handleEventsUpdate);
+      window.removeEventListener('storage', handleEventsUpdate);
+    };
+  }, []);
 
   // =========================================================================
   // SECCIÓN "MI NEGOCIO": GESTIÓN Y PERSONALIZACIÓN DE FICHA WEB COMPLETA
@@ -2367,50 +2413,78 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
   // VIEW 4: AUTHENTICATED AFFILIATE DASHBOARD
   // ==========================================
   return (
-    <section className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       
-      {/* Header Banner */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl mb-8">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-white border border-amber-300 p-1 flex items-center justify-center text-white shadow-md shrink-0">
-              <img 
-                src="/logo-merida-gastronomica.png" 
-                alt="Logo Mérida Gastronómica" 
-                className="w-full h-full object-contain"
-              />
+      {/* Executive Header Banner - Matching ADMIN High-Impact Slate-950 Style */}
+      <div className="rounded-3xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white p-6 sm:p-8 border border-amber-500/30 shadow-2xl mb-8 relative overflow-hidden">
+        <div className="absolute -right-10 -bottom-10 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
+          <div className="flex items-center gap-4 sm:gap-5">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-slate-900 border-2 border-amber-400/60 p-1 flex items-center justify-center text-white shadow-xl shrink-0 overflow-hidden">
+              {businessProfile.coverImage ? (
+                <img 
+                  src={businessProfile.coverImage} 
+                  alt={businessProfile.name || activeUser.restaurantName} 
+                  className="w-full h-full object-cover rounded-xl"
+                />
+              ) : (
+                <img 
+                  src="/logo-merida-gastronomica.png" 
+                  alt="Logo Mérida Gastronómica" 
+                  className="w-full h-full object-contain p-1"
+                />
+              )}
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
-                  Portal Exclusivo Gremial
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono tracking-wider">
+                  {activeUser.id}
                 </span>
-                <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  {activeUser.status}
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 uppercase">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  {activeUser.status || 'Solvente (Activo)'}
+                </span>
+                <span className="text-[10px] font-bold text-slate-300 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/10 hidden sm:inline-block">
+                  {businessProfile.category || activeUser.memberCategory}
                 </span>
               </div>
-              <h2 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900 mt-1">
-                {activeUser.restaurantName}
+
+              <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl font-black text-white uppercase tracking-tight">
+                {businessProfile.name || activeUser.restaurantName}
               </h2>
-              <p className="text-xs text-slate-600 font-medium">
-                Representante: <strong>{activeUser.ownerName}</strong> — Código: <span className="font-mono font-bold text-amber-800">{activeUser.id}</span>
+
+              <p className="text-xs text-slate-300 font-sans mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span>Titular: <strong className="text-white">{activeUser.ownerName}</strong></span>
+                <span className="text-slate-500">&bull;</span>
+                <span>Ubicación: <strong className="text-slate-200">{businessProfile.municipio || 'Mérida, Venezuela'}</strong></span>
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
             <button
               onClick={() => setActiveTab('certificate')}
-              className="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-serif font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm"
+              className="flex-1 sm:flex-initial py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-lg active:scale-98"
             >
               <Award className="w-4 h-4" />
-              <span>Ver Certificado Digital</span>
+              <span>Certificado Digital</span>
+            </button>
+
+            <button
+              onClick={() => {
+                const publicSlug = (businessProfile.name || activeUser.restaurantName).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                window.open(`/?restaurante=${publicSlug}`, '_blank');
+              }}
+              className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold transition-colors"
+              title="Ver en la Guía Pública"
+            >
+              <ExternalLink className="w-4 h-4 text-amber-300" />
             </button>
 
             <button
               onClick={() => setViewMode('login')}
-              className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-colors"
+              className="p-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition-colors"
               title="Cerrar Sesión"
             >
               <LogOut className="w-4 h-4" />
@@ -2418,17 +2492,18 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
           </div>
         </div>
 
-        {/* Dashboard Navigation Tabs: MI NEGOCIO right after Overview */}
-        <div className="flex items-center gap-2 overflow-x-auto pt-6 mt-6 border-t border-slate-100">
+        {/* Navigation Pill Tabs - Modern SaaS scroller identical to ADMIN */}
+        <div className="flex items-center gap-2 overflow-x-auto pt-5 mt-6 border-t border-white/15 scrollbar-none">
           {[
-            { id: 'overview', label: 'Resumen & Estatus', icon: TrendingUp },
-            { id: 'my_business', label: 'Mi Negocio (Ficha Web)', icon: Store },
-            { id: 'gps_calibration', label: 'Calibrar Ubicación GPS 3D', icon: MapPin },
-            { id: 'certificate', label: 'Certificado Digital', icon: Award },
-            { id: 'jobs', label: 'Crear Empleos', icon: Briefcase },
+            { id: 'overview', label: 'Inicio & Calendario', icon: Calendar },
+            { id: 'my_business', label: 'Mi Ficha Web', icon: Store },
+            { id: 'benefits', label: 'Beneficios de Membresía', icon: Gift },
+            { id: 'certificate', label: 'Certificado Digital', icon: ShieldCheck },
             { id: 'payments', label: 'Cuotas & Pagos', icon: CreditCard },
+            { id: 'gps_calibration', label: 'Calibrar GPS 3D', icon: MapPin },
+            { id: 'jobs', label: 'Crear Empleos', icon: Briefcase },
             { id: 'courses', label: 'Capacitaciones & Cursos', icon: BookOpen },
-            { id: 'board', label: 'Contacto Directo Directiva', icon: Mail },
+            { id: 'board', label: 'Contacto Junta Directiva', icon: Mail },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -2436,13 +2511,13 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-sans transition-all flex items-center gap-2 whitespace-nowrap active:scale-95 ${
                   isActive
-                    ? 'bg-slate-900 text-white shadow-md scale-105'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/25'
+                    : 'bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white font-medium border border-white/10'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : ''}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-slate-950' : 'text-amber-400'}`} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -2450,31 +2525,410 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
         </div>
       </div>
 
-      {/* Tab 1: Overview */}
-      {activeTab === 'overview' && (
+      {/* Tab 1: Overview - BENTO GRID & CALENDARIO PÚBLICO (ESTILO ADMIN) */}
+      {activeTab === 'overview' && (() => {
+        const calYear = calendarViewDate.getFullYear();
+        const calMonth = calendarViewDate.getMonth();
+        const monthNames = [
+          'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+        ];
+        const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
+        const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+        const daysInPrevMonth = new Date(calYear, calMonth, 0).getDate();
+
+        const prevDays = [];
+        for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+          prevDays.push({ day: daysInPrevMonth - i, isCurrent: false });
+        }
+
+        const currDays = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateKey = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const hasEvent = publishedEvents.some(ev => ev.date === dateKey || ev.fecha === dateKey);
+          currDays.push({ day: d, isCurrent: true, dateKey, hasEvent });
+        }
+
+        const totalCells = prevDays.length + currDays.length;
+        const nextPadding = totalCells > 35 ? 42 - totalCells : 35 - totalCells;
+        const nextDays = [];
+        for (let d = 1; d <= nextPadding; d++) {
+          nextDays.push({ day: d, isCurrent: false });
+        }
+
+        const allDays = [...prevDays, ...currDays, ...nextDays];
+        const selectedDateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(selectedCalendarDay).padStart(2, '0')}`;
+        const eventsForSelectedDay = publishedEvents.filter(ev => ev.date === selectedDateStr || ev.fecha === selectedDateStr);
+
+        return (
+          <div className="space-y-6 animate-fadeIn font-sans">
+            
+            {/* Row 1: Estatus de Negocio (5 cols) + Calendario de Eventos Públicos (7 cols) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              
+              {/* 1. Estatus & Ficha de Negocio (Hero Card - 5 cols) */}
+              <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200/60 text-amber-700 flex items-center justify-center">
+                        <Building2 className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-800 tracking-tight">Estatus de Membresía & Ficha</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-slate-500 bg-slate-50 px-2.5 py-0.5 rounded-lg border border-slate-200/60 flex items-center gap-1">
+                      CGEM 2026
+                    </span>
+                  </div>
+
+                  <div className="mt-2">
+                    <span className="font-serif font-black text-2xl sm:text-3xl text-slate-900 tracking-tight block">
+                      {businessProfile.name || activeUser.restaurantName}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/60">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span>{activeUser.status || 'Solvente (Activo)'}</span>
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        {businessProfile.category || activeUser.memberCategory}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Dual Action Buttons */}
+                  <div className="grid grid-cols-2 gap-2.5 mt-5">
+                    <button
+                      onClick={() => setActiveTab('my_business')}
+                      className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-sans font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-amber-600/15 transition-all active:scale-98"
+                    >
+                      <Store className="w-3.5 h-3.5" />
+                      <span>Editar Ficha Web</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('certificate')}
+                      className="py-2.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 font-sans font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-98"
+                    >
+                      <Award className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Certificado</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sub-breakdown: Indicadores Clave */}
+                <div className="pt-5 mt-5 border-t border-slate-100">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                      Indicadores de su Establecimiento
+                    </span>
+                    <button 
+                      onClick={() => setActiveTab('benefits')}
+                      className="text-[11px] font-semibold text-amber-700 hover:text-amber-800 flex items-center gap-1"
+                    >
+                      <span>Ver Beneficios</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2.5 rounded-2xl bg-slate-50/70 border border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        <span className="text-[11px] text-slate-600 font-medium">Guía Web</span>
+                      </div>
+                      <span className="text-xs font-bold text-slate-900">Visible</span>
+                    </div>
+
+                    <div className="p-2.5 rounded-2xl bg-slate-50/70 border border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-sky-500" />
+                        <span className="text-[11px] text-slate-600 font-medium">Radar 3D</span>
+                      </div>
+                      <span className="text-xs font-bold text-slate-900">Activo</span>
+                    </div>
+
+                    <div className="p-2.5 rounded-2xl bg-slate-50/70 border border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-purple-500" />
+                        <span className="text-[11px] text-slate-600 font-medium">Empleos</span>
+                      </div>
+                      <span className="text-xs font-bold text-slate-900">Gremio ULA</span>
+                    </div>
+
+                    <div className="p-2.5 rounded-2xl bg-slate-50/70 border border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        <span className="text-[11px] text-slate-600 font-medium">Membresía</span>
+                      </div>
+                      <span className="text-xs font-bold text-slate-900">{activeUser.monthlyDues || '$10'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Calendario de Eventos Públicos (7 cols - Estilo ADMIN) */}
+              <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+                <div>
+                  {/* Calendar Header with Navigation */}
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200/60 text-amber-700 flex items-center justify-center">
+                        <Calendar className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-sans font-black text-sm text-slate-900 tracking-tight block">
+                          Calendario de Actividades & Festivales
+                        </span>
+                        <span className="text-[10px] text-slate-400 block -mt-0.5">
+                          Programación oficial pública de la Cámara Gastronómica
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Month Selector < Mes Año > */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCalendarViewDate(new Date(calYear, calMonth - 1, 1))}
+                        className="w-7 h-7 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-colors shadow-2xs"
+                        title="Mes anterior"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+
+                      <span className="font-sans font-bold text-xs text-amber-800 min-w-[110px] text-center">
+                        {monthNames[calMonth]} {calYear}
+                      </span>
+
+                      <button
+                        onClick={() => setCalendarViewDate(new Date(calYear, calMonth + 1, 1))}
+                        className="w-7 h-7 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition-colors shadow-2xs"
+                        title="Mes siguiente"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Weekday Labels (Do Lu Ma Mi Ju Vi Sá) */}
+                  <div className="grid grid-cols-7 text-center text-[11px] font-bold text-slate-500 py-3 border-b border-slate-50">
+                    <span>Do</span>
+                    <span>Lu</span>
+                    <span>Ma</span>
+                    <span>Mi</span>
+                    <span>Ju</span>
+                    <span>Vi</span>
+                    <span>Sá</span>
+                  </div>
+
+                  {/* Days Grid */}
+                  <div className="grid grid-cols-7 gap-y-1.5 gap-x-1 text-center pt-2">
+                    {allDays.map((cell, idx) => {
+                      const isSelected = cell.isCurrent && selectedCalendarDay === cell.day;
+
+                      if (!cell.isCurrent) {
+                        return (
+                          <div key={idx} className="py-1 text-center">
+                            <span className="text-[11px] font-medium text-slate-300 block">
+                              {cell.day}
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={idx} className="py-0.5 text-center relative flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCalendarDay(cell.day)}
+                            className={`w-8 h-8 rounded-full text-xs transition-all flex items-center justify-center relative font-sans ${
+                              isSelected
+                                ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
+                                : cell.hasEvent
+                                ? 'font-bold text-slate-900 bg-amber-50 hover:bg-amber-100 text-amber-900'
+                                : 'font-medium text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            {cell.day}
+                            {cell.hasEvent && !isSelected && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 absolute bottom-1" />
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Selected Day Agenda Footnote & Actions */}
+                <div className="pt-4 mt-4 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                      Programación para el {selectedCalendarDay} de {monthNames[calMonth]}:
+                    </span>
+                    {eventsForSelectedDay.length > 0 ? (
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                        <span className="text-xs font-bold text-slate-800 truncate">
+                          {eventsForSelectedDay[0].title || eventsForSelectedDay[0].nombre}
+                        </span>
+                        <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">
+                          {eventsForSelectedDay[0].category || 'Oficial'}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-500 italic mt-0.5 block">
+                        No hay actividades masivas convocadas para este día.
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => setActiveTab('courses')}
+                      className="py-1.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200 transition-colors"
+                    >
+                      Ver Cursos & Talleres
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Row 2: 4 Bento Cards (Servicios y Módulos de Autogestión) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+              
+              {/* Card 1: Ficha Web & Guía */}
+              <div 
+                onClick={() => setActiveTab('my_business')}
+                className="p-5 rounded-3xl bg-white border border-slate-200/80 hover:border-amber-400 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                    <Store className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-bold text-sm text-slate-900 group-hover:text-amber-700 transition-colors">
+                    Ficha Oficial en la Guía
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Personalice fotos de alta resolución, horarios, platos insignia y carta visible para el público.
+                  </p>
+                </div>
+                <div className="pt-4 mt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-amber-700">
+                  <span>Editar Ficha</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+
+              {/* Card 2: Beneficios de la Membresía */}
+              <div 
+                onClick={() => setActiveTab('benefits')}
+                className="p-5 rounded-3xl bg-white border border-slate-200/80 hover:border-amber-400 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                    <Gift className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-bold text-sm text-slate-900 group-hover:text-amber-700 transition-colors">
+                    Beneficios Activos
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Consulte los 10 pilares institucionales: compras conjuntas, Sello AAA, marco legal y networking.
+                  </p>
+                </div>
+                <div className="pt-4 mt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-emerald-700">
+                  <span>Explorar Beneficios</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+
+              {/* Card 3: Certificado Digital */}
+              <div 
+                onClick={() => setActiveTab('certificate')}
+                className="p-5 rounded-3xl bg-white border border-slate-200/80 hover:border-amber-400 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-bold text-sm text-slate-900 group-hover:text-amber-700 transition-colors">
+                    Certificado de Afiliación
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Acreditación oficial con código de verificación QR para exhibir en el local o en eventos.
+                  </p>
+                </div>
+                <div className="pt-4 mt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-sky-700">
+                  <span>Descargar Diploma</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+
+              {/* Card 4: Bolsa de Empleo */}
+              <div 
+                onClick={() => setActiveTab('jobs')}
+                className="p-5 rounded-3xl bg-white border border-slate-200/80 hover:border-amber-400 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                    <Briefcase className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-bold text-sm text-slate-900 group-hover:text-amber-700 transition-colors">
+                    Bolsa de Empleo Agremiada
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Publique vacantes en cocina, barra o sala con enlace preferencial al Hotel Escuela y la ULA.
+                  </p>
+                </div>
+                <div className="pt-4 mt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-purple-700">
+                  <span>Gestionar Empleos</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        );
+      })()}
+
+      {/* Tab: BENEFICIOS DE MEMBRESÍA (PESTAÑA NORMAL SEPARADA) */}
+      {activeTab === 'benefits' && (
         <div className="space-y-6 animate-fadeIn">
           <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-800 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
-                Respaldo Institucional Oficial
-              </span>
-              <h3 className="font-serif text-2xl font-bold text-slate-900 mt-3">
-                Beneficios Activos de su Membresía Gremial
-              </h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-2xl">
-                Como miembro agremiado a la Cámara Gastronómica del Estado Mérida, su establecimiento cuenta con aval oficial, respaldo legal, presencia en la Guía Digital y vinculación gremial continua.
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-800 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+                  Respaldo Institucional Oficial
+                </span>
+                <h3 className="font-serif text-2xl sm:text-3xl font-black text-slate-900 mt-2 uppercase tracking-tight">
+                  Beneficios Activos de su Membresía Gremial
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
+                  Como miembro formalmente agremiado a la Cámara Gastronómica del Estado Mérida, su establecimiento cuenta con aval estatutario, presencia en la Guía Digital y vinculación gremial continua.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setActiveTab('board')}
+                className="py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-serif font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm shrink-0"
+              >
+                <Mail className="w-3.5 h-3.5 text-amber-400" />
+                <span>Contactar a la Junta</span>
+              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {guildBenefits.map((benefit, idx) => (
-                <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-start gap-3 hover:border-amber-200 transition-colors">
-                  <div className="p-2 rounded-xl bg-amber-100 text-amber-800 shrink-0 mt-0.5">
+                <div key={idx} className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 flex items-start gap-3 hover:border-amber-400 hover:bg-white hover:shadow-md transition-all group">
+                  <div className="p-2.5 rounded-xl bg-amber-100 text-amber-800 shrink-0 mt-0.5 group-hover:bg-amber-500 group-hover:text-slate-950 transition-colors">
                     <CheckCircle2 className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-900">{benefit}</h4>
-                    <p className="text-xs text-slate-600 mt-0.5">Acceso exclusivo a través del aval institucional de la Cámara.</p>
+                    <h4 className="font-bold text-sm text-slate-900 group-hover:text-amber-800 transition-colors">{benefit}</h4>
+                    <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                      Acceso exclusivo y preferencial respaldado por los estatutos y alianzas institucionales de la Cámara.
+                    </p>
                   </div>
                 </div>
               ))}
