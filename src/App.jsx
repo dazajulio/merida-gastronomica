@@ -312,8 +312,8 @@ export function App() {
   return (
     <div className="min-h-screen bg-[#fcfbf9] text-slate-800 flex flex-col font-sans selection:bg-amber-500 selection:text-white">
       
-      {/* Fixed Navigation (Hidden when on private board admin portal for clean executive focus) */}
-      {activeTab !== 'admin' && (
+      {/* Fixed Navigation (Hidden when on private board admin portal or logged-in affiliate dashboard for clean SaaS focus) */}
+      {activeTab !== 'admin' && !(activeTab === 'affiliates' && affiliateViewMode === 'dashboard') && (
         <Navbar 
           activeTab={activeTab} 
           setActiveTab={(tab) => navigateTo(tab)}
@@ -704,11 +704,13 @@ export function App() {
 
         {/* Dedicated Page: Portal de Afiliados y Registro (/afiliacion, /afiliacion/registro) */}
         {activeTab === 'affiliates' && (
-          <div className="pt-24 pb-16">
+          <div className={affiliateViewMode === 'dashboard' ? "" : "pt-24 pb-16"}>
             <AffiliateDashboard 
               t={t} 
               initialViewMode={affiliateViewMode}
               autoOpenVideo={affiliateAutoVideo}
+              onNavigate={(tab) => navigateTo(tab)}
+              onViewModeChange={(mode) => setAffiliateViewMode(mode)}
             />
           </div>
         )}
@@ -734,8 +736,8 @@ export function App() {
         />
       )}
 
-      {/* Footer (Hidden when on private board admin portal) */}
-      {activeTab !== 'admin' && <Footer setActiveTab={(tab) => navigateTo(tab)} t={t} />}
+      {/* Footer (Hidden when on private board admin portal or logged-in affiliate dashboard) */}
+      {activeTab !== 'admin' && !(activeTab === 'affiliates' && affiliateViewMode === 'dashboard') && <Footer setActiveTab={(tab) => navigateTo(tab)} t={t} />}
 
     </div>
   );

@@ -19,6 +19,8 @@ import {
   Send,
   Building2,
   Calendar,
+  LayoutDashboard,
+  Menu,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -624,8 +626,14 @@ function GpsCalibrationTab({ activeUser }) {
 // =========================================================================
 // MAIN AFFILIATE DASHBOARD COMPONENT
 // =========================================================================
-export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo = false }) {
+export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo = false, onNavigate, onViewModeChange }) {
   const [viewMode, setViewMode] = useState(initialViewMode);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const updateViewMode = (mode) => {
+    setViewMode(mode);
+    if (onViewModeChange) onViewModeChange(mode);
+  };
 
   useEffect(() => {
     if (initialViewMode) {
@@ -1230,7 +1238,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
             chamberRating: "5.0 / 5.0 (Auditoría de Calidad Aprobada)"
           }
         });
-        setViewMode('dashboard');
+        updateViewMode('dashboard');
         return;
       }
 
@@ -1336,7 +1344,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
         }
         setBusinessProfile(userBizProfile);
 
-        setViewMode('dashboard');
+        updateViewMode('dashboard');
       } else {
         setLoginError('No se encontró ninguna cuenta registrada con este correo o código de afiliado.');
       }
@@ -1590,7 +1598,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               type="button"
               onClick={() => {
                 setRegStep(1);
-                setViewMode('register');
+                updateViewMode('register');
                 setShowVideoModal(true);
               }}
               className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 hover:from-amber-600 hover:to-amber-700 text-white font-serif font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.99] transition-all"
@@ -1762,7 +1770,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
             </div>
 
             <button
-              onClick={() => setViewMode('login')}
+              onClick={() => updateViewMode('login')}
               className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -2290,7 +2298,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
               <button
-                onClick={() => setViewMode('welcome_preview')}
+                onClick={() => updateViewMode('welcome_preview')}
                 className="w-full sm:w-auto py-3 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-serif font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all"
               >
                 <Mail className="w-4 h-4" />
@@ -2298,7 +2306,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               </button>
 
               <button
-                onClick={() => setViewMode('dashboard')}
+                onClick={() => updateViewMode('dashboard')}
                 className="w-full sm:w-auto py-3 px-6 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-serif font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all"
               >
                 <Building2 className="w-4 h-4" />
@@ -2328,7 +2336,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
           </div>
 
           <button
-            onClick={() => setViewMode('dashboard')}
+            onClick={() => updateViewMode('dashboard')}
             className="py-2 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shrink-0"
           >
             Ir al Dashboard
@@ -2410,65 +2418,260 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
   }
 
   // ==========================================
-  // VIEW 4: AUTHENTICATED AFFILIATE DASHBOARD
   // ==========================================
+  // VIEW 4: AUTHENTICATED AFFILIATE DASHBOARD (CLEAN SAAS FULL APPLICATION)
+  // ==========================================
+  const navSections = [
+    {
+      title: 'MENÚ PRINCIPAL',
+      items: [
+        { id: 'overview', label: 'Panel General & Eventos', icon: LayoutDashboard, badge: 'En Vivo' },
+        { id: 'my_business', label: 'Mi Ficha de Negocio', icon: Store, badge: 'En Guía' },
+        { id: 'benefits', label: 'Beneficios de Membresía', icon: Award, badge: '10' },
+      ]
+    },
+    {
+      title: 'GESTIÓN GREMIAL & MEMBRESÍA',
+      items: [
+        { id: 'certificate', label: 'Certificado Digital', icon: ShieldCheck, badge: 'Oficial' },
+        { id: 'payments', label: 'Tesorería & Cuotas', icon: CreditCard, badge: '$ USD' },
+        { id: 'gps_calibration', label: 'Calibración GPS 3D', icon: MapPin, badge: '3D' },
+        { id: 'jobs', label: 'Bolsa de Empleo', icon: Briefcase, badge: 'Vacantes' },
+      ]
+    },
+    {
+      title: 'AGENDA & ACTIVIDADES',
+      items: [
+        { id: 'courses', label: 'Capacitaciones & Cursos', icon: BookOpen, badge: 'Talleres' },
+        { id: 'board', label: 'Contacto Junta Directiva', icon: Mail, badge: 'Buzón' },
+      ]
+    }
+  ];
+
+  const tabMeta = {
+    overview: {
+      title: `Bienvenido de nuevo, ${businessProfile.name || activeUser.restaurantName}`,
+      subtitle: 'Portal Oficial del Afiliado Gremial • Gestión de ficha, solvencia y agenda pública.'
+    },
+    my_business: {
+      title: 'Mi Ficha de Negocio en la Guía',
+      subtitle: 'Edite su información pública, fotografías, menú, horarios y redes sociales.'
+    },
+    benefits: {
+      title: 'Beneficios Activos de su Membresía Gremial',
+      subtitle: 'Acceda a todos los privilegios exclusivos para afiliados oficiales de la Cámara.'
+    },
+    certificate: {
+      title: 'Certificado Digital de Afiliación',
+      subtitle: 'Constancia oficial de registro gremial con código de validación QR.'
+    },
+    payments: {
+      title: 'Tesorería & Reporte de Cuotas',
+      subtitle: 'Historial de aportes mensuales, tasa BCV oficial y reporte de transferencias o Pago Móvil.'
+    },
+    gps_calibration: {
+      title: 'Calibración Satelital & Radar 3D',
+      subtitle: 'Ajuste fino de coordenadas GPS para precisión en la Guía Gastronómica y Mapas.'
+    },
+    jobs: {
+      title: 'Bolsa de Empleo Gremial',
+      subtitle: 'Publique vacantes y acceda al talento humano capacitado por la Academia.'
+    },
+    courses: {
+      title: 'Capacitaciones & Cursos Oficiales',
+      subtitle: 'Talleres, diplomados y masterclasses organizados por la Cámara Gastronómica.'
+    },
+    board: {
+      title: 'Contacto Directo con la Junta Directiva',
+      subtitle: 'Canal prioritario e institucional de comunicación con la directiva gremial.'
+    }
+  };
+
   return (
-    <section className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      
-      {/* Executive Header Banner - Matching ADMIN High-Impact Slate-950 Style */}
-      <div className="rounded-3xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white p-6 sm:p-8 border border-amber-500/30 shadow-2xl mb-8 relative overflow-hidden">
-        <div className="absolute -right-10 -bottom-10 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
-          <div className="flex items-center gap-4 sm:gap-5">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-slate-900 border-2 border-amber-400/60 p-1 flex items-center justify-center text-white shadow-xl shrink-0 overflow-hidden">
-              {businessProfile.coverImage ? (
-                <img 
-                  src={businessProfile.coverImage} 
-                  alt={businessProfile.name || activeUser.restaurantName} 
-                  className="w-full h-full object-cover rounded-xl"
-                />
-              ) : (
+    <div className="flex min-h-screen bg-[#f8fafc]">
+      {/* Mobile Drawer Overlay Backdrop */}
+      {isSidebarOpen && (
+        <div 
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-40 lg:hidden transition-opacity"
+        />
+      )}
+
+      {/* 1. LIGHT SOFT UI SIDEBAR NAVIGATION (EXACT ADMIN STRUCTURE) */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-72 bg-white text-slate-700 border-r border-slate-200/80
+        flex flex-col shrink-0 transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0
+        ${isSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
+      `}>
+        {/* Brand Header */}
+        <div className="p-5 border-b border-slate-100 shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 p-1.5 flex items-center justify-center shadow-xs shrink-0 border border-amber-300/40">
                 <img 
                   src="/logo-merida-gastronomica.png" 
-                  alt="Logo Mérida Gastronómica" 
-                  className="w-full h-full object-contain p-1"
+                  alt="Cámara Gastronómica" 
+                  className="w-full h-full object-contain"
                 />
-              )}
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2 mb-1">
-                <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono tracking-wider">
-                  {activeUser.id}
+              </div>
+              <div className="min-w-0">
+                <span className="text-[9px] font-extrabold uppercase tracking-widest text-amber-700 block font-sans">
+                  Cámara Gastronómica
                 </span>
-                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 uppercase">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  {activeUser.status || 'Solvente (Activo)'}
-                </span>
-                <span className="text-[10px] font-bold text-slate-300 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/10 hidden sm:inline-block">
-                  {businessProfile.category || activeUser.memberCategory}
+                <h1 className="font-sans font-black text-xs text-slate-900 uppercase tracking-tight truncate">
+                  Mérida Gastronómica
+                </h1>
+                <span className="text-[10px] text-slate-400 block font-sans font-medium">
+                  Portal de Afiliados • Clean SaaS
                 </span>
               </div>
+            </div>
 
-              <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl font-black text-white uppercase tracking-tight">
-                {businessProfile.name || activeUser.restaurantName}
-              </h2>
+            {/* Mobile close button */}
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              title="Cerrar Menú"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
 
-              <p className="text-xs text-slate-300 font-sans mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span>Titular: <strong className="text-white">{activeUser.ownerName}</strong></span>
-                <span className="text-slate-500">&bull;</span>
-                <span>Ubicación: <strong className="text-slate-200">{businessProfile.municipio || 'Mérida, Venezuela'}</strong></span>
-              </p>
+        {/* Navigation Categories */}
+        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4 scrollbar-thin scrollbar-thumb-slate-200">
+          {navSections.map((sec, idx) => (
+            <div key={idx} className="space-y-0.5">
+              <span className="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block font-sans mb-1">
+                {sec.title}
+              </span>
+
+              <div className="space-y-0.5">
+                {sec.items.map((item) => {
+                  const ItemIcon = item.icon;
+                  const isActive = activeTab === item.id;
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveTab(item.id);
+                        setIsSidebarOpen(false);
+                      }}
+                      className={`w-full py-2 px-3 rounded-2xl text-xs font-sans transition-all flex items-center justify-between group ${
+                        isActive
+                          ? 'bg-amber-50 text-amber-900 font-bold border border-amber-200/60 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-medium'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <ItemIcon className={`w-4 h-4 shrink-0 transition-colors ${
+                          isActive ? 'text-amber-600' : 'text-slate-400 group-hover:text-slate-600'
+                        }`} />
+                        <span className="truncate">{item.label}</span>
+                      </div>
+
+                      {item.badge !== undefined && (
+                        <span className={`text-[10px] font-sans font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                          isActive
+                            ? 'bg-amber-200/60 text-amber-900'
+                            : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        {/* Promo Box & Footer */}
+        <div className="p-3 border-t border-slate-100 shrink-0 space-y-2 bg-white">
+          <div className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-600 via-amber-700 to-amber-900 text-white shadow-xs relative overflow-hidden">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-200 block font-sans">
+              Portal Oficial ✨
+            </span>
+            <h5 className="font-sans font-bold text-xs text-white mt-0.5">
+              Mérida Gastronómica
+            </h5>
+            <p className="text-[10px] text-amber-100/80 font-sans">
+              Edición Digital 2026
+            </p>
+            <button
+              onClick={() => onNavigate ? onNavigate('home') : (window.location.href = '/')}
+              className="w-full mt-2.5 py-1.5 px-3 rounded-xl bg-white hover:bg-amber-50 text-slate-900 font-sans font-bold text-[11px] shadow-2xs flex items-center justify-center gap-1.5 transition-all"
+            >
+              <Building2 className="w-3.5 h-3.5 text-amber-600" />
+              <span>Ver Portal Público</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setActiveTab('certificate')}
+              className="flex-1 py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-[11px] font-sans font-semibold flex items-center justify-center gap-1.5 transition-all border border-slate-200/60"
+              title="Ver Certificado Digital"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Certificado</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveUser(null);
+                updateViewMode('login');
+              }}
+              className="py-1.5 px-3 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 text-[11px] font-sans font-semibold flex items-center justify-center gap-1.5 transition-all border border-slate-200/60 hover:border-rose-200"
+              title="Cerrar Sesión Gremial"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* 2. LIGHT MAIN WORKSPACE */}
+      <main className="flex-1 min-w-0 flex flex-col bg-[#f8fafc] min-h-screen">
+        
+        {/* Sticky Top Header Bar (Matching Admin SaaS) */}
+        <header className="sticky top-0 z-30 bg-[#f8fafc]/90 backdrop-blur-md border-b border-slate-200/60 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {/* Mobile Toggle Button */}
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-2xl bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors shrink-0"
+              title="Abrir menú"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            {/* Pill Search Input with ⌘ K */}
+            <div className="relative w-56 sm:w-80">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar en el portal de afiliados..."
+                className="w-full pl-9 pr-14 py-2 rounded-2xl bg-white border border-slate-200/80 text-xs font-sans placeholder:text-slate-400 focus:outline-none focus:border-amber-500 shadow-2xs transition-all"
+                readOnly
+                onClick={() => setActiveTab('overview')}
+              />
+              <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/80 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none hidden sm:inline">
+                ⌘ K
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
+          {/* Utility Icons & Profile Capsule */}
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
-              onClick={() => setActiveTab('certificate')}
-              className="flex-1 sm:flex-initial py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-lg active:scale-98"
+              onClick={() => setActiveTab('board')}
+              className="w-9 h-9 rounded-full bg-white border border-slate-200/80 text-slate-600 hover:text-amber-700 hover:bg-slate-50 flex items-center justify-center shadow-2xs transition-colors relative"
+              title="Buzón Junta Directiva"
             >
-              <Award className="w-4 h-4" />
-              <span>Certificado Digital</span>
+              <Mail className="w-4 h-4" />
             </button>
 
             <button
@@ -2476,56 +2679,78 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                 const publicSlug = (businessProfile.name || activeUser.restaurantName).toLowerCase().replace(/[^a-z0-9]+/g, '-');
                 window.open(`/?restaurante=${publicSlug}`, '_blank');
               }}
-              className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold transition-colors"
+              className="w-9 h-9 rounded-full bg-white border border-slate-200/80 text-slate-600 hover:text-amber-700 hover:bg-slate-50 flex items-center justify-center shadow-2xs transition-colors relative"
               title="Ver en la Guía Pública"
             >
-              <ExternalLink className="w-4 h-4 text-amber-300" />
+              <ExternalLink className="w-4 h-4 text-slate-500 hover:text-amber-600" />
             </button>
 
             <button
-              onClick={() => setViewMode('login')}
-              className="p-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition-colors"
-              title="Cerrar Sesión"
+              onClick={() => setActiveTab('certificate')}
+              className="w-9 h-9 rounded-full bg-white border border-slate-200/80 text-slate-600 hover:text-emerald-700 hover:bg-slate-50 flex items-center justify-center shadow-2xs transition-colors relative"
+              title="Certificado Oficial"
             >
-              <LogOut className="w-4 h-4" />
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span className="w-2 h-2 rounded-full bg-emerald-500 absolute top-1.5 right-1.5 ring-2 ring-white" />
             </button>
+
+            {/* Affiliate Capsule */}
+            <div className="flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full bg-white border border-slate-200/80 shadow-2xs">
+              <div className="w-7 h-7 rounded-full bg-slate-900 border border-amber-400/40 text-white font-bold text-xs flex items-center justify-center overflow-hidden shrink-0">
+                {businessProfile.coverImage ? (
+                  <img 
+                    src={businessProfile.coverImage} 
+                    alt={businessProfile.name || activeUser.restaurantName} 
+                    className="w-full h-full object-cover" 
+                  />
+                ) : (
+                  <span>{(businessProfile.name || activeUser.restaurantName || 'A')[0]}</span>
+                )}
+              </div>
+              <div className="hidden sm:flex flex-col text-left">
+                <span className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[140px]">
+                  {businessProfile.name || activeUser.restaurantName}
+                </span>
+                <span className="text-[10px] text-amber-600 font-mono font-bold leading-none">
+                  {activeUser.id}
+                </span>
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            </div>
           </div>
-        </div>
+        </header>
 
-        {/* Navigation Pill Tabs - Modern SaaS scroller identical to ADMIN */}
-        <div className="flex items-center gap-2 overflow-x-auto pt-5 mt-6 border-t border-white/15 scrollbar-none">
-          {[
-            { id: 'overview', label: 'Inicio & Calendario', icon: Calendar },
-            { id: 'my_business', label: 'Mi Ficha Web', icon: Store },
-            { id: 'benefits', label: 'Beneficios de Membresía', icon: Gift },
-            { id: 'certificate', label: 'Certificado Digital', icon: ShieldCheck },
-            { id: 'payments', label: 'Cuotas & Pagos', icon: CreditCard },
-            { id: 'gps_calibration', label: 'Calibrar GPS 3D', icon: MapPin },
-            { id: 'jobs', label: 'Crear Empleos', icon: Briefcase },
-            { id: 'courses', label: 'Capacitaciones & Cursos', icon: BookOpen },
-            { id: 'board', label: 'Contacto Junta Directiva', icon: Mail },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-sans transition-all flex items-center gap-2 whitespace-nowrap active:scale-95 ${
-                  isActive
-                    ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/25'
-                    : 'bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white font-medium border border-white/10'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-slate-950' : 'text-amber-400'}`} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+        {/* Inner Content Area */}
+        <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-      {/* Tab 1: Overview - BENTO GRID & CALENDARIO PÚBLICO (ESTILO ADMIN) */}
+          {/* Greeting Row */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="font-sans font-black text-2xl sm:text-3xl text-slate-900 tracking-tight">
+                {tabMeta[activeTab]?.title || `Bienvenido de nuevo, ${businessProfile.name || activeUser.restaurantName}`}
+              </h1>
+              <p className="text-xs text-slate-500 font-sans mt-0.5">
+                {tabMeta[activeTab]?.subtitle || 'Portal Oficial del Afiliado Gremial • Gestión de ficha, solvencia y agenda pública.'}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              {/* Solvency status pill */}
+              <div className="bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-2xl shadow-2xs flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>{activeUser.status || 'Solvente (Activo)'}</span>
+              </div>
+              {/* Date pill */}
+              <div className="bg-white border border-slate-200/80 text-slate-700 text-xs font-semibold px-3.5 py-1.5 rounded-2xl shadow-2xs flex items-center gap-2">
+                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                <span>
+                  {new Date().toLocaleDateString('es-VE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+            </div>
+          </div>
+
+            {/* Tab 1: Overview - BENTO GRID & CALENDARIO PÚBLICO (ESTILO ADMIN) */}
       {activeTab === 'overview' && (() => {
         const calYear = calendarViewDate.getFullYear();
         const calMonth = calendarViewDate.getMonth();
@@ -4267,6 +4492,8 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
         </div>
       )}
 
-    </section>
+        </div>
+      </main>
+    </div>
   );
 }
