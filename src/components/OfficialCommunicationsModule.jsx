@@ -667,7 +667,7 @@ export function OfficialCommunicationsModule({ currentUser, directoryMembers = [
       try {
         const result = await sendOfficialCommunication({
           to: recipient.email,
-          replyTo: 'meridacamaragastronomica@gmail.com',
+          replyTo: 'notificaciones@meridagastronomica.com',
           subject: subject.trim(),
           category,
           officialNumber,

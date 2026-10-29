@@ -343,7 +343,7 @@ export async function sendAffiliateWelcomeEmail({
 
   return sendEmail({
     to: email,
-    replyTo: 'meridacamaragastronomica@gmail.com',
+    replyTo: 'notificaciones@meridagastronomica.com',
     subject,
     html: getEmailBaseTemplate(subject, content),
     text: `Bienvenido a la Cámara Gastronómica del Estado Mérida. Su código de afiliado asignado es: ${affiliateCode} para el establecimiento ${restaurantName}.`
@@ -457,7 +457,7 @@ export async function sendCourseRegistrationEmail({
 
   return sendEmail({
     to: attendeeEmail,
-    replyTo: 'meridacamaragastronomica@gmail.com',
+    replyTo: 'notificaciones@meridagastronomica.com',
     subject,
     html: getEmailBaseTemplate(subject, content),
     text: `Inscripción confirmada para ${attendeeName} en ${courseTitle} (${courseDate}).`
@@ -687,7 +687,7 @@ export const getOfficialCommunicationTemplate = ({
         Av. 4 con Calles 19 y 20, Centro Empresarial &bull; Mérida, Estado Mérida, Venezuela
       </p>
       <p style="margin: 0 0 10px 0;">
-        Canal Oficial: <a href="mailto:meridacamaragastronomica@gmail.com">meridacamaragastronomica@gmail.com</a> &bull; Portal Web: <a href="https://www.meridagastronomica.com" target="_blank">meridagastronomica.com</a>
+        Canal Oficial: <a href="mailto:notificaciones@meridagastronomica.com">notificaciones@meridagastronomica.com</a> &bull; Portal Web: <a href="https://www.meridagastronomica.com" target="_blank">meridagastronomica.com</a>
       </p>
       <p style="margin: 0; font-size: 10px; color: #64748b;">
         Este es un comunicado oficial emitido conforme a los estatutos de la Cámara Gastronómica. Conserva este correo como comprobante formal gremial.
@@ -704,7 +704,7 @@ export const getOfficialCommunicationTemplate = ({
  */
 export async function sendOfficialCommunication({
   to,
-  replyTo = 'meridacamaragastronomica@gmail.com',
+  replyTo = 'notificaciones@meridagastronomica.com',
   subject,
   category = 'COMUNICADO OFICIAL',
   officialNumber = 'CGEM-COM-2026-001',
