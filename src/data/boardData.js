@@ -13,6 +13,11 @@ export const BOARD_MEMBERS_DATA = [
     instagram: "@juliodazacelis",
     instagramUrl: "https://www.instagram.com/juliodazacelis/",
     email: "dazajulio@gmail.com",
+    aliases: [
+      "notificaciones@meridagastronomica.com",
+      "presidencia@meridagastronomica.com",
+      "meridacamaragastronomica@gmail.com"
+    ],
     passwordHash: "Dafaca10*",
     hasPasswordSet: true,
     isAdminLevel: true,

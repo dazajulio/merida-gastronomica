@@ -452,6 +452,9 @@ export function BoardAdminPortal({ t, onNavigate }) {
   // Roles & Permissions
   const isPresident = currentUser?.id === 'dir-presidente' || 
     currentUser?.email?.toLowerCase() === 'dazajulio@gmail.com' || 
+    currentUser?.email?.toLowerCase() === 'notificaciones@meridagastronomica.com' || 
+    currentUser?.email?.toLowerCase() === 'presidencia@meridagastronomica.com' || 
+    currentUser?.email?.toLowerCase() === 'meridacamaragastronomica@gmail.com' || 
     (currentUser?.role && currentUser?.role.toLowerCase().includes('presidente') && !currentUser?.role.toLowerCase().includes('vicepresidente'));
 
   const isExecutiveDirector = currentUser?.id === 'dir-ejecutivo' || 
@@ -938,8 +941,16 @@ export function BoardAdminPortal({ t, onNavigate }) {
       const emailClean = emailInput.trim().toLowerCase();
       const passClean = passwordInput.trim();
 
-      // Look up member
-      const member = BOARD_MEMBERS_DATA.find(m => m.email.toLowerCase() === emailClean);
+      // Look up member (by email or configured alias)
+      const member = BOARD_MEMBERS_DATA.find(m => 
+        m.email.toLowerCase() === emailClean ||
+        (Array.isArray(m.aliases) && m.aliases.some(a => a.toLowerCase() === emailClean)) ||
+        (m.id === 'dir-presidente' && (
+          emailClean === 'notificaciones@meridagastronomica.com' ||
+          emailClean === 'presidencia@meridagastronomica.com' ||
+          emailClean === 'meridacamaragastronomica@gmail.com'
+        ))
+      );
 
       if (member && member.hasPasswordSet && member.passwordHash === passClean) {
         setCurrentUser(member);
