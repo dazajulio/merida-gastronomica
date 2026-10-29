@@ -71,6 +71,11 @@ export function Footer({ setActiveTab, t }) {
                 </button>
               </li>
               <li>
+                <button onClick={() => { setActiveTab('directorio'); scrollToTop(); }} className="hover:text-amber-400 transition-colors font-semibold text-amber-200">
+                  Directorio de Agremiados
+                </button>
+              </li>
+              <li>
                 <button onClick={() => { setActiveTab('lidar'); scrollToTop(); }} className="hover:text-amber-400 transition-colors flex items-center gap-1">
                   <Compass className="w-3.5 h-3.5 text-amber-400" />
                   <span>Mapa LiDAR 3D</span>

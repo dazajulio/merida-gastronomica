@@ -19,6 +19,8 @@ import { CacaoSection } from './components/CacaoSection';
 import { GuildBenefitsSection } from './components/GuildBenefitsSection';
 import { BoardAdminPortal } from './components/BoardAdminPortal';
 import { Footer } from './components/Footer';
+import { DirectoryAgremiadosSection } from './components/DirectoryAgremiadosSection';
+import { INITIAL_DIRECTORY_DATA } from './data/initialDirectoryData';
 
 import { RESTAURANTS_DATA } from './data/restaurantsData';
 import { translations } from './data/translations';
@@ -40,7 +42,8 @@ import {
 // Route Definitions with Canonical URLs and Meta Titles
 const ROUTE_CONFIG = [
   { tab: 'home', paths: ['/', '/inicio', ''], url: '/', title: 'Mérida Gastronómica | Cámara Gastronómica del Estado Mérida' },
-  { tab: 'guide', paths: ['/guia-restaurantes', '/restaurantes', '/directorio'], url: '/guia-restaurantes', title: 'Guía Oficial de Restaurantes | Mérida Gastronómica' },
+  { tab: 'guide', paths: ['/guia-restaurantes', '/restaurantes', '/guia'], url: '/guia-restaurantes', title: 'Guía Oficial de Restaurantes | Mérida Gastronómica' },
+  { tab: 'directorio', paths: ['/directorio', '/agremiados', '/directorio-agremiados', '/miembros'], url: '/directorio', title: 'Directorio Oficial de Agremiados | Cámara Gastronómica de Mérida' },
   { tab: 'lidar', paths: ['/mapa', '/mapa-3d', '/lidar'], url: '/mapa', title: 'Mapa Gastronómico 3D & Cartografía | Mérida Gastronómica' },
   { tab: 'terroir', paths: ['/rutas-origen', '/terroir', '/rutas'], url: '/rutas-origen', title: 'Rutas & Sabores de Origen Andino | Mérida Gastronómica' },
   { tab: 'cafe', paths: ['/cafe-especialidad', '/cafe', '/cafes'], url: '/cafe-especialidad', title: 'Café de Especialidad de Altura | Mérida Gastronómica' },
@@ -102,7 +105,22 @@ export function App() {
         }
       }
     } catch (e) {}
-    return RESTAURANTS_DATA;
+    const baseList = [];
+    const seenBase = new Set();
+    RESTAURANTS_DATA.forEach(r => {
+      const norm = (r.name || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+      baseList.push(r);
+      seenBase.add(norm);
+    });
+    INITIAL_DIRECTORY_DATA.forEach(m => {
+      if (m.visible_en_guia === false) return;
+      const norm = (m.nombre_establecimiento || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+      if (!seenBase.has(norm)) {
+        baseList.push(convertAgremiadoToRestaurant(m));
+        seenBase.add(norm);
+      }
+    });
+    return baseList;
   });
 
   useEffect(() => {
@@ -544,6 +562,18 @@ export function App() {
               onViewOnMap={handleViewOnMap}
               t={t}
               initialSearch={guideSearchTerm}
+            />
+          </div>
+        )}
+
+        {/* Dedicated Page: Directorio Oficial de Agremiados (/directorio) */}
+        {activeTab === 'directorio' && (
+          <div>
+            <DirectoryAgremiadosSection 
+              restaurants={restaurants} 
+              onSelectRestaurant={setSelectedRestaurant}
+              onViewOnMap={handleViewOnMap}
+              t={t}
             />
           </div>
         )}

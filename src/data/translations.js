@@ -3,6 +3,7 @@ export const translations = {
     nav: {
       home: "Inicio",
       guide: "Guía Gastronómica",
+      directorio: "Directorio de Agremiados",
       lidarMap: "Mapa LiDAR 3D",
       events: "Agenda de Eventos",
       terroir: "Rutas & Sabores",
@@ -133,6 +134,7 @@ export const translations = {
     nav: {
       home: "Home",
       guide: "Gastronomic Guide",
+      directorio: "Affiliates Directory",
       lidarMap: "3D LiDAR Map",
       events: "Events Calendar",
       terroir: "Routes & Flavors",

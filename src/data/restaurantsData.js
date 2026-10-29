@@ -21,6 +21,9 @@ export const RESTAURANTS_DATA = [
     facebookUrl: "https://www.facebook.com/kaffiacaffe/",
     isCertifiedByCamara: true,
     certificateNumber: "CGM-2026-001",
+    codigo_afiliado: "CGM-2026-001",
+    estado_solvencia: "Solvente (Activo)",
+    legalRepresentative: "Julio Alberto Daza Celis",
     badge: "Primer Afiliado Oficial 2026",
     coverImage: "/images/kaffia/kaffia-fachada-hd.jpg",
     gallery: [
@@ -95,6 +98,9 @@ export const RESTAURANTS_DATA = [
     facebookUrl: "https://www.facebook.com/origenesbistroybar/?locale=es_LA",
     isCertifiedByCamara: true,
     certificateNumber: "CGM-2026-018",
+    codigo_afiliado: "CGM-2026-018",
+    estado_solvencia: "Solvente (Activo)",
+    legalRepresentative: "Carolina del Valle",
     badge: "Sede Aliada Oficial CGM 2026",
     coverImage: "/images/kaffia/kaffia-fachada-hd.jpg",
     gallery: [

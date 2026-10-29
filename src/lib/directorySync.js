@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { RESTAURANTS_DATA } from '../data/restaurantsData';
+import { INITIAL_DIRECTORY_DATA } from '../data/initialDirectoryData';
 
 // Imágenes por defecto de alta calidad según la categoría del negocio
 const DEFAULT_CATEGORY_IMAGES = {
@@ -134,6 +135,10 @@ export function convertAgremiadoToRestaurant(m) {
     website: rawWebsite,
     websiteUrl: websiteUrl,
     facebookUrl: '',
+    legalRepresentative: m.representante_legal || '',
+    estado_solvencia: m.estado_solvencia || (isSolvente ? 'Solvente (Activo)' : 'En Trámite'),
+    codigo_afiliado: m.codigo_afiliado || '',
+    municipio: m.municipio || 'Mérida',
     isCertifiedByCamara: isSolvente,
     isFeatured: m.destacado_portada === true,
     destacado_portada: m.destacado_portada === true,
@@ -222,6 +227,11 @@ export async function fetchLiveRestaurants() {
         }
       }
     } catch (e) {}
+  }
+
+  // Fallback garantizado a INITIAL_DIRECTORY_DATA si no hay datos en Supabase ni en localStorage
+  if (!Array.isArray(directoryMembers) || directoryMembers.length === 0) {
+    directoryMembers = [...INITIAL_DIRECTORY_DATA];
   }
 
   // 3. Obtener perfil enriquecido guardado localmente si existe

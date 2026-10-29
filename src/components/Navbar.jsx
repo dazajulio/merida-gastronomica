@@ -21,7 +21,7 @@ import {
   LayoutGrid,
   Coffee,
   Lock,
-  Users
+  Users, Building2
 } from 'lucide-react';
 
 export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
@@ -41,7 +41,7 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
   const mainBarItems = [
     { id: 'home', label: 'Inicio' },
     { id: 'guide', label: 'Guía de Restaurantes' },
-    { id: 'lidar', label: 'Mapa Gastronómico' },
+    { id: 'directorio', label: 'Directorio de Agremiados' },
     { id: 'terroir', label: 'Rutas Mérida' },
     { id: 'cultural', label: 'Distrito Cultural' },
     { id: 'services', label: 'Servicios Turísticos' },
@@ -66,6 +66,7 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
     {
       category: "Gremio & Desarrollo Empresarial",
       items: [
+        { id: 'directorio', label: 'Directorio de Agremiados', desc: 'Nómina oficial de marcas, restaurantes y productores', icon: Building2 },
         { id: 'junta_directiva', label: 'Junta Directiva Oficial', desc: 'Equipo directivo y coordinaciones especializadas', icon: Users },
         { id: 'beneficios', label: 'Beneficios de Ser Agremiado', desc: 'Los 10 pilares estratégicos y valor institucional', icon: Award },
         { id: 'affiliates', label: 'Portal de Afiliados', desc: 'Acceso con clave, solvencias y certificados', icon: ShieldCheck },
