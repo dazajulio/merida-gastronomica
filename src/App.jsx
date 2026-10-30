@@ -20,6 +20,7 @@ import { GuildBenefitsSection } from './components/GuildBenefitsSection';
 import { BoardAdminPortal } from './components/BoardAdminPortal';
 import { Footer } from './components/Footer';
 import { DirectoryAgremiadosSection } from './components/DirectoryAgremiadosSection';
+import { ExpressAffiliationLanding } from './components/ExpressAffiliationLanding';
 import { INITIAL_DIRECTORY_DATA } from './data/initialDirectoryData';
 
 import { RESTAURANTS_DATA } from './data/restaurantsData';
@@ -59,6 +60,7 @@ const ROUTE_CONFIG = [
   { tab: 'services', paths: ['/servicios-turisticos', '/servicios'], url: '/servicios-turisticos', title: 'Servicios Turísticos & Concierge | Mérida Gastronómica' },
   { tab: 'affiliates', paths: ['/afiliacion', '/afiliados', '/portal-afiliados'], url: '/afiliacion', title: 'Portal Oficial de Afiliados | Mérida Gastronómica' },
   { tab: 'affiliates_register', paths: ['/afiliacion/registro', '/solicitar-afiliacion', '/registro'], url: '/afiliacion/registro', title: 'Solicitar Afiliación / Registrar Nuevo Miembro | Mérida Gastronómica' },
+  { tab: 'affiliates_express', paths: ['/afiliacion-express', '/express', '/unete', '/registro-express'], url: '/afiliacion-express', title: 'Afiliación Express 2026 | Cámara Gastronómica del Estado Mérida' },
   { tab: 'admin', paths: ['/admin', '/portal-admin', '/portal-directiva'], url: '/admin', title: 'Portal Privado Junta Directiva & Agenda | Cámara Gastronómica de Mérida' },
 ];
 
@@ -66,6 +68,8 @@ export function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [affiliateViewMode, setAffiliateViewMode] = useState('login');
   const [affiliateAutoVideo, setAffiliateAutoVideo] = useState(false);
+  const [affiliateInitialTab, setAffiliateInitialTab] = useState('overview');
+  const [affiliateDirectUser, setAffiliateDirectUser] = useState(null);
   const [lang, setLang] = useState('es');
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
   const [focusRestaurantId, setFocusRestaurantId] = useState(null);
@@ -702,6 +706,23 @@ export function App() {
           </div>
         )}
 
+        {/* Dedicated Page: Afiliación Express Masiva (/afiliacion-express, /express, /unete) */}
+        {activeTab === 'affiliates_express' && (
+          <div className="pt-20 pb-12">
+            <ExpressAffiliationLanding 
+              onNavigate={(tab) => navigateTo(tab)}
+              onCompleteExpress={(userPayload) => {
+                setAffiliateDirectUser(userPayload);
+                setAffiliateInitialTab('my_business');
+                setAffiliateViewMode('dashboard');
+                setActiveTab('affiliates');
+                window.history.pushState(null, '', '/afiliacion');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          </div>
+        )}
+
         {/* Dedicated Page: Portal de Afiliados y Registro (/afiliacion, /afiliacion/registro) */}
         {activeTab === 'affiliates' && (
           <div className={affiliateViewMode === 'dashboard' ? "" : "pt-24 pb-16"}>
@@ -709,6 +730,8 @@ export function App() {
               t={t} 
               initialViewMode={affiliateViewMode}
               autoOpenVideo={affiliateAutoVideo}
+              initialActiveTab={affiliateInitialTab}
+              initialActiveUser={affiliateDirectUser}
               onNavigate={(tab) => navigateTo(tab)}
               onViewModeChange={(mode) => setAffiliateViewMode(mode)}
             />
@@ -736,8 +759,8 @@ export function App() {
         />
       )}
 
-      {/* Footer (Hidden when on private board admin portal or logged-in affiliate dashboard) */}
-      {activeTab !== 'admin' && !(activeTab === 'affiliates' && affiliateViewMode === 'dashboard') && <Footer setActiveTab={(tab) => navigateTo(tab)} t={t} />}
+      {/* Footer (Hidden when on private board admin portal, logged-in affiliate dashboard or express landing) */}
+      {activeTab !== 'admin' && activeTab !== 'affiliates_express' && !(activeTab === 'affiliates' && affiliateViewMode === 'dashboard') && <Footer setActiveTab={(tab) => navigateTo(tab)} t={t} />}
 
     </div>
   );

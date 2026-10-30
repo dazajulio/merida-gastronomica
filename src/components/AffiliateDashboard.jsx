@@ -626,7 +626,15 @@ function GpsCalibrationTab({ activeUser }) {
 // =========================================================================
 // MAIN AFFILIATE DASHBOARD COMPONENT
 // =========================================================================
-export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo = false, onNavigate, onViewModeChange }) {
+export function AffiliateDashboard({ 
+  t, 
+  initialViewMode = 'login', 
+  autoOpenVideo = false, 
+  onNavigate, 
+  onViewModeChange,
+  initialActiveTab = 'overview',
+  initialActiveUser = null
+}) {
   const [viewMode, setViewMode] = useState(initialViewMode);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -643,6 +651,18 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
       }
     }
   }, [initialViewMode, autoOpenVideo]);
+
+  useEffect(() => {
+    if (initialActiveUser) {
+      setActiveUser(initialActiveUser);
+    }
+  }, [initialActiveUser]);
+
+  useEffect(() => {
+    if (initialActiveTab) {
+      setActiveTab(initialActiveTab);
+    }
+  }, [initialActiveTab]);
 
   // BCV Official Exchange Rate State
   const [bcvRate, setBcvRate] = useState(null);
@@ -722,10 +742,10 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
   };
 
   // Authenticated User State
-  const [activeUser, setActiveUser] = useState(AFFILIATES_DATA.currentUser);
+  const [activeUser, setActiveUser] = useState(() => initialActiveUser || AFFILIATES_DATA.currentUser);
 
   // Main Dashboard Tab: overview | my_business | gps_calibration | certificate | jobs | payments | courses | board
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(() => initialActiveTab || 'overview');
   const [paymentStep, setPaymentStep] = useState('select');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('pago-movil');
   const [paymentRefInput, setPaymentRefInput] = useState('');
@@ -1497,7 +1517,7 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
 
   const copyProvincialBankDetails = () => {
     const tier = getBusinessTier(regData.businessType);
-    const text = `CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA\nPago Móvil Banco Provincial (0108)\nCédula / RIF: V-12517086\nTeléfono: 04148817137\nConcepto: Afiliación Gremial Mérida - ${tier.name}\nCuota Inscripción + Primer Mes: $${tier.inscriptionUsd} USD (Bs. ${regData.amountPaidBs} al cambio oficial BCV)\nCuota Mensual Posterior: $${tier.monthlyUsd} USD`;
+    const text = `CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA\n\n1. PAGO MÓVIL BANCO PROVINCIAL (0108)\nCédula / RIF: V-12517086\nTeléfono: 0414-8817137\n\n2. TRANSFERENCIA BANCARIA PROVINCIAL\nBanco: Banco Provincial\nTitular: Julio Alberto Daza Celis\nCédula: V-12517086\nTipo: Cuenta Corriente\nCuenta: 0108-2456-74-0100057723\n\nConcepto: Afiliación Gremial Mérida - ${tier.name}\nCuota Inscripción + Primer Mes: $${tier.inscriptionUsd} USD (Bs. ${regData.amountPaidBs} al cambio oficial BCV)`;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text);
       setCopiedBankData(true);
@@ -1604,7 +1624,23 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
               className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 hover:from-amber-600 hover:to-amber-700 text-white font-serif font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.99] transition-all"
             >
               <Building2 className="w-4 h-4 text-white" />
-              <span>Solicitar Afiliación / Registrar Nuevo Miembro</span>
+              <span>Solicitar Afiliación / Formulario Completo</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (onNavigate) {
+                  onNavigate('affiliates_express');
+                } else {
+                  window.history.pushState(null, '', '/afiliacion-express');
+                  window.location.reload();
+                }
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-serif font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-xs"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <span>Afiliación Express en 60 Segundos (Pago Móvil / Transf.)</span>
             </button>
           </div>
 
@@ -2166,12 +2202,12 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                   <span className="font-bold text-white text-sm">Banco Provincial (0108)</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Cédula / RIF</span>
-                  <span className="font-mono font-bold text-white text-sm">V-12517086</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Titular / Cédula</span>
+                  <span className="font-mono font-bold text-white text-sm">Julio Daza • V-12517086</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-bold">Teléfono Pago Móvil</span>
-                  <span className="font-mono font-bold text-white text-sm">04148817137</span>
+                  <span className="font-mono font-bold text-white text-sm">0414-8817137</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-bold">Cuota Inscripción + 1er Mes</span>
@@ -2180,6 +2216,25 @@ export function AffiliateDashboard({ t, initialViewMode = 'login', autoOpenVideo
                     <span className="text-[10px] text-slate-300 block font-normal">(Incluye 1er mes. Mes: ${getBusinessTier(regData.businessType).monthlyUsd})</span>
                   </span>
                 </div>
+              </div>
+
+              {/* Transferencia Coordinates Row */}
+              <div className="mt-3 pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                <div>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold block">Cuenta Corriente Provincial (Transferencias):</span>
+                  <span className="font-mono font-bold text-amber-300 text-xs sm:text-sm">0108-2456-74-0100057723</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText('01082456740100057723');
+                    alert('Número de Cuenta Corriente Provincial copiado al portapapeles.');
+                  }}
+                  className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold flex items-center gap-1 transition-colors border border-slate-700 shrink-0"
+                >
+                  <Copy className="w-3 h-3 text-amber-400" />
+                  <span>Copiar N° Cuenta</span>
+                </button>
               </div>
 
               <div className="mt-4 pt-3 border-t border-slate-700/80 flex flex-wrap items-center justify-between gap-3 text-xs">

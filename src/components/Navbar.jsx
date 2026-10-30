@@ -66,6 +66,7 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
     {
       category: "Gremio & Desarrollo Empresarial",
       items: [
+        { id: 'affiliates_express', label: 'Afiliación Express (60s)', desc: 'Pago Móvil, Transferencia Provincial y activación rápida', icon: Sparkles },
         { id: 'directorio', label: 'Directorio de Agremiados', desc: 'Nómina oficial de marcas, restaurantes y productores', icon: Building2 },
         { id: 'junta_directiva', label: 'Junta Directiva Oficial', desc: 'Equipo directivo y coordinaciones especializadas', icon: Users },
         { id: 'beneficios', label: 'Beneficios de Ser Agremiado', desc: 'Los 10 pilares estratégicos y valor institucional', icon: Award },
@@ -167,8 +168,21 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
               })}
             </nav>
 
-            {/* Right: Portal Afiliados Action Button */}
+            {/* Right: Portal Afiliados & Afiliación Express Action Button */}
             <div className="hidden sm:flex items-center gap-2">
+              <button
+                onClick={() => handleNavClick('affiliates_express')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm ${
+                  activeTab === 'affiliates_express'
+                    ? 'bg-amber-500 text-slate-950 font-black shadow-md'
+                    : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-amber-500/20'
+                }`}
+                title="Afiliación Express en 60 Segundos"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-white" />
+                <span>Afiliación Express</span>
+              </button>
+
               <button
                 onClick={() => handleNavClick('affiliates')}
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm ${

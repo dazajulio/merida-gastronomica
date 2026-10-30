@@ -737,6 +737,77 @@ export async function sendOfficialCommunication({
   });
 }
 
+/**
+ * Notificación de Afiliación Express Masiva con Enlace Directo para Personalizar Ficha
+ */
+export async function sendExpressAffiliateWelcomeEmail({
+  affiliateCode,
+  restaurantName,
+  ownerName,
+  email,
+  phone,
+  paymentMethod,
+  referenceNumber,
+  amountBs,
+  amountUsd,
+  category
+}) {
+  const subject = `¡Bienvenido a la Cámara Gastronómica de Mérida! Código: ${affiliateCode}`;
+  const methodLabel = paymentMethod === 'transferencia' 
+    ? 'Transferencia Bancaria (Banco Provincial)' 
+    : 'Pago Móvil (Banco Provincial)';
+
+  const content = `
+    <h2 style="color: #0f172a; margin-top: 0; font-size: 20px;">¡Bienvenido a la Cámara Gastronómica del Estado Mérida!</h2>
+    <p>Estimado/a <strong>${ownerName || restaurantName}</strong>,</p>
+    <p>En nombre de la Junta Directiva de la Cámara Gastronómica del Estado Mérida, confirmamos con agrado la recepción de tu <strong>Afiliación Express</strong> para <strong>${restaurantName}</strong>.</p>
+    
+    <div class="info-box" style="background: #fefce8; border-left: 4px solid #ca8a04; padding: 16px; border-radius: 8px; margin: 20px 0;">
+      <p style="margin: 4px 0;"><strong>Código de Afiliado Asignado:</strong> <span style="font-size: 18px; color: #b45309; font-weight: bold; letter-spacing: 0.5px;">${affiliateCode}</span></p>
+      <p style="margin: 4px 0;"><strong>Establecimiento o Titular:</strong> ${restaurantName}</p>
+      <p style="margin: 4px 0;"><strong>Correo Registrado:</strong> ${email}</p>
+      ${phone ? `<p style="margin: 4px 0;"><strong>Teléfono / WhatsApp:</strong> ${phone}</p>` : ''}
+      <p style="margin: 4px 0;"><strong>Modalidad de Pago:</strong> ${methodLabel}</p>
+      <p style="margin: 4px 0;"><strong>Referencia Bancaria:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${referenceNumber || 'Registrada'}</code></p>
+      ${amountBs ? `<p style="margin: 4px 0;"><strong>Monto Reportado:</strong> Bs. ${amountBs} ${amountUsd ? `(~ $${amountUsd} USD)` : ''}</p>` : ''}
+      <p style="margin: 4px 0;"><strong>Estatus de Afiliación:</strong> <span style="color: #047857; font-weight: bold;">Activo (Pago en Verificación Bancaria)</span></p>
+    </div>
+
+    <div style="text-align: center; margin: 30px 0 24px 0;">
+      <p style="font-size: 14px; color: #475569; margin-bottom: 14px;">
+        Tu registro ya está activo. Ahora puedes <strong>personalizar tu ficha comercial</strong> con fotos, menú, horarios y redes sociales para figurar en la Guía Oficial y Mapa 3D:
+      </p>
+      <a href="https://www.meridagastronomica.com/afiliacion" 
+         target="_blank" 
+         style="display: inline-block; background: linear-gradient(135deg, #b45309 0%, #ea580c 100%); color: #ffffff; padding: 14px 28px; border-radius: 12px; font-weight: bold; text-decoration: none; font-size: 15px; box-shadow: 0 4px 10px rgba(180, 83, 9, 0.35);">
+        👉 Personalizar Mi Ficha en la Guía Oficial
+      </a>
+    </div>
+
+    <h3 style="color: #0f172a; font-size: 15px; margin-top: 24px; margin-bottom: 10px; font-weight: 700; border-bottom: 2px solid #fed7aa; padding-bottom: 6px;">
+      Próximos Pasos para tu Membresía:
+    </h3>
+    
+    <ul style="color: #334155; font-size: 13px; line-height: 1.7; padding-left: 20px; margin: 0 0 20px 0;">
+      <li><strong>Ingreso al Portal Gremial:</strong> Puedes iniciar sesión en cualquier momento en <a href="https://www.meridagastronomica.com/afiliacion" style="color: #b45309; font-weight: 600;">meridagastronomica.com/afiliacion</a> usando tu correo electrónico o tu código <strong>${affiliateCode}</strong>.</li>
+      <li><strong>Carga de Fotografías y Menú:</strong> En la pestaña <em>"Mi Ficha de Negocio"</em> podrás cargar hasta 5 fotografías de alta calidad, enlace de WhatsApp directo, Instagram y platos insignia.</li>
+      <li><strong>Canal Directo de Presidencia / Tesorería:</strong> Si requieres enviar el comprobante en capture, escríbenos a la línea oficial de la Cámara: <a href="https://wa.me/584148817137" style="color: #047857; font-weight: bold;">+58 414-8817137</a>.</li>
+    </ul>
+
+    <p style="font-size: 12px; color: #64748b; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+      Este comprobante digital ha sido emitido automáticamente por la Cámara Gastronómica del Estado Mérida.
+    </p>
+  `;
+
+  return sendEmail({
+    to: email,
+    replyTo: 'notificaciones@meridagastronomica.com',
+    subject,
+    html: getEmailBaseTemplate(subject, content),
+    text: `Bienvenido a la Cámara Gastronómica del Estado Mérida. Tu Afiliación Express ha sido registrada con el código ${affiliateCode} para ${restaurantName}. Referencia de pago: ${referenceNumber}.`
+  });
+}
+
 
 
 
