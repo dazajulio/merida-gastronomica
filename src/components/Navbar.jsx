@@ -66,6 +66,7 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
     {
       category: "Gremio & Desarrollo Empresarial",
       items: [
+        { id: 'affiliates_el_valle', label: 'El Valle te Conecta', desc: 'Convenio exclusivo: Inscripción $0 y cuota $7/mes', icon: Mountain },
         { id: 'affiliates_express', label: 'Afiliación Express (60s)', desc: 'Pago Móvil, Transferencia Provincial y activación rápida', icon: Sparkles },
         { id: 'directorio', label: 'Directorio de Agremiados', desc: 'Nómina oficial de marcas, restaurantes y productores', icon: Building2 },
         { id: 'junta_directiva', label: 'Junta Directiva Oficial', desc: 'Equipo directivo y coordinaciones especializadas', icon: Users },

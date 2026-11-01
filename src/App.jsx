@@ -21,6 +21,7 @@ import { BoardAdminPortal } from './components/BoardAdminPortal';
 import { Footer } from './components/Footer';
 import { DirectoryAgremiadosSection } from './components/DirectoryAgremiadosSection';
 import { ExpressAffiliationLanding } from './components/ExpressAffiliationLanding';
+import { ElValleAffiliationLanding } from './components/ElValleAffiliationLanding';
 import { INITIAL_DIRECTORY_DATA } from './data/initialDirectoryData';
 
 import { RESTAURANTS_DATA } from './data/restaurantsData';
@@ -61,6 +62,7 @@ const ROUTE_CONFIG = [
   { tab: 'affiliates', paths: ['/afiliacion', '/afiliados', '/portal-afiliados'], url: '/afiliacion', title: 'Portal Oficial de Afiliados | Mérida Gastronómica' },
   { tab: 'affiliates_register', paths: ['/afiliacion/registro', '/solicitar-afiliacion', '/registro'], url: '/afiliacion/registro', title: 'Solicitar Afiliación / Registrar Nuevo Miembro | Mérida Gastronómica' },
   { tab: 'affiliates_express', paths: ['/afiliacion-express', '/express', '/unete', '/registro-express'], url: '/afiliacion-express', title: 'Afiliación Express 2026 | Cámara Gastronómica del Estado Mérida' },
+  { tab: 'affiliates_el_valle', paths: ['/el-valle-te-conecta', '/el-valle', '/afiliacion-el-valle', '/elvalleteconecta'], url: '/el-valle-te-conecta', title: 'Afiliación Exclusiva: El Valle te Conecta | Cámara Gastronómica del Estado Mérida' },
   { tab: 'admin', paths: ['/admin', '/portal-admin', '/portal-directiva'], url: '/admin', title: 'Portal Privado Junta Directiva & Agenda | Cámara Gastronómica de Mérida' },
 ];
 
@@ -723,6 +725,23 @@ export function App() {
           </div>
         )}
 
+        {/* Dedicated Page: Afiliación Exclusiva El Valle te Conecta (/el-valle-te-conecta, /el-valle, /afiliacion-el-valle) */}
+        {activeTab === 'affiliates_el_valle' && (
+          <div className="pt-20 pb-12">
+            <ElValleAffiliationLanding 
+              onNavigate={(tab) => navigateTo(tab)}
+              onCompleteExpress={(userPayload) => {
+                setAffiliateDirectUser(userPayload);
+                setAffiliateInitialTab('my_business');
+                setAffiliateViewMode('dashboard');
+                setActiveTab('affiliates');
+                window.history.pushState(null, '', '/afiliacion');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          </div>
+        )}
+
         {/* Dedicated Page: Portal de Afiliados y Registro (/afiliacion, /afiliacion/registro) */}
         {activeTab === 'affiliates' && (
           <div className={affiliateViewMode === 'dashboard' ? "" : "pt-24 pb-16"}>
@@ -759,8 +778,8 @@ export function App() {
         />
       )}
 
-      {/* Footer (Hidden when on private board admin portal, logged-in affiliate dashboard or express landing) */}
-      {activeTab !== 'admin' && activeTab !== 'affiliates_express' && !(activeTab === 'affiliates' && affiliateViewMode === 'dashboard') && <Footer setActiveTab={(tab) => navigateTo(tab)} t={t} />}
+      {/* Footer (Hidden when on private board admin portal, logged-in affiliate dashboard or express/el-valle landings) */}
+      {activeTab !== 'admin' && activeTab !== 'affiliates_express' && activeTab !== 'affiliates_el_valle' && !(activeTab === 'affiliates' && affiliateViewMode === 'dashboard') && <Footer setActiveTab={(tab) => navigateTo(tab)} t={t} />}
 
     </div>
   );
