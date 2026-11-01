@@ -253,22 +253,41 @@ export const createBlankBusinessProfile = (user) => {
     };
   }
 
-  // Perfil por defecto limpio para cualquier otro agremiado
+  // Perfil por defecto: preservar fotos de Supabase o memoria si existen
+  let userGallery = [];
+  if (Array.isArray(user?.gallery) && user.gallery.length > 0) {
+    userGallery = user.gallery;
+  } else if (Array.isArray(user?.fotos_galeria) && user.fotos_galeria.length > 0) {
+    userGallery = user.fotos_galeria;
+  } else if (typeof user?.fotos_galeria === 'string') {
+    try {
+      const parsed = JSON.parse(user.fotos_galeria);
+      if (Array.isArray(parsed) && parsed.length > 0) userGallery = parsed;
+    } catch (e) {
+      if (user.fotos_galeria.startsWith('http')) userGallery = [user.fotos_galeria];
+    }
+  }
+
+  const userCover = user?.coverImage || user?.foto_portada || (userGallery.length > 0 ? userGallery[0] : null);
+  if (userCover && !userGallery.includes(userCover)) {
+    userGallery = [userCover, ...userGallery];
+  }
+
   return {
     id: `rest-${code.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
     name: restName || '',
     slug: (restName || 'mi-negocio').toLowerCase().replace(/\s+/g, '-'),
-    tagline: '',
+    tagline: user?.tagline || '',
     category: user?.category || user?.memberCategory || user?.categoria_negocio || "Restaurantes de autor",
     rating: 5.0,
     priceTier: "$$ (Gourmet / Estándar)",
     altitude: 1620,
     ejeName: "Eje Metropolitano",
     location: user?.location || user?.direccion_completa || user?.municipio || '',
-    openingHours: '',
-    description: '',
+    openingHours: user?.openingHours || '',
+    description: user?.description || '',
     chef: user?.ownerName || user?.representante_legal || '',
-    chefBio: '',
+    chefBio: user?.chefBio || '',
     phone: user?.phone || user?.telefono || '',
     whatsapp: user?.whatsapp || user?.phone || user?.telefono || '',
     instagram: user?.instagram && user?.instagram !== '@' ? user?.instagram : '',
@@ -278,11 +297,11 @@ export const createBlankBusinessProfile = (user) => {
     sitio_web: user?.sitio_web || user?.website || '',
     isCertifiedByCamara: true,
     certificateNumber: code,
-    coverImage: null,
-    gallery: [],
-    signatureDishes: [],
-    menuHighlights: [],
-    features: []
+    coverImage: userCover,
+    gallery: userGallery,
+    signatureDishes: user?.signatureDishes || [],
+    menuHighlights: user?.menuHighlights || [],
+    features: user?.features || []
   };
 };
 
@@ -635,7 +654,18 @@ export function AffiliateDashboard({
   initialActiveTab = 'overview',
   initialActiveUser = null
 }) {
-  const [viewMode, setViewMode] = useState(initialViewMode);
+  const [viewMode, setViewMode] = useState(() => {
+    if (initialViewMode === 'register') return 'register';
+    if (initialActiveUser) return 'dashboard';
+    try {
+      const savedSession = localStorage.getItem('cgem_active_session');
+      if (savedSession) {
+        const parsed = JSON.parse(savedSession);
+        if (parsed?.user) return 'dashboard';
+      }
+    } catch (e) {}
+    return initialViewMode;
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const updateViewMode = (mode) => {
@@ -741,8 +771,18 @@ export function AffiliateDashboard({
     setShowVideoModal(false);
   };
 
-  // Authenticated User State
-  const [activeUser, setActiveUser] = useState(() => initialActiveUser || AFFILIATES_DATA.currentUser);
+  // Authenticated User State (con recuperación de sesión persistente)
+  const [activeUser, setActiveUser] = useState(() => {
+    if (initialActiveUser) return initialActiveUser;
+    try {
+      const savedSession = localStorage.getItem('cgem_active_session');
+      if (savedSession) {
+        const parsed = JSON.parse(savedSession);
+        if (parsed?.user) return parsed.user;
+      }
+    } catch (e) {}
+    return AFFILIATES_DATA.currentUser;
+  });
 
   // Main Dashboard Tab: overview | my_business | gps_calibration | certificate | jobs | payments | courses | board
   const [activeTab, setActiveTab] = useState(() => initialActiveTab || 'overview');
@@ -804,21 +844,77 @@ export function AffiliateDashboard({
     return createBlankBusinessProfile(AFFILIATES_DATA.currentUser);
   });
 
-  // Mantener la ficha del negocio sincronizada estrictamente con el usuario activo
+  // Mantener la ficha del negocio sincronizada estrictamente con el usuario activo y Supabase
   useEffect(() => {
     if (!activeUser) return;
     const userStorageKey = `cgem_biz_profile_${activeUser.id || activeUser.email || 'default'}`;
+    let loadedFromLocal = false;
     try {
       const saved = localStorage.getItem(userStorageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
           setBusinessProfile(parsed);
-          return;
+          loadedFromLocal = true;
         }
       }
     } catch (e) {}
-    setBusinessProfile(createBlankBusinessProfile(activeUser));
+
+    if (!loadedFromLocal) {
+      setBusinessProfile(createBlankBusinessProfile(activeUser));
+    }
+
+    // Sincronización en segundo plano con Supabase para recuperar fotos reales
+    if (supabase && activeUser.id && activeUser.id !== 'CGM-2026-001') {
+      supabase
+        .from('directorio_agremiados')
+        .select('*')
+        .or(`codigo_afiliado.eq.${activeUser.id},email.eq.${activeUser.email || ''}`)
+        .maybeSingle()
+        .then(({ data: liveMember, error }) => {
+          if (liveMember && !error) {
+            let liveGallery = [];
+            if (Array.isArray(liveMember.fotos_galeria) && liveMember.fotos_galeria.length > 0) {
+              liveGallery = liveMember.fotos_galeria;
+            } else if (typeof liveMember.fotos_galeria === 'string') {
+              try {
+                const parsed = JSON.parse(liveMember.fotos_galeria);
+                if (Array.isArray(parsed)) liveGallery = parsed;
+              } catch (e) {
+                if (liveMember.fotos_galeria.startsWith('http')) liveGallery = [liveMember.fotos_galeria];
+              }
+            }
+            const liveCover = liveMember.foto_portada || (liveGallery.length > 0 ? liveGallery[0] : null);
+
+            setBusinessProfile(prev => {
+              const hasLivePhotos = liveCover || liveGallery.length > 0;
+              const hasLocalPhotos = prev.coverImage || (prev.gallery && prev.gallery.length > 0);
+
+              if (hasLivePhotos || !hasLocalPhotos) {
+                const merged = {
+                  ...prev,
+                  name: prev.name || liveMember.nombre_establecimiento,
+                  category: prev.category || liveMember.categoria_negocio,
+                  phone: prev.phone || liveMember.telefono,
+                  location: prev.location || liveMember.direccion_completa,
+                  instagram: prev.instagram || liveMember.instagram,
+                  website: prev.website || liveMember.sitio_web,
+                  coverImage: liveCover || prev.coverImage,
+                  gallery: (liveGallery.length > 0) ? liveGallery : (prev.gallery || [])
+                };
+
+                try {
+                  localStorage.setItem(userStorageKey, JSON.stringify(merged));
+                } catch (e) {}
+
+                return merged;
+              }
+              return prev;
+            });
+          }
+        })
+        .catch(err => console.warn('Supabase sync background notice:', err));
+    }
   }, [activeUser?.id, activeUser?.restaurantName]);
 
   const [businessSaveSuccess, setBusinessSaveSuccess] = useState(false);
@@ -885,16 +981,59 @@ export function AffiliateDashboard({
       }
 
       const newGallery = [...currentGallery, ...processedPhotos].slice(0, 5);
-      const newCover = businessProfile.coverImage || newGallery[0];
+      const newCover = businessProfile.coverImage || newGallery[0] || '';
 
-      setBusinessProfile(prev => ({
-        ...prev,
+      const updatedProfile = {
+        ...businessProfile,
         gallery: newGallery,
         coverImage: newCover
-      }));
+      };
+
+      setBusinessProfile(updatedProfile);
+
+      // AUTO-SAVE INMEDIATO: Garantiza que las fotos queden grabadas en Supabase y LocalStorage al instante
+      const userKey = `cgem_biz_profile_${activeUser?.id || activeUser?.email || 'default'}`;
+      try {
+        localStorage.setItem(userKey, JSON.stringify(updatedProfile));
+        localStorage.setItem('cgem_my_business_profile', JSON.stringify(updatedProfile));
+      } catch (storageErr) {
+        console.warn('LocalStorage quota notice:', storageErr);
+      }
+
+      if (supabase && activeUser?.id) {
+        try {
+          await supabase.from('directorio_agremiados').update({
+            foto_portada: newCover,
+            fotos_galeria: newGallery,
+            updated_at: new Date().toISOString()
+          }).eq('codigo_afiliado', activeUser.id);
+        } catch (dbErr) {
+          console.warn('Auto-save photos to Supabase notice:', dbErr);
+        }
+      }
+
+      // Sincronizar también con cgem_directorio_agremiados local
+      try {
+        const localDir = JSON.parse(localStorage.getItem('cgem_directorio_agremiados') || '[]');
+        const updatedDir = localDir.map(m => {
+          if (m.codigo_afiliado === activeUser?.id) {
+            return {
+              ...m,
+              foto_portada: newCover,
+              fotos_galeria: newGallery
+            };
+          }
+          return m;
+        });
+        localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedDir));
+      } catch (e) {}
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cgm_business_updated', { detail: updatedProfile }));
+      }
 
       setPhotoOptimizationStats({
-        message: `¡${filesToProcess.length} foto(s) optimizada(s) con éxito! Se redujo el peso en promedio más del 90%.`,
+        message: `¡${filesToProcess.length} foto(s) guardada(s) y sincronizada(s) con éxito en tu ficha y en la Guía Oficial!`,
         items: statsList
       });
 
@@ -919,11 +1058,30 @@ export function AffiliateDashboard({
       if (prev.coverImage === currentGallery[indexToRemove]) {
         newCover = newGallery[0] || '';
       }
-      return {
+      const updated = {
         ...prev,
         gallery: newGallery,
         coverImage: newCover
       };
+
+      // Persistir de inmediato
+      const userKey = `cgem_biz_profile_${activeUser?.id || activeUser?.email || 'default'}`;
+      try {
+        localStorage.setItem(userKey, JSON.stringify(updated));
+      } catch (e) {}
+
+      if (supabase && activeUser?.id) {
+        supabase.from('directorio_agremiados').update({
+          foto_portada: newCover,
+          fotos_galeria: newGallery,
+          updated_at: new Date().toISOString()
+        }).eq('codigo_afiliado', activeUser.id).catch(() => {});
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cgm_business_updated', { detail: updated }));
+      }
+      return updated;
     });
   };
 
@@ -934,11 +1092,30 @@ export function AffiliateDashboard({
       if (!selected) return prev;
       const rest = currentGallery.filter((_, idx) => idx !== index);
       const reordered = [selected, ...rest];
-      return {
+      const updated = {
         ...prev,
         gallery: reordered,
         coverImage: selected
       };
+
+      // Persistir de inmediato
+      const userKey = `cgem_biz_profile_${activeUser?.id || activeUser?.email || 'default'}`;
+      try {
+        localStorage.setItem(userKey, JSON.stringify(updated));
+      } catch (e) {}
+
+      if (supabase && activeUser?.id) {
+        supabase.from('directorio_agremiados').update({
+          foto_portada: selected,
+          fotos_galeria: reordered,
+          updated_at: new Date().toISOString()
+        }).eq('codigo_afiliado', activeUser.id).catch(() => {});
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cgm_business_updated', { detail: updated }));
+      }
+      return updated;
     });
   };
 
@@ -947,30 +1124,64 @@ export function AffiliateDashboard({
     setIsSavingBusiness(true);
     try {
       const userKey = `cgem_biz_profile_${activeUser?.id || activeUser?.email || 'default'}`;
-      localStorage.setItem(userKey, JSON.stringify(businessProfile));
-      localStorage.setItem('cgem_my_business_profile', JSON.stringify(businessProfile));
+      
+      // 1. Guardar primero en Supabase para asegurar persistencia remota
+      if (supabase && activeUser?.id) {
+        try {
+          await supabase.from('directorio_agremiados').update({
+            nombre_establecimiento: businessProfile.name,
+            categoria_negocio: businessProfile.category,
+            telefono: businessProfile.phone,
+            direccion_completa: businessProfile.location,
+            instagram: businessProfile.instagram,
+            sitio_web: businessProfile.website || businessProfile.sitio_web || '',
+            foto_portada: businessProfile.coverImage || (businessProfile.gallery && businessProfile.gallery[0]) || '',
+            fotos_galeria: businessProfile.gallery || [],
+            observaciones: businessProfile.tagline || businessProfile.description ? `Especialidad: ${businessProfile.tagline || ''}. ${businessProfile.description || ''}. Horarios: ${businessProfile.openingHours || ''}` : undefined,
+            updated_at: new Date().toISOString()
+          }).eq('codigo_afiliado', activeUser.id);
+        } catch (dbErr) {
+          console.warn('Error al guardar en Supabase directorio_agremiados:', dbErr);
+        }
+      }
 
-      const existingCustom = JSON.parse(localStorage.getItem('cgem_custom_restaurants') || '[]');
-      const otherRestaurants = existingCustom.filter(r => r.id !== businessProfile.id && r.certificateNumber !== activeUser?.id);
-      const updatedCustom = [businessProfile, ...otherRestaurants];
-      localStorage.setItem('cgem_custom_restaurants', JSON.stringify(updatedCustom));
+      // 2. Guardar en localStorage de forma segura
+      try {
+        localStorage.setItem(userKey, JSON.stringify(businessProfile));
+        localStorage.setItem('cgem_my_business_profile', JSON.stringify(businessProfile));
+
+        const existingCustom = JSON.parse(localStorage.getItem('cgem_custom_restaurants') || '[]');
+        const otherRestaurants = existingCustom.filter(r => r.id !== businessProfile.id && r.certificateNumber !== activeUser?.id);
+        const updatedCustom = [businessProfile, ...otherRestaurants];
+        localStorage.setItem('cgem_custom_restaurants', JSON.stringify(updatedCustom));
+      } catch (storageErr) {
+        console.warn('Aviso de almacenamiento en navegador:', storageErr);
+      }
+
+      // 3. Sincronizar directorio local para la Guía y Mapa
+      try {
+        const localDir = JSON.parse(localStorage.getItem('cgem_directorio_agremiados') || '[]');
+        const updatedDir = localDir.map(m => {
+          if (m.codigo_afiliado === activeUser?.id) {
+            return {
+              ...m,
+              nombre_establecimiento: businessProfile.name,
+              categoria_negocio: businessProfile.category,
+              telefono: businessProfile.phone,
+              direccion_completa: businessProfile.location,
+              instagram: businessProfile.instagram,
+              sitio_web: businessProfile.website,
+              foto_portada: businessProfile.coverImage || (businessProfile.gallery && businessProfile.gallery[0]) || '',
+              fotos_galeria: businessProfile.gallery || []
+            };
+          }
+          return m;
+        });
+        localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedDir));
+      } catch (dirErr) {}
 
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('cgm_business_updated', { detail: businessProfile }));
-      }
-
-      if (supabase) {
-        await supabase.from('directorio_agremiados').update({
-          nombre_establecimiento: businessProfile.name,
-          categoria_negocio: businessProfile.category,
-          telefono: businessProfile.phone,
-          direccion_completa: businessProfile.location,
-          instagram: businessProfile.instagram,
-          sitio_web: businessProfile.website || businessProfile.sitio_web || '',
-          foto_portada: businessProfile.coverImage || (businessProfile.gallery && businessProfile.gallery[0]) || '',
-          fotos_galeria: businessProfile.gallery || [],
-          observaciones: `Especialidad: ${businessProfile.tagline || ''}. Horarios: ${businessProfile.openingHours || ''}`
-        }).eq('codigo_afiliado', activeUser?.id || 'CGM-2026-001').catch(() => {});
       }
 
       setBusinessSaveSuccess(true);
@@ -1322,7 +1533,7 @@ export function AffiliateDashboard({
         const restName = foundMember.nombre_establecimiento || foundMember.nombre_comercial || 'Mi Establecimiento Agremiado';
         const owner = foundMember.representante_legal || foundMember.titular_propietario || 'Representante Legal';
 
-        setActiveUser({
+        const userPayload = {
           id: code,
           restaurantName: restName,
           ownerName: owner,
@@ -1334,12 +1545,37 @@ export function AffiliateDashboard({
           monthlyDues: foundMember.monto_cuota_mensual ? `$${foundMember.monto_cuota_mensual}.00` : "$10.00",
           lastPaymentDate: "Reciente",
           certificateCode: `CGM-CERT-2026-${code.replace('CGM-', '')}`,
+          email: foundMember.email || cleanId,
           stats: {
             profileViewsMonth: 1240,
             reservationsMonth: 38,
             chamberRating: "5.0 / 5.0 (Auditoría de Calidad en Curso)"
           }
-        });
+        };
+
+        setActiveUser(userPayload);
+
+        // Guardar sesión persistente
+        try {
+          localStorage.setItem('cgem_active_session', JSON.stringify({
+            user: userPayload,
+            timestamp: Date.now()
+          }));
+        } catch (e) {}
+
+        // Extraer fotos guardadas en Supabase
+        let memberGallery = [];
+        if (Array.isArray(foundMember.fotos_galeria) && foundMember.fotos_galeria.length > 0) {
+          memberGallery = foundMember.fotos_galeria;
+        } else if (typeof foundMember.fotos_galeria === 'string') {
+          try {
+            const parsed = JSON.parse(foundMember.fotos_galeria);
+            if (Array.isArray(parsed)) memberGallery = parsed;
+          } catch (e) {
+            if (foundMember.fotos_galeria.startsWith('http')) memberGallery = [foundMember.fotos_galeria];
+          }
+        }
+        const memberCover = foundMember.foto_portada || (memberGallery.length > 0 ? memberGallery[0] : null);
 
         // Cargar ficha limpia o guardada exclusivamente para este agremiado
         const userKey = `cgem_biz_profile_${code}`;
@@ -1359,9 +1595,27 @@ export function AffiliateDashboard({
             email: foundMember.email,
             direccion_completa: foundMember.direccion_completa,
             municipio: foundMember.municipio,
-            instagram: foundMember.instagram
+            instagram: foundMember.instagram,
+            foto_portada: memberCover,
+            fotos_galeria: memberGallery,
+            coverImage: memberCover,
+            gallery: memberGallery
           });
+        } else {
+          // Si la base de datos tiene fotos y el guardado local no, sincronizar
+          if (memberCover || memberGallery.length > 0) {
+            userBizProfile = {
+              ...userBizProfile,
+              coverImage: userBizProfile.coverImage || memberCover,
+              gallery: (userBizProfile.gallery && userBizProfile.gallery.length > 0) ? userBizProfile.gallery : memberGallery
+            };
+          }
         }
+
+        try {
+          localStorage.setItem(userKey, JSON.stringify(userBizProfile));
+        } catch (e) {}
+
         setBusinessProfile(userBizProfile);
 
         updateViewMode('dashboard');
@@ -2677,6 +2931,10 @@ export function AffiliateDashboard({
             <button
               onClick={() => {
                 setActiveUser(null);
+                try {
+                  localStorage.removeItem('cgem_active_session');
+                  localStorage.removeItem('cgem_active_affiliate');
+                } catch (e) {}
                 updateViewMode('login');
               }}
               className="py-1.5 px-3 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 text-[11px] font-sans font-semibold flex items-center justify-center gap-1.5 transition-all border border-slate-200/60 hover:border-rose-200"

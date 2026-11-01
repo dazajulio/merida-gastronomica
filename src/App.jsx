@@ -68,7 +68,14 @@ const ROUTE_CONFIG = [
 
 export function App() {
   const [activeTab, setActiveTab] = useState('home');
-  const [affiliateViewMode, setAffiliateViewMode] = useState('login');
+  const [affiliateViewMode, setAffiliateViewMode] = useState(() => {
+    try {
+      if (typeof localStorage !== 'undefined' && localStorage.getItem('cgem_active_session')) {
+        return 'dashboard';
+      }
+    } catch (e) {}
+    return 'login';
+  });
   const [affiliateAutoVideo, setAffiliateAutoVideo] = useState(false);
   const [affiliateInitialTab, setAffiliateInitialTab] = useState('overview');
   const [affiliateDirectUser, setAffiliateDirectUser] = useState(null);
@@ -221,7 +228,8 @@ export function App() {
         } else {
           setActiveTab(route.tab);
           if (route.tab === 'affiliates') {
-            setAffiliateViewMode('login');
+            const hasSession = typeof localStorage !== 'undefined' && localStorage.getItem('cgem_active_session');
+            setAffiliateViewMode(hasSession ? 'dashboard' : 'login');
             setAffiliateAutoVideo(false);
           }
         }

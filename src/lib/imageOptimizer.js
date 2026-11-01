@@ -142,7 +142,9 @@ export async function optimizeImage(file, options = {}) {
 export async function uploadAffiliateImageToStorage(blob, affiliateCode, slotIndex, fallbackDataUrl = '') {
   const safeCode = (affiliateCode || 'CGM-2026').replace(/[^a-zA-Z0-9_-]/g, '_');
   const timestamp = Date.now();
-  const filePath = `${safeCode}/foto_${slotIndex + 1}_${timestamp}.webp`;
+  const mimeType = blob?.type || 'image/webp';
+  const ext = mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : (mimeType.includes('png') ? 'png' : 'webp');
+  const filePath = `${safeCode}/foto_${slotIndex + 1}_${timestamp}.${ext}`;
 
   if (!supabase || !supabase.storage) {
     return { url: fallbackDataUrl, storagePath: null, mode: 'base64' };
@@ -153,7 +155,7 @@ export async function uploadAffiliateImageToStorage(blob, affiliateCode, slotInd
     const { data, error } = await supabase.storage
       .from(bucketName)
       .upload(filePath, blob, {
-        contentType: 'image/webp',
+        contentType: mimeType,
         upsert: true,
         cacheControl: '31536000'
       });
