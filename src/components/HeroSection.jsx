@@ -1,10 +1,26 @@
 import React, { useState, useEffect } from 'react';
 
 const SPONSORS = [
-  { name: 'Empresas Polar', logo: '/images/patrocinantes/polar.png' },
-  { name: 'Suraki', logo: '/images/patrocinantes/suraki.png' },
-  { name: 'Pasapalos El Caldero', logo: '/images/patrocinantes/el-caldero.png' },
-  { name: 'Lácteos Santa María', logo: '/images/patrocinantes/santa-maria.png' },
+  {
+    name: 'Empresas Polar',
+    logo: '/images/patrocinantes/polar.png',
+    sizeClass: 'h-[32px] sm:h-[44px] md:h-[50px] w-auto max-w-[115px] sm:max-w-[160px] md:max-w-[180px]',
+  },
+  {
+    name: 'Suraki',
+    logo: '/images/patrocinantes/suraki.png',
+    sizeClass: 'h-[32px] sm:h-[44px] md:h-[48px] w-auto max-w-[85px] sm:max-w-[125px] md:max-w-[140px]',
+  },
+  {
+    name: 'Pasapalos El Caldero',
+    logo: '/images/patrocinantes/el-caldero.png',
+    sizeClass: 'h-[32px] sm:h-[44px] md:h-[48px] w-auto max-w-[90px] sm:max-w-[130px] md:max-w-[145px]',
+  },
+  {
+    name: 'Lácteos Santa María',
+    logo: '/images/patrocinantes/santa-maria.png',
+    sizeClass: 'h-[28px] sm:h-[38px] md:h-[42px] w-auto max-w-[50px] sm:max-w-[70px] md:max-w-[80px]',
+  },
 ];
 
 export function HeroSection() {
@@ -73,7 +89,7 @@ export function HeroSection() {
               <img
                 src={sponsor.logo}
                 alt={sponsor.name}
-                className="h-8 sm:h-11 md:h-12 w-auto max-w-[75px] sm:max-w-[115px] md:max-w-[135px] object-contain block opacity-100 filter drop-shadow-xs"
+                className={`${sponsor.sizeClass} object-contain block opacity-100 filter drop-shadow-xs`}
               />
             </div>
           ))}
