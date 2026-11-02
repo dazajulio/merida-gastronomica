@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
 
+const SPONSORS = [
+  { name: 'Empresas Polar', logo: '/images/patrocinantes/polar.png' },
+  { name: 'Suraki', logo: '/images/patrocinantes/suraki.png' },
+  { name: 'Pasapalos El Caldero', logo: '/images/patrocinantes/el-caldero.png' },
+  { name: 'Lácteos Santa María', logo: '/images/patrocinantes/santa-maria.png' },
+];
+
 export function HeroSection() {
   const [scrollY, setScrollY] = useState(0);
 
@@ -50,6 +57,29 @@ export function HeroSection() {
           </h1>
         </div>
       </div>
+
+      {/* Bottom Sponsors Bar - Elegant, non-disruptive, symmetrical & translucent */}
+      <div className="absolute bottom-5 sm:bottom-7 left-0 right-0 z-10 flex flex-col items-center justify-center px-4 pointer-events-auto">
+        <span className="text-[10px] sm:text-[11px] font-sans uppercase tracking-[0.24em] text-amber-100/75 font-medium mb-2.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+          Patrocinantes Oficiales
+        </span>
+        <div className="flex items-center justify-center gap-3.5 sm:gap-5 md:gap-7">
+          {SPONSORS.map((sponsor) => (
+            <div
+              key={sponsor.name}
+              title={sponsor.name}
+              className="w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-white/75 hover:bg-white/95 backdrop-blur-md border border-white/30 shadow-lg flex items-center justify-center p-2 sm:p-2.5 transition-all duration-300 hover:scale-105 opacity-75 hover:opacity-100 cursor-pointer group"
+            >
+              <img
+                src={sponsor.logo}
+                alt={sponsor.name}
+                className="w-full h-full object-contain filter drop-shadow-2xs transition-transform duration-300 group-hover:scale-105"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
     </section>
   );
 }
