@@ -58,22 +58,22 @@ export function HeroSection() {
         </div>
       </div>
 
-      {/* Bottom Sponsors Bar - Elegant, non-disruptive, symmetrical & translucent */}
-      <div className="absolute bottom-5 sm:bottom-7 left-0 right-0 z-10 flex flex-col items-center justify-center px-4 pointer-events-auto">
-        <span className="text-[10px] sm:text-[11px] font-sans uppercase tracking-[0.24em] text-amber-100/75 font-medium mb-2.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+      {/* Bottom Sponsors Bar - Unified clean background dock, high legibility, symmetric & larger logos */}
+      <div className="absolute bottom-4 sm:bottom-6 left-0 right-0 z-10 flex flex-col items-center justify-center px-4 pointer-events-auto">
+        <span className="text-[10px] sm:text-[11px] font-sans uppercase tracking-[0.24em] text-amber-100/80 font-medium mb-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">
           Patrocinantes Oficiales
         </span>
-        <div className="flex items-center justify-center gap-3.5 sm:gap-5 md:gap-7">
+        <div className="bg-white/95 sm:bg-white backdrop-blur-md rounded-2xl sm:rounded-full px-4 sm:px-8 py-2.5 sm:py-3 shadow-[0_12px_36px_rgba(0,0,0,0.55)] border border-white/90 flex items-center justify-center gap-4 sm:gap-7 md:gap-9 transition-all duration-300">
           {SPONSORS.map((sponsor) => (
             <div
               key={sponsor.name}
               title={sponsor.name}
-              className="w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-white/75 hover:bg-white/95 backdrop-blur-md border border-white/30 shadow-lg flex items-center justify-center p-2 sm:p-2.5 transition-all duration-300 hover:scale-105 opacity-75 hover:opacity-100 cursor-pointer group"
+              className="flex items-center justify-center transition-all duration-300 hover:scale-105 cursor-pointer"
             >
               <img
                 src={sponsor.logo}
                 alt={sponsor.name}
-                className="w-full h-full object-contain filter drop-shadow-2xs transition-transform duration-300 group-hover:scale-105"
+                className="h-8 sm:h-11 md:h-12 w-auto max-w-[75px] sm:max-w-[115px] md:max-w-[135px] object-contain block opacity-100 filter drop-shadow-xs"
               />
             </div>
           ))}
