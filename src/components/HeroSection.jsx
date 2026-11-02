@@ -4,22 +4,22 @@ const SPONSORS = [
   {
     name: 'Empresas Polar',
     logo: '/images/patrocinantes/polar.png',
-    sizeClass: 'h-[38px] sm:h-[52px] md:h-[62px] w-auto max-w-[125px] sm:max-w-[185px] md:max-w-[215px]',
+    sizeClass: 'h-[46px] sm:h-[64px] md:h-[76px] w-auto max-w-[150px] sm:max-w-[220px] md:max-w-[260px]',
   },
   {
     name: 'Suraki',
     logo: '/images/patrocinantes/suraki.png',
-    sizeClass: 'h-[36px] sm:h-[48px] md:h-[58px] w-auto max-w-[95px] sm:max-w-[135px] md:max-w-[155px]',
+    sizeClass: 'h-[44px] sm:h-[60px] md:h-[72px] w-auto max-w-[115px] sm:max-w-[165px] md:max-w-[190px]',
   },
   {
     name: 'Pasapalos El Caldero',
     logo: '/images/patrocinantes/el-caldero.png',
-    sizeClass: 'h-[36px] sm:h-[50px] md:h-[60px] w-auto max-w-[100px] sm:max-w-[145px] md:max-w-[165px]',
+    sizeClass: 'h-[44px] sm:h-[62px] md:h-[74px] w-auto max-w-[120px] sm:max-w-[175px] md:max-w-[200px]',
   },
   {
     name: 'Lácteos Santa María',
     logo: '/images/patrocinantes/santa-maria.png',
-    sizeClass: 'h-[34px] sm:h-[46px] md:h-[54px] w-auto max-w-[65px] sm:max-w-[85px] md:max-w-[100px]',
+    sizeClass: 'h-[42px] sm:h-[58px] md:h-[68px] w-auto max-w-[80px] sm:max-w-[110px] md:max-w-[130px]',
   },
 ];
 
@@ -75,11 +75,11 @@ export function HeroSection() {
       </div>
 
       {/* Bottom Sponsors Bar - Unified clean background dock, high legibility, symmetric & larger logos */}
-      <div className="absolute bottom-4 sm:bottom-6 left-0 right-0 z-10 flex flex-col items-center justify-center px-4 pointer-events-auto">
+      <div className="absolute bottom-3 sm:bottom-5 left-0 right-0 z-10 flex flex-col items-center justify-center px-4 pointer-events-auto">
         <span className="text-[10px] sm:text-[11px] font-sans uppercase tracking-[0.24em] text-amber-100/80 font-medium mb-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">
           Patrocinantes Oficiales
         </span>
-        <div className="bg-white/95 sm:bg-white backdrop-blur-md rounded-2xl sm:rounded-full px-3.5 sm:px-7 py-2 sm:py-2.5 shadow-[0_12px_36px_rgba(0,0,0,0.55)] border border-white/90 flex items-center justify-center gap-3.5 sm:gap-6 md:gap-8 transition-all duration-300">
+        <div className="bg-white/95 sm:bg-white backdrop-blur-md rounded-2xl sm:rounded-full px-4 sm:px-8 py-2 sm:py-2.5 shadow-[0_14px_40px_rgba(0,0,0,0.6)] border border-white/90 flex items-center justify-center gap-4 sm:gap-7 md:gap-9 transition-all duration-300">
           {SPONSORS.map((sponsor) => (
             <div
               key={sponsor.name}
