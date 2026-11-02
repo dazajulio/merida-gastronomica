@@ -4,22 +4,22 @@ const SPONSORS = [
   {
     name: 'Empresas Polar',
     logo: '/images/patrocinantes/polar.png',
-    sizeClass: 'h-[32px] sm:h-[44px] md:h-[50px] w-auto max-w-[115px] sm:max-w-[160px] md:max-w-[180px]',
+    sizeClass: 'h-[38px] sm:h-[52px] md:h-[62px] w-auto max-w-[125px] sm:max-w-[185px] md:max-w-[215px]',
   },
   {
     name: 'Suraki',
     logo: '/images/patrocinantes/suraki.png',
-    sizeClass: 'h-[32px] sm:h-[44px] md:h-[48px] w-auto max-w-[85px] sm:max-w-[125px] md:max-w-[140px]',
+    sizeClass: 'h-[36px] sm:h-[48px] md:h-[58px] w-auto max-w-[95px] sm:max-w-[135px] md:max-w-[155px]',
   },
   {
     name: 'Pasapalos El Caldero',
     logo: '/images/patrocinantes/el-caldero.png',
-    sizeClass: 'h-[32px] sm:h-[44px] md:h-[48px] w-auto max-w-[90px] sm:max-w-[130px] md:max-w-[145px]',
+    sizeClass: 'h-[36px] sm:h-[50px] md:h-[60px] w-auto max-w-[100px] sm:max-w-[145px] md:max-w-[165px]',
   },
   {
     name: 'Lácteos Santa María',
     logo: '/images/patrocinantes/santa-maria.png',
-    sizeClass: 'h-[28px] sm:h-[38px] md:h-[42px] w-auto max-w-[50px] sm:max-w-[70px] md:max-w-[80px]',
+    sizeClass: 'h-[34px] sm:h-[46px] md:h-[54px] w-auto max-w-[65px] sm:max-w-[85px] md:max-w-[100px]',
   },
 ];
 
@@ -79,7 +79,7 @@ export function HeroSection() {
         <span className="text-[10px] sm:text-[11px] font-sans uppercase tracking-[0.24em] text-amber-100/80 font-medium mb-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">
           Patrocinantes Oficiales
         </span>
-        <div className="bg-white/95 sm:bg-white backdrop-blur-md rounded-2xl sm:rounded-full px-4 sm:px-8 py-2.5 sm:py-3 shadow-[0_12px_36px_rgba(0,0,0,0.55)] border border-white/90 flex items-center justify-center gap-4 sm:gap-7 md:gap-9 transition-all duration-300">
+        <div className="bg-white/95 sm:bg-white backdrop-blur-md rounded-2xl sm:rounded-full px-3.5 sm:px-7 py-2 sm:py-2.5 shadow-[0_12px_36px_rgba(0,0,0,0.55)] border border-white/90 flex items-center justify-center gap-3.5 sm:gap-6 md:gap-8 transition-all duration-300">
           {SPONSORS.map((sponsor) => (
             <div
               key={sponsor.name}
