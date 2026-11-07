@@ -473,7 +473,7 @@ export function DirectoryAgremiadosSection({
                     <div>
                       {/* Categoría / Rubro */}
                       <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-full mb-2 max-w-full truncate">
-                        {restaurant.category || 'Gastronomía Andina'}
+                        {(restaurant.category || '').toLowerCase().includes('sin registro comercial') ? 'Emprendimiento' : (restaurant.category || 'Gastronomía Andina')}
                       </span>
 
                       {/* Nombre del Establecimiento */}

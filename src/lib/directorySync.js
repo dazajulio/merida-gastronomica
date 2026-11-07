@@ -15,7 +15,9 @@ const DEFAULT_CATEGORY_IMAGES = {
   "Restaurantes de alta cocina": "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80",
   "Restaurantes de autor": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80",
   "Restaurantes familiares": "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1200&q=80",
-  "Food trucks": "https://images.unsplash.com/photo-1565123409695-7b5ef63a2efb?auto=format&fit=crop&w=1200&q=80"
+  "Food trucks": "https://images.unsplash.com/photo-1565123409695-7b5ef63a2efb?auto=format&fit=crop&w=1200&q=80",
+  "Emprendimiento": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80",
+  "Emprendimientos sin registro comercial": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80"
 };
 
 /**
@@ -88,7 +90,10 @@ export function convertAgremiadoToRestaurant(m) {
   const websiteUrl = rawWebsite ? (rawWebsite.startsWith('http://') || rawWebsite.startsWith('https://') ? rawWebsite : `https://${rawWebsite}`) : '';
 
   // Sanitizar descripción pública para que JAMÁS exponga comprobantes bancarios, referencias o teléfonos de pagadores
-  const cleanCategory = m.categoria_negocio || 'Gastronomía Andina';
+  let cleanCategory = m.categoria_negocio || 'Gastronomía Andina';
+  if (cleanCategory.toLowerCase().includes('sin registro comercial')) {
+    cleanCategory = 'Emprendimiento';
+  }
   const cleanMunicipio = m.municipio || 'Mérida, Venezuela';
   
   let publicDescription = `Establecimiento formal de ${cleanCategory} ubicado en ${cleanMunicipio}, comprometido con la hospitalidad y la excelencia de la gastronomía andina.`;

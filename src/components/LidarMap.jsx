@@ -341,7 +341,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
 
             <div style="position: absolute; bottom: 6px; left: 8px; right: 8px; display: flex; align-items: center; justify-content: space-between;">
               <span style="font-size: 11px; color: #fbbf24; font-weight: 800;">★ ${restData.rating || '5.0'} <span style="font-size: 10px; color: #e2e8f0; font-weight: 500;">(${restData.reviewsCount || 1})</span></span>
-              <span style="font-size: 10px; font-weight: 700; color: #f8fafc; background: rgba(15,23,42,0.8); padding: 1.5px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15);">${restData.category || 'Gastronomía'}</span>
+              <span style="font-size: 10px; font-weight: 700; color: #f8fafc; background: rgba(15,23,42,0.8); padding: 1.5px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15);">${(restData.category || '').toLowerCase().includes('sin registro comercial') ? 'Emprendimiento' : (restData.category || 'Gastronomía')}</span>
             </div>
           </div>
 
@@ -825,7 +825,7 @@ export function LidarMap({ onSelectRestaurantById, focusRestaurantId, t, restaur
                           </div>
 
                           <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                            {rest.category || 'Gastronomía'}
+                            {(rest.category || '').toLowerCase().includes('sin registro comercial') ? 'Emprendimiento' : (rest.category || 'Gastronomía')}
                           </p>
 
                           <p className="text-[10px] text-slate-400 truncate mt-0.5">

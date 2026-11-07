@@ -39,7 +39,7 @@ export function RestaurantCard({ restaurant, onSelect, onViewOnMap, t }) {
         {/* Bottom Tag inside Image */}
         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
           <span className="text-xs font-bold px-3 py-1 rounded-lg bg-amber-500 text-slate-950 shadow-sm">
-            {restaurant.category}
+            {(restaurant.category || '').toLowerCase().includes('sin registro comercial') ? 'Emprendimiento' : (restaurant.category || 'Gastronomía Andina')}
           </span>
         </div>
       </div>

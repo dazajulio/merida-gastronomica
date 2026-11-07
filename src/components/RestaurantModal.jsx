@@ -124,6 +124,13 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
   const instagramUser = restaurant.instagram ? restaurant.instagram.replace('@', '') : '';
   const instagramUrl = restaurant.instagramUrl || (instagramUser ? `https://instagram.com/${instagramUser}` : '');
 
+  const formatCategory = (cat) => {
+    if (!cat) return 'Gastronomía Andina';
+    if (cat.toLowerCase().includes('sin registro comercial')) return 'Emprendimiento';
+    return cat;
+  };
+  const displayCategory = formatCategory(restaurant.category);
+
   return (
     <>
       {/* Modal Backdrop & Container */}
@@ -157,7 +164,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
                   )}
                 </div>
                 <p className="text-xs text-slate-500 truncate mt-0.5">
-                  {restaurant.tagline || `${restaurant.category} • Cámara Gastronómica del Estado Mérida`}
+                  {(restaurant.tagline ? restaurant.tagline.replace(/Emprendimientos sin registro comercial/gi, 'Emprendimiento') : `${displayCategory} • Cámara Gastronómica del Estado Mérida`)}
                 </p>
               </div>
             </div>
@@ -261,7 +268,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
             </div>
             <span>•</span>
             <span className="font-medium text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-              {restaurant.category}
+              {displayCategory}
             </span>
             <span>•</span>
             <div className="flex items-center gap-1 text-slate-600">
@@ -620,7 +627,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
                     <div>
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Categoría</span>
                       <p className="font-serif text-base font-bold text-slate-900 leading-tight mt-0.5">
-                        {restaurant.category}
+                        {displayCategory}
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5">
