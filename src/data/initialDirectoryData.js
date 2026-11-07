@@ -242,9 +242,15 @@ export const INITIAL_DIRECTORY_DATA = [
     fecha_vencimiento: "2026-11-13 20:04:12.57+00",
     observaciones: "Registro Web Público. Ref: 514939 (Banco de Venezuela). Tel. Pagador: 04247046750514939. Descripción: Somos Ufo Candy Store su tienda de snacks interestelar. Nuestros servicios de pasa palos caseros y tradicionales. Productos espaciales y marcianos Viajemos juntos a la galaxia del sabor . Monto Bs: 17.494,64",
     created_at: "2026-10-08 18:59:48.822422+00",
-    updated_at: "2026-10-27 00:09:48.975124+00",
-    foto_portada: null,
-    fotos_galeria: [],
+    updated_at: "2026-11-07 17:11:12.647129+00",
+    foto_portada: "https://iajclqnwknlbitbnflpz.supabase.co/storage/v1/object/public/directorio-fotos/CGM-2026-277/foto_1_1794071469190.jpg",
+    fotos_galeria: [
+      "https://iajclqnwknlbitbnflpz.supabase.co/storage/v1/object/public/directorio-fotos/CGM-2026-277/foto_1_1794071469190.jpg",
+      "https://iajclqnwknlbitbnflpz.supabase.co/storage/v1/object/public/directorio-fotos/CGM-2026-277/foto_2_1794071470040.jpg",
+      "https://iajclqnwknlbitbnflpz.supabase.co/storage/v1/object/public/directorio-fotos/CGM-2026-277/foto_3_1794071470876.jpg",
+      "https://iajclqnwknlbitbnflpz.supabase.co/storage/v1/object/public/directorio-fotos/CGM-2026-277/foto_4_1794071471218.jpg",
+      "https://iajclqnwknlbitbnflpz.supabase.co/storage/v1/object/public/directorio-fotos/CGM-2026-277/foto_5_1794071471579.jpg"
+    ],
     destacado_portada: false,
     visible_en_guia: true
   },
