@@ -182,13 +182,13 @@ export function ExpressAffiliationLanding({ onNavigate, onCompleteExpress }) {
               nombre_comercial: fullName.trim(),
               tipo_negocio: currentPlan.id,
               titular_propietario: fullName.trim(),
+              rif: 'En trámite',
               telefono: phone.trim() || 'No especificado',
               correo: email.trim().toLowerCase(),
               banco_pago_movil: issuingBank,
               referencia_pago_movil: referenceNumber.trim(),
               monto_bs: bcvRate ? parseFloat((currentPlan.usd * bcvRate).toFixed(2)) : null,
               municipio: 'Libertador (Mérida)',
-              estado: 'pago_en_verificacion',
               created_at: new Date().toISOString()
             }
           ]);
@@ -204,6 +204,7 @@ export function ExpressAffiliationLanding({ onNavigate, onCompleteExpress }) {
               nombre_establecimiento: fullName.trim(),
               categoria_negocio: currentPlan.title,
               representante_legal: fullName.trim(),
+              rif_cedula: 'En trámite',
               telefono: phone.trim() || '0414-0000000',
               email: email.trim().toLowerCase(),
               municipio: 'Libertador (Mérida Ciudad)',

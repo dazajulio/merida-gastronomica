@@ -469,5 +469,32 @@ export const INITIAL_DIRECTORY_DATA = [
     fotos_galeria: [],
     destacado_portada: true,
     visible_en_guia: true
+  },
+  {
+    id: "7b514785-e89f-4750-be6d-e55460398c6d",
+    codigo_afiliado: "CGM-2026-004",
+    nombre_establecimiento: "Cata con Mari",
+    categoria_negocio: "Emprendimiento",
+    representante_legal: "Marisabel Prieto Pérez",
+    rif_cedula: "V-14255833",
+    telefono: "0414-0000000",
+    email: "cataconmari@gmail.com",
+    direccion_completa: "Mérida, Estado Mérida",
+    municipio: "Libertador (Mérida Ciudad)",
+    instagram: "@cataconmari",
+    sitio_web: "",
+    numero_empleados: 1,
+    estado_solvencia: "Solvente (Activo)",
+    monto_inscripcion: 0.00,
+    monto_cuota_mensual: 10.00,
+    fecha_registro: "2026-11-13 21:49:45+00",
+    fecha_vencimiento: null,
+    observaciones: "Directora Operativa de la Cámara Gastronómica del Estado Mérida. Experiencias de cata, sommelier y cultura del vino y gastronomía.",
+    created_at: "2026-11-13 21:49:45+00",
+    updated_at: "2026-11-13 21:49:45+00",
+    foto_portada: "/images/Director Operativo Marisabel Prieto Pérez.png",
+    fotos_galeria: ["/images/Director Operativo Marisabel Prieto Pérez.png"],
+    destacado_portada: true,
+    visible_en_guia: true
   }
 ];

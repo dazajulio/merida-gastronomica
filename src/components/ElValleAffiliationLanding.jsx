@@ -182,13 +182,13 @@ export function ElValleAffiliationLanding({ onNavigate, onCompleteExpress }) {
               nombre_comercial: establishmentName.trim(),
               tipo_negocio: 'el_valle_te_conecta',
               titular_propietario: ownerName.trim(),
+              rif: 'En trámite',
               telefono: phone.trim() || 'No especificado',
               correo: email.trim().toLowerCase(),
               banco_pago_movil: issuingBank,
               referencia_pago_movil: referenceNumber.trim(),
               monto_bs: bcvRate ? parseFloat((PLAN_TERMS.monthlyUsd * bcvRate).toFixed(2)) : null,
               municipio: `Libertador / El Valle (${valleySector})`,
-              estado: 'pago_en_verificacion',
               created_at: new Date().toISOString()
             }
           ]);
@@ -204,6 +204,7 @@ export function ElValleAffiliationLanding({ onNavigate, onCompleteExpress }) {
               nombre_establecimiento: establishmentName.trim(),
               categoria_negocio: `${category} (El Valle)`,
               representante_legal: ownerName.trim(),
+              rif_cedula: 'En trámite',
               telefono: phone.trim() || '0414-0000000',
               email: email.trim().toLowerCase(),
               direccion_completa: `Ruta Turística El Valle, ${valleySector}, Mérida`,
