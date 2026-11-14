@@ -20,11 +20,17 @@ import {
   FileCheck2,
   Mail,
   User,
-  Phone
+  Phone,
+  Paperclip,
+  UploadCloud,
+  X,
+  Loader2
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { sendExpressAffiliateWelcomeEmail } from '../lib/emailService';
 import { createBlankBusinessProfile } from './AffiliateDashboard';
+import { optimizeImage, uploadPaymentProofToStorage } from '../lib/imageOptimizer';
+import { submitPaymentRecord } from '../lib/treasurySync';
 
 export function ExpressAffiliationLanding({ onNavigate, onCompleteExpress }) {
   // Exchange Rate State (BCV)
@@ -45,6 +51,11 @@ export function ExpressAffiliationLanding({ onNavigate, onCompleteExpress }) {
   const [referenceNumber, setReferenceNumber] = useState('');
   const [issuingBank, setIssuingBank] = useState('Banco Provincial');
 
+  // Payment Proof Image States (con optimización en cliente)
+  const [paymentProofOptimized, setPaymentProofOptimized] = useState(null);
+  const [isOptimizingProof, setIsOptimizingProof] = useState(false);
+  const [proofOptimizeError, setProofOptimizeError] = useState('');
+
   // Copy Feedback States
   const [copiedField, setCopiedField] = useState('');
 
@@ -52,6 +63,27 @@ export function ExpressAffiliationLanding({ onNavigate, onCompleteExpress }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successData, setSuccessData] = useState(null);
+
+  const handleProofSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProofOptimizeError('');
+    setIsOptimizingProof(true);
+    try {
+      const optimized = await optimizeImage(file, {
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.82,
+        outputType: 'image/webp'
+      });
+      setPaymentProofOptimized(optimized);
+    } catch (err) {
+      console.warn('Error optimizando comprobante express:', err);
+      setProofOptimizeError('No se pudo optimizar la imagen. Intente con otra.');
+    } finally {
+      setIsOptimizingProof(false);
+    }
+  };
 
   // Fetch BCV Rate
   useEffect(() => {
@@ -173,6 +205,19 @@ export function ExpressAffiliationLanding({ onNavigate, onCompleteExpress }) {
       const randomSuffix = Math.floor(100 + Math.random() * 899);
       const newAffiliateCode = `CGM-2026-${randomSuffix}`;
 
+      // Upload proof image if attached (compressed in client)
+      let uploadedProofUrl = '';
+      if (paymentProofOptimized && paymentProofOptimized.blob) {
+        const uploadRes = await uploadPaymentProofToStorage(
+          paymentProofOptimized.blob,
+          newAffiliateCode,
+          paymentProofOptimized.dataUrl
+        );
+        uploadedProofUrl = uploadRes?.url || '';
+      }
+
+      const calcBs = bcvRate ? parseFloat((currentPlan.usd * bcvRate).toFixed(2)) : 0;
+
       // 2. Save into Supabase 'solicitudes_afiliacion'
       if (supabase) {
         try {
@@ -187,7 +232,7 @@ export function ExpressAffiliationLanding({ onNavigate, onCompleteExpress }) {
               correo: email.trim().toLowerCase(),
               banco_pago_movil: issuingBank,
               referencia_pago_movil: referenceNumber.trim(),
-              monto_bs: bcvRate ? parseFloat((currentPlan.usd * bcvRate).toFixed(2)) : null,
+              monto_bs: calcBs || null,
               municipio: 'Libertador (Mérida)',
               created_at: new Date().toISOString()
             }
@@ -211,7 +256,7 @@ export function ExpressAffiliationLanding({ onNavigate, onCompleteExpress }) {
               estado_solvencia: 'En Verificación (Activo Provisional)',
               monto_inscripcion: currentPlan.usd,
               monto_cuota_mensual: 10,
-              observaciones: `Afiliación Express Masiva. Referencia: ${referenceNumber.trim()}`,
+              observaciones: `Afiliación Express Masiva. Referencia: ${referenceNumber.trim()}${uploadedProofUrl ? ` | Comprobante: ${uploadedProofUrl}` : ''}`,
               visible_en_guia: true,
               destacado_portada: false,
               created_at: new Date().toISOString()
@@ -220,6 +265,33 @@ export function ExpressAffiliationLanding({ onNavigate, onCompleteExpress }) {
         } catch (dirErr) {
           console.warn('Supabase directorio_agremiados notice:', dirErr);
         }
+      }
+
+      // 2.1 Register in treasury system (pagos_tesoreria)
+      try {
+        await submitPaymentRecord({
+          codigo_afiliado: newAffiliateCode,
+          nombre_establecimiento: fullName.trim(),
+          representante_legal: fullName.trim(),
+          rif_cedula: 'En trámite',
+          telefono: phone.trim() || '',
+          email: email.trim().toLowerCase(),
+          concepto: `Inscripción + 1er Mes (${currentPlan.title} - Afiliación Express)`,
+          periodo_mes: 'Noviembre 2026',
+          metodo_pago: paymentTab === 'pago-movil' ? 'pago_movil' : 'transferencia_nacional',
+          banco_emisor: issuingBank,
+          banco_receptor: 'Banco Provincial (0108)',
+          referencia: referenceNumber.trim(),
+          telefono_pagador: phone.trim() || '',
+          monto_usd: currentPlan.usd,
+          monto_bs: calcBs,
+          tasa_bcv: bcvRate || 911.62,
+          comprobante_url: uploadedProofUrl,
+          estado: 'pendiente',
+          observaciones: `Afiliación Express. Ref: ${referenceNumber.trim()}. Banco: ${issuingBank}.`
+        });
+      } catch (payErr) {
+        console.warn('Notice submitting treasury payment:', payErr);
       }
 
       // 3. Fallback / Synchronize to LocalStorage
@@ -844,6 +916,80 @@ export function ExpressAffiliationLanding({ onNavigate, onCompleteExpress }) {
                     <option value="Plaza">Banco Plaza</option>
                     <option value="Otro">Otro Banco Nacional</option>
                   </select>
+                </div>
+
+                {/* Adjuntar Comprobante de Pago (con Compresión Automática) */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Paperclip className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Comprobante de Pago (Capture de Pantalla)</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-normal">
+                      Opcional pero recomendado
+                    </span>
+                  </label>
+
+                  {paymentProofOptimized ? (
+                    <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <img 
+                          src={paymentProofOptimized.dataUrl} 
+                          alt="Capture" 
+                          className="w-12 h-12 object-cover rounded-xl border border-emerald-300 shadow-sm"
+                        />
+                        <div>
+                          <span className="text-xs font-bold text-emerald-950 block flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            Comprobante adjuntado
+                          </span>
+                          <span className="text-[10px] text-emerald-800 block mt-0.5">
+                            Optimizado: {paymentProofOptimized.compressedSizeFormatted} ({paymentProofOptimized.compressionRatio})
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setPaymentProofOptimized(null)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                        title="Quitar imagen"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative border-2 border-dashed border-slate-300 hover:border-amber-400 rounded-2xl p-3.5 text-center bg-slate-50 hover:bg-amber-50/30 transition-all">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleProofSelect}
+                        disabled={isOptimizingProof}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                      />
+                      <div className="flex flex-col items-center justify-center space-y-1 pointer-events-none">
+                        {isOptimizingProof ? (
+                          <>
+                            <Loader2 className="w-5 h-5 text-amber-600 animate-spin" />
+                            <span className="text-[11px] font-bold text-amber-900">Comprimiendo imagen...</span>
+                          </>
+                        ) : (
+                          <>
+                            <UploadCloud className="w-5 h-5 text-amber-600" />
+                            <span className="text-xs font-bold text-slate-700">Adjuntar capture o recibo</span>
+                            <span className="text-[10px] text-slate-500">Se comprime automáticamente para no consumir megas</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {proofOptimizeError && (
+                    <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      {proofOptimizeError}
+                    </p>
+                  )}
                 </div>
 
                 {/* Submit Button */}

@@ -27,11 +27,17 @@ import {
   ShoppingBag,
   Bike,
   Shield,
-  Smile
+  Smile,
+  Paperclip,
+  UploadCloud,
+  X,
+  Loader2
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { sendExpressAffiliateWelcomeEmail } from '../lib/emailService';
 import { createBlankBusinessProfile } from './AffiliateDashboard';
+import { optimizeImage, uploadPaymentProofToStorage } from '../lib/imageOptimizer';
+import { submitPaymentRecord } from '../lib/treasurySync';
 
 export function ElValleAffiliationLanding({ onNavigate, onCompleteExpress }) {
   // Exchange Rate State (BCV)
@@ -63,6 +69,11 @@ export function ElValleAffiliationLanding({ onNavigate, onCompleteExpress }) {
   const [referenceNumber, setReferenceNumber] = useState('');
   const [issuingBank, setIssuingBank] = useState('Banco Provincial');
 
+  // Payment Proof Image States
+  const [paymentProofOptimized, setPaymentProofOptimized] = useState(null);
+  const [isOptimizingProof, setIsOptimizingProof] = useState(false);
+  const [proofOptimizeError, setProofOptimizeError] = useState('');
+
   // Copy Feedback States
   const [copiedField, setCopiedField] = useState('');
 
@@ -70,6 +81,27 @@ export function ElValleAffiliationLanding({ onNavigate, onCompleteExpress }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successData, setSuccessData] = useState(null);
+
+  const handleProofSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProofOptimizeError('');
+    setIsOptimizingProof(true);
+    try {
+      const optimized = await optimizeImage(file, {
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.82,
+        outputType: 'image/webp'
+      });
+      setPaymentProofOptimized(optimized);
+    } catch (err) {
+      console.warn('Error optimizando comprobante El Valle:', err);
+      setProofOptimizeError('No se pudo optimizar la imagen.');
+    } finally {
+      setIsOptimizingProof(false);
+    }
+  };
 
   // Fetch BCV Rate
   useEffect(() => {
@@ -173,6 +205,19 @@ export function ElValleAffiliationLanding({ onNavigate, onCompleteExpress }) {
       const randomSuffix = Math.floor(100 + Math.random() * 899);
       const newAffiliateCode = `CGM-VALLE-${randomSuffix}`;
 
+      // Upload proof to storage if attached
+      let uploadedProofUrl = '';
+      if (paymentProofOptimized && paymentProofOptimized.blob) {
+        const uploadRes = await uploadPaymentProofToStorage(
+          paymentProofOptimized.blob,
+          newAffiliateCode,
+          paymentProofOptimized.dataUrl
+        );
+        uploadedProofUrl = uploadRes?.url || '';
+      }
+
+      const calcBs = bcvRate ? parseFloat((PLAN_TERMS.monthlyUsd * bcvRate).toFixed(2)) : 0;
+
       // 2. Save into Supabase 'solicitudes_afiliacion'
       if (supabase) {
         try {
@@ -187,7 +232,7 @@ export function ElValleAffiliationLanding({ onNavigate, onCompleteExpress }) {
               correo: email.trim().toLowerCase(),
               banco_pago_movil: issuingBank,
               referencia_pago_movil: referenceNumber.trim(),
-              monto_bs: bcvRate ? parseFloat((PLAN_TERMS.monthlyUsd * bcvRate).toFixed(2)) : null,
+              monto_bs: calcBs || null,
               municipio: `Libertador / El Valle (${valleySector})`,
               created_at: new Date().toISOString()
             }
@@ -212,7 +257,7 @@ export function ElValleAffiliationLanding({ onNavigate, onCompleteExpress }) {
               estado_solvencia: 'En Verificación (Activo Provisional)',
               monto_inscripcion: 0.00,
               monto_cuota_mensual: 7.00,
-              observaciones: `Convenio Exclusivo: Grupo El Valle te Conecta. Sector: ${valleySector}. Inscripción exonerada ($0). Mensualidad: $7. Ref: ${referenceNumber.trim()}`,
+              observaciones: `Convenio Exclusivo: Grupo El Valle te Conecta. Sector: ${valleySector}. Inscripción exonerada ($0). Mensualidad: $7. Ref: ${referenceNumber.trim()}${uploadedProofUrl ? ` | Comprobante: ${uploadedProofUrl}` : ''}`,
               visible_en_guia: true,
               destacado_portada: true,
               created_at: new Date().toISOString()
@@ -221,6 +266,33 @@ export function ElValleAffiliationLanding({ onNavigate, onCompleteExpress }) {
         } catch (dirErr) {
           console.warn('Supabase directorio_agremiados notice:', dirErr);
         }
+      }
+
+      // 2.1 Register in treasury system (pagos_tesoreria)
+      try {
+        await submitPaymentRecord({
+          codigo_afiliado: newAffiliateCode,
+          nombre_establecimiento: establishmentName.trim(),
+          representante_legal: ownerName.trim(),
+          rif_cedula: 'En trámite',
+          telefono: phone.trim() || '',
+          email: email.trim().toLowerCase(),
+          concepto: 'Mensualidad Preferencial ($7 USD - Circuito El Valle)',
+          periodo_mes: 'Noviembre 2026',
+          metodo_pago: 'pago_movil',
+          banco_emisor: issuingBank,
+          banco_receptor: 'Banco Provincial (0108)',
+          referencia: referenceNumber.trim(),
+          telefono_pagador: phone.trim() || '',
+          monto_usd: PLAN_TERMS.monthlyUsd,
+          monto_bs: calcBs,
+          tasa_bcv: bcvRate || 911.62,
+          comprobante_url: uploadedProofUrl,
+          estado: 'pendiente',
+          observaciones: `Afiliación El Valle te Conecta. Sector: ${valleySector}. Ref: ${referenceNumber.trim()}.`
+        });
+      } catch (payErr) {
+        console.warn('Notice submitting El Valle treasury payment:', payErr);
       }
 
       // 3. Fallback / Synchronize to LocalStorage
@@ -867,6 +939,80 @@ export function ElValleAffiliationLanding({ onNavigate, onCompleteExpress }) {
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-xs placeholder:text-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white font-mono"
                     />
                   </div>
+                </div>
+
+                {/* Adjuntar Comprobante de Pago */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Paperclip className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Comprobante de Pago (Capture de Pantalla)</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-normal">
+                      Opcional
+                    </span>
+                  </label>
+
+                  {paymentProofOptimized ? (
+                    <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <img 
+                          src={paymentProofOptimized.dataUrl} 
+                          alt="Capture" 
+                          className="w-12 h-12 object-cover rounded-xl border border-emerald-300 shadow-sm"
+                        />
+                        <div>
+                          <span className="text-xs font-bold text-emerald-950 block flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            Comprobante adjuntado
+                          </span>
+                          <span className="text-[10px] text-emerald-800 block mt-0.5">
+                            Optimizado: {paymentProofOptimized.compressedSizeFormatted} ({paymentProofOptimized.compressionRatio})
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setPaymentProofOptimized(null)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                        title="Quitar imagen"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-3.5 text-center bg-slate-50 hover:bg-emerald-50/30 transition-all">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleProofSelect}
+                        disabled={isOptimizingProof}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                      />
+                      <div className="flex flex-col items-center justify-center space-y-1 pointer-events-none">
+                        {isOptimizingProof ? (
+                          <>
+                            <Loader2 className="w-5 h-5 text-emerald-600 animate-spin" />
+                            <span className="text-[11px] font-bold text-emerald-900">Comprimiendo imagen...</span>
+                          </>
+                        ) : (
+                          <>
+                            <UploadCloud className="w-5 h-5 text-emerald-600" />
+                            <span className="text-xs font-bold text-slate-700">Adjuntar capture o recibo</span>
+                            <span className="text-[10px] text-slate-500">Compresión automática instantánea</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {proofOptimizeError && (
+                    <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      {proofOptimizeError}
+                    </p>
+                  )}
                 </div>
 
               </div>

@@ -59,12 +59,15 @@ import {
   UploadCloud,
   Image as ImageIcon,
   Loader2,
-  Maximize2
+  Maximize2,
+  Paperclip,
+  Info,
+  FileText
 } from 'lucide-react';
 import { AFFILIATES_DATA } from '../data/affiliatesData';
 import { supabase } from '../lib/supabaseClient';
 import { sendAffiliateWelcomeEmail, sendCourseRegistrationEmail } from '../lib/emailService';
-import { optimizeImage, uploadAffiliateImageToStorage, formatBytes } from '../lib/imageOptimizer';
+import { optimizeImage, uploadAffiliateImageToStorage, uploadPaymentProofToStorage, formatBytes } from '../lib/imageOptimizer';
 import { submitPaymentRecord } from '../lib/treasurySync';
 import { fetchLiveEvents } from '../lib/eventsCoursesSync';
 import mapboxgl from 'mapbox-gl';
@@ -788,8 +791,14 @@ export function AffiliateDashboard({
   const [activeTab, setActiveTab] = useState(() => initialActiveTab || 'overview');
   const [paymentStep, setPaymentStep] = useState('select');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('pago-movil');
+  const [selectedPaymentPeriod, setSelectedPaymentPeriod] = useState('nov-2026');
+  const [selectedIssuingBank, setSelectedIssuingBank] = useState('Banco Provincial');
   const [paymentRefInput, setPaymentRefInput] = useState('');
-  const [paymentPeriodInput, setPaymentPeriodInput] = useState('Octubre 2026');
+  const [paymentProofOptimized, setPaymentProofOptimized] = useState(null);
+  const [isOptimizingProof, setIsOptimizingProof] = useState(false);
+  const [proofOptimizeError, setProofOptimizeError] = useState('');
+  const [paymentCopyFeedback, setPaymentCopyFeedback] = useState(null);
+  const [lastSubmittedPayment, setLastSubmittedPayment] = useState(null);
 
   // Direct Communication with Board
   const [selectedBoardMember, setSelectedBoardMember] = useState('Julio Alberto Daza Celis - Presidente');
@@ -1809,35 +1818,112 @@ export function AffiliateDashboard({
     }, 900);
   };
 
+  const handlePaymentProofSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProofOptimizeError('');
+    setIsOptimizingProof(true);
+    try {
+      const optimized = await optimizeImage(file, {
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.82,
+        outputType: 'image/webp'
+      });
+      setPaymentProofOptimized(optimized);
+    } catch (err) {
+      console.warn('Error optimizando comprobante:', err);
+      setProofOptimizeError('No se pudo optimizar la imagen. Intenta con otro archivo.');
+    } finally {
+      setIsOptimizingProof(false);
+    }
+  };
+
+  const handleCopyPaymentData = (text, fieldKey) => {
+    try {
+      navigator.clipboard.writeText(text);
+      setPaymentCopyFeedback(fieldKey);
+      setTimeout(() => setPaymentCopyFeedback(null), 2500);
+    } catch (err) {
+      console.warn('Error copying:', err);
+    }
+  };
+
   const handleSimulatePayment = async (e) => {
     e.preventDefault();
+    if (!paymentRefInput.trim()) {
+      alert('Por favor ingrese el número de referencia bancaria.');
+      return;
+    }
     setPaymentStep('processing');
     try {
       const parsedDues = parseFloat(String(activeUser?.monthlyDues || '10').replace(/[^0-9.]/g, '')) || 10.00;
+      const rate = bcvRate || 911.62;
+
+      const periodConfigMap = {
+        'nov-2026': { label: 'Noviembre 2026', months: 1 },
+        'dic-2026': { label: 'Diciembre 2026', months: 1 },
+        'ene-2027': { label: 'Enero 2027', months: 1 },
+        'trimestre': { label: 'Trimestre (Nov 2026 - Ene 2027)', months: 3 },
+        'semestre': { label: 'Semestre (6 Meses)', months: 6 },
+        'anualidad': { label: 'Anualidad Completa (12 Meses)', months: 12 }
+      };
+
+      const periodConfig = periodConfigMap[selectedPaymentPeriod] || { label: 'Noviembre 2026', months: 1 };
+      const calculatedUsd = parsedDues * periodConfig.months;
+      const calculatedBs = parseFloat((calculatedUsd * rate).toFixed(2));
+
+      // Subir comprobante a Supabase Storage con compresión automática
+      let uploadedProofUrl = '';
+      if (paymentProofOptimized && paymentProofOptimized.blob) {
+        const uploadRes = await uploadPaymentProofToStorage(
+          paymentProofOptimized.blob,
+          activeUser?.codigo_afiliado || activeUser?.id || 'CGM-PAGO',
+          paymentProofOptimized.dataUrl
+        );
+        uploadedProofUrl = uploadRes?.url || '';
+      }
+
+      const methodLabels = {
+        'pago-movil': 'Pago Móvil Provincial (0108)',
+        'transferencia-provincial': 'Transferencia Banco Provincial',
+        'transferencia-interbancaria': 'Transferencia Interbancaria',
+        'zelle': 'Zelle Internacional',
+        'efectivo-usd': 'Efectivo Divisas USD'
+      };
+
       const paymentData = {
-        codigo_afiliado: activeUser?.id || activeUser?.codigo_afiliado || 'CGM-2026-001',
+        codigo_afiliado: activeUser?.codigo_afiliado || activeUser?.id || 'CGM-2026-001',
         nombre_establecimiento: activeUser?.restaurantName || activeUser?.nombre_establecimiento || 'Establecimiento Afiliado',
         representante_legal: activeUser?.ownerName || activeUser?.representante_legal || '',
         rif_cedula: activeUser?.rif_cedula || '',
         email: activeUser?.email || '',
         telefono: activeUser?.telefono || '',
-        concepto: 'Cuota Mensual',
-        periodo_mes: paymentPeriodInput || 'Octubre 2026',
-        metodo_pago: selectedPaymentMethod === 'pago-movil' ? 'pago_movil' : 'zelle',
-        banco_emisor: selectedPaymentMethod === 'pago-movil' ? 'Banco Provincial' : 'Zelle',
+        concepto: `Cuota Mensual (${periodConfig.label})`,
+        periodo_mes: periodConfig.label,
+        metodo_pago: selectedPaymentMethod === 'pago-movil' ? 'pago_movil' : (selectedPaymentMethod === 'zelle' ? 'zelle' : 'transferencia_nacional'),
+        banco_emisor: selectedPaymentMethod === 'zelle' ? 'Zelle' : (selectedPaymentMethod === 'efectivo-usd' ? 'Efectivo' : selectedIssuingBank),
         banco_receptor: 'Banco Provincial (0108)',
-        referencia: paymentRefInput || `REF-${Math.floor(Math.random() * 899999 + 100000)}`,
+        referencia: paymentRefInput.trim(),
         telefono_pagador: activeUser?.telefono || '',
-        monto_usd: parsedDues,
-        monto_bs: parsedDues * 54.00,
-        tasa_bcv: 54.00,
+        monto_usd: calculatedUsd,
+        monto_bs: calculatedBs,
+        tasa_bcv: parseFloat(rate.toFixed(2)),
+        comprobante_url: uploadedProofUrl,
         estado: 'pendiente',
-        observaciones: `Reportado vía Portal de Afiliados. Método: ${selectedPaymentMethod}`
+        observaciones: `Reportado vía Portal de Afiliados. Período: ${periodConfig.label}. Método: ${methodLabels[selectedPaymentMethod] || selectedPaymentMethod}. Tasa BCV: ${rate} Bs/$.`
       };
 
-      await submitPaymentRecord(paymentData);
+      const result = await submitPaymentRecord(paymentData);
+      setLastSubmittedPayment({
+        ...paymentData,
+        ...result,
+        calculatedBsFormatted: calculatedBs.toLocaleString('es-VE', { minimumFractionDigits: 2 }),
+        rateFormatted: rate.toFixed(2)
+      });
       setPaymentStep('success');
       setPaymentRefInput('');
+      setPaymentProofOptimized(null);
     } catch (err) {
       console.warn('Error submitting affiliate payment:', err);
       setPaymentStep('success');
@@ -4328,109 +4414,574 @@ export function AffiliateDashboard({
       )}
 
       {/* Tab 4: Payments (Cuotas & Solvencia) */}
-      {activeTab === 'payments' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-6 space-y-4">
-            <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm">
-              <span className="text-xs font-bold uppercase text-slate-400">Estatus de Solvencia Gremial</span>
-              <h3 className="font-serif text-xl font-bold text-slate-900 mt-1">Cuota Ordinaria Mensual</h3>
-              <p className="text-xs text-slate-600 mt-1">
-                La cuota gremial financia las auditorías de calidad, campañas publicitarias de la ciudad y el mantenimiento de la guía web internacional.
-              </p>
+      {activeTab === 'payments' && (() => {
+        const baseMonthlyDues = parseFloat(String(activeUser?.monthlyDues || '10').replace(/[^0-9.]/g, '')) || 10.00;
+        const currentRate = bcvRate || 911.62;
 
-              <div className="my-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold text-slate-700">Monto Mensual:</span>
-                  <span className="text-xs text-slate-500 block">
-                    {activeUser.memberCategory || 'Empresas (5 a 19 empleados)'}
+        const periodOptions = [
+          { id: 'nov-2026', label: 'Noviembre 2026', badge: 'Mes Actual Adeudado', months: 1, isOwed: true },
+          { id: 'dic-2026', label: 'Diciembre 2026', badge: 'Mes Siguiente / Adelanto', months: 1, isOwed: false },
+          { id: 'ene-2027', label: 'Enero 2027', badge: 'Mes Anticipado', months: 1, isOwed: false },
+          { id: 'trimestre', label: 'Trimestre (Nov 2026 - Ene 2027)', badge: '3 Meses (Nov + Dic + Ene)', months: 3, isOwed: false },
+          { id: 'semestre', label: 'Semestre (6 Meses)', badge: '6 Meses Adelanto', months: 6, isOwed: false },
+          { id: 'anualidad', label: 'Anualidad Completa (12 Meses)', badge: '1 Año Completo', months: 12, isOwed: false }
+        ];
+
+        const selectedPeriodConfig = periodOptions.find(p => p.id === selectedPaymentPeriod) || periodOptions[0];
+        const selectedAmountUsd = baseMonthlyDues * selectedPeriodConfig.months;
+        const selectedAmountBs = selectedAmountUsd * currentRate;
+        const baseMonthlyBs = baseMonthlyDues * currentRate;
+
+        // Vencimiento estimado
+        const vencimientoFecha = "30 de Noviembre de 2026";
+
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Left Column: Estado de Cuenta, Deuda y Vencimiento */}
+            <div className="lg:col-span-5 space-y-5">
+              
+              {/* Tarjeta Principal de Solvencia & Deuda */}
+              <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
+                
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                    Estado de Cuenta Gremial
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300">
+                    <Clock className="w-3 h-3 text-amber-700" />
+                    <span>Período Activo</span>
                   </span>
                 </div>
-                <span className="font-serif font-bold text-2xl text-slate-900">
-                  {activeUser.monthlyDues || '$10.00'} <span className="text-xs font-normal text-slate-500">/ mes</span>
-                </span>
+
+                <h3 className="font-serif text-2xl font-bold text-slate-900 leading-tight">
+                  Cuota Mensual de Mantenimiento
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Aporte gremial que respalda la certificación de calidad, campañas publicitarias de Mérida y la guía web internacional.
+                </p>
+
+                {/* Recuadro de Deuda al Vencimiento */}
+                <div className="my-5 p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-amber-950 text-white shadow-lg space-y-3">
+                  <div className="flex items-center justify-between text-xs text-slate-300">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <Calendar className="w-4 h-4 text-amber-400" />
+                      Mes Adeudado:
+                    </span>
+                    <strong className="text-amber-300 font-bold uppercase tracking-wider text-[11px]">
+                      Noviembre 2026
+                    </strong>
+                  </div>
+
+                  <div className="flex items-baseline justify-between border-t border-slate-700/60 pt-3">
+                    <div>
+                      <span className="text-[11px] text-slate-300 block">Monto al Vencimiento:</span>
+                      <div className="font-serif font-extrabold text-3xl text-amber-400 leading-none mt-1">
+                        ${baseMonthlyDues.toFixed(2)} <span className="text-xs font-normal text-slate-300">USD</span>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 block uppercase font-medium">En Bolívares (BCV):</span>
+                      <div className="font-mono font-bold text-base text-emerald-400 leading-tight mt-0.5">
+                        Bs. {baseMonthlyBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <span className="text-[9px] text-slate-400 block mt-0.5">
+                        Tasa BCV: {currentRate.toFixed(2)} Bs/$
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-700/60 pt-3 flex items-center justify-between text-xs">
+                    <span className="text-slate-300 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-amber-400" />
+                      Fecha de Vencimiento:
+                    </span>
+                    <span className="font-bold text-white bg-slate-800/80 px-2.5 py-0.5 rounded-lg border border-slate-600 text-[11px]">
+                      {vencimientoFecha}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Tasa BCV Oficial en Tiempo Real */}
+                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <div>
+                      <span className="text-xs font-bold text-emerald-950 block">
+                        Tasa Oficial BCV del Día
+                      </span>
+                      <span className="text-[10px] text-emerald-700">
+                        {bcvDate ? `Actualizado al ${bcvDate}` : 'Referencia Oficial Banco Central de Venezuela'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-mono font-extrabold text-sm text-emerald-900">
+                      Bs. {currentRate.toFixed(2)}
+                    </span>
+                    <span className="text-[9px] text-emerald-700 block">por 1.00 USD</span>
+                  </div>
+                </div>
+
+                {/* Estructura Oficial de Cuotas */}
+                <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2">
+                  <span className="font-bold text-slate-900 block uppercase text-[10px] tracking-wider flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                    Estructura de Cuotas Oficiales (Estatutos CGEM):
+                  </span>
+                  <div className="space-y-1 text-[11px] text-slate-600">
+                    <p>• <strong>Grandes Empresas (20+ empleados):</strong> Mensualidad $20 USD</p>
+                    <p>• <strong>Empresas (5 a 19 empleados):</strong> Mensualidad $10 USD</p>
+                    <p>• <strong>Emprendimiento / Marca Personal:</strong> Mensualidad $10 USD</p>
+                    <p>• <strong>Circuito El Valle te Conecta:</strong> Mensualidad $7 USD</p>
+                  </div>
+                  <div className="pt-2 border-t border-slate-200 text-[10px] text-slate-500">
+                    Categoría de tu establecimiento: <strong className="text-slate-800">{activeUser.memberCategory || 'Empresa / Emprendimiento'}</strong>
+                  </div>
+                </div>
+
               </div>
 
-              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-slate-700 space-y-1">
-                <span className="font-bold text-amber-900 block uppercase text-[10px] tracking-wider">
-                  Estructura de Cuotas Oficiales:
-                </span>
-                <p>• <strong>Grandes Empresas (20+ empleados):</strong> Inscripción + 1er Mes $50 USD • Mensualidad: $20 USD</p>
-                <p>• <strong>Empresas (5 a 19 empleados):</strong> Inscripción + 1er Mes $30 USD • Mensualidad: $10 USD</p>
-                <p>• <strong>Marca Personal / Emprendimientos:</strong> Inscripción + 1er Mes $20 USD • Mensualidad: $10 USD</p>
-              </div>
+            </div>
 
-              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold flex items-center gap-2 mt-4">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Solvente — Próximo corte: 30 de Noviembre de 2026</span>
+            {/* Right Column: Formulario para Reportar Pago */}
+            <div className="lg:col-span-7">
+              <div className="p-6 sm:p-7 rounded-3xl bg-white border border-slate-200 shadow-md relative">
+                
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+                  <div>
+                    <h3 className="font-serif text-xl font-bold text-slate-900">Registrar Pago de Cuota</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Reporta tu transferencia o pago móvil para conciliación inmediata en Tesorería.
+                    </p>
+                  </div>
+                  <span className="px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+                    Tesorería CGEM
+                  </span>
+                </div>
+
+                {paymentStep === 'success' ? (
+                  <div className="text-center py-8 px-4 space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center shadow-inner">
+                      <CheckCircle2 className="w-10 h-10" />
+                    </div>
+
+                    <div className="space-y-1 max-w-md mx-auto">
+                      <h4 className="font-serif font-bold text-2xl text-slate-900">
+                        ¡Pago Reportado Exitosamente!
+                      </h4>
+                      <p className="text-xs text-slate-600">
+                        Tu reporte ha sido ingresado en el sistema de tesorería y será conciliado por el equipo administrativo.
+                      </p>
+                    </div>
+
+                    {lastSubmittedPayment && (
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left text-xs space-y-2 max-w-md mx-auto font-mono">
+                        <div className="flex justify-between border-b border-slate-200 pb-1.5 font-sans">
+                          <span className="text-slate-500">N° Recibo Provisorio:</span>
+                          <strong className="text-slate-900 font-mono">{lastSubmittedPayment.numero_recibo || 'REC-2026-PEND'}</strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500 font-sans">Período:</span>
+                          <strong className="text-slate-900">{lastSubmittedPayment.periodo_mes}</strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500 font-sans">Monto en Dólares:</span>
+                          <strong className="text-amber-800">${lastSubmittedPayment.monto_usd?.toFixed(2)} USD</strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500 font-sans">Monto en Bolívares:</span>
+                          <strong className="text-emerald-700">Bs. {lastSubmittedPayment.calculatedBsFormatted || lastSubmittedPayment.monto_bs}</strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500 font-sans">Tasa BCV Aplicada:</span>
+                          <span className="text-slate-700">{lastSubmittedPayment.rateFormatted || lastSubmittedPayment.tasa_bcv} Bs/$</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500 font-sans">Referencia:</span>
+                          <strong className="text-slate-900">{lastSubmittedPayment.referencia}</strong>
+                        </div>
+                        {lastSubmittedPayment.comprobante_url && (
+                          <div className="pt-2 border-t border-slate-200 flex items-center justify-between font-sans">
+                            <span className="text-emerald-700 flex items-center gap-1 text-[11px] font-bold">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Comprobante adjunto
+                            </span>
+                            <a 
+                              href={lastSubmittedPayment.comprobante_url} 
+                              target="_blank" 
+                              rel="noreferrer" 
+                              className="text-amber-800 hover:underline text-[11px] flex items-center gap-1 font-bold"
+                            >
+                              Ver capture <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                      <button
+                        onClick={() => {
+                          setPaymentStep('select');
+                          setPaymentProofOptimized(null);
+                        }}
+                        className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-serif font-bold text-xs uppercase tracking-wider transition-all shadow-md"
+                      >
+                        Registrar otro pago
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSimulatePayment} className="space-y-4">
+                    
+                    {/* 1. Selector Desplegable de Período / Mes a Pagar */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                          Período o Mes a Pagar *
+                        </span>
+                        <span className="text-[10px] text-amber-800 font-semibold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                          Mes Adeudado: Noviembre 2026
+                        </span>
+                      </label>
+
+                      <select
+                        value={selectedPaymentPeriod}
+                        onChange={(e) => setSelectedPaymentPeriod(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/10 transition-all cursor-pointer"
+                      >
+                        {periodOptions.map((opt) => {
+                          const optUsd = baseMonthlyDues * opt.months;
+                          const optBs = optUsd * currentRate;
+                          return (
+                            <option key={opt.id} value={opt.id}>
+                              {opt.label} — ${optUsd.toFixed(2)} USD (Bs. {optBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) {opt.isOwed ? '★ [ADEUDADO]' : ''}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      <p className="text-[10px] text-slate-500 mt-1">
+                        Puedes abonar el mes corriente adeudado o adelantar trimestres o anualidades.
+                      </p>
+                    </div>
+
+                    {/* Resumen en Vivo del Monto en Bolívares y Dólares */}
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100/70 border border-amber-300/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <span className="text-[10px] uppercase font-extrabold text-amber-900 tracking-wider block">
+                          Monto Exacto a Transferir
+                        </span>
+                        <div className="font-mono font-extrabold text-2xl text-slate-900 mt-0.5">
+                          Bs. {selectedAmountBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        <span className="text-[10px] text-slate-600 block mt-0.5">
+                          Equivalente a: <strong className="text-amber-900 font-bold">${selectedAmountUsd.toFixed(2)} USD</strong> ({selectedPeriodConfig.months} {selectedPeriodConfig.months === 1 ? 'mes' : 'meses'})
+                        </span>
+                      </div>
+
+                      <div className="sm:text-right border-t sm:border-t-0 sm:border-l border-amber-200/80 pt-2 sm:pt-0 sm:pl-4">
+                        <span className="text-[10px] text-slate-500 block">Tasa BCV del día:</span>
+                        <span className="font-mono font-bold text-xs text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-300 inline-block mt-0.5">
+                          {currentRate.toFixed(2)} Bs/$
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 2. Método de Pago Selector */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                        <CreditCard className="w-3.5 h-3.5 text-amber-600" />
+                        Método de Pago Utilizado *
+                      </label>
+                      <select 
+                        value={selectedPaymentMethod}
+                        onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/10 transition-all cursor-pointer"
+                      >
+                        <option value="pago-movil">Pago Móvil Banco Provincial (0108) — Recomendado</option>
+                        <option value="transferencia-provincial">Transferencia Banco Provincial (Mismo Banco)</option>
+                        <option value="transferencia-interbancaria">Transferencia Interbancaria (Otros Bancos)</option>
+                        <option value="zelle">Zelle / Transferencia Internacional en Divisas</option>
+                        <option value="efectivo-usd">Efectivo USD (Entrega en Sede de la Cámara)</option>
+                      </select>
+                    </div>
+
+                    {/* Ficha de Datos Bancarios con Botones de Copiado */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-800 space-y-2">
+                      <div className="flex items-center justify-between border-b border-slate-200/70 pb-1.5">
+                        <span className="font-bold text-[11px] text-slate-900 flex items-center gap-1">
+                          <Building2 className="w-3.5 h-3.5 text-amber-600" />
+                          Datos Oficiales para el Pago:
+                        </span>
+                        <span className="text-[10px] text-slate-500">Cuentas CGEM</span>
+                      </div>
+
+                      {selectedPaymentMethod === 'pago-movil' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                          <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200">
+                            <div>
+                              <span className="text-[10px] text-slate-500 block">Banco:</span>
+                              <strong>0108 - Banco Provincial</strong>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyPaymentData('0108', 'banco')}
+                              className="text-amber-800 hover:text-amber-900 p-1 text-[10px] font-bold"
+                              title="Copiar código de banco"
+                            >
+                              {paymentCopyFeedback === 'banco' ? '✓' : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+
+                          <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200">
+                            <div>
+                              <span className="text-[10px] text-slate-500 block">RIF / Cédula:</span>
+                              <strong className="font-mono">J-50508608-0</strong>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyPaymentData('J-50508608-0', 'rif')}
+                              className="text-amber-800 hover:text-amber-900 p-1 text-[10px] font-bold"
+                              title="Copiar RIF"
+                            >
+                              {paymentCopyFeedback === 'rif' ? '✓' : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+
+                          <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 sm:col-span-2">
+                            <div>
+                              <span className="text-[10px] text-slate-500 block">Teléfono Pago Móvil:</span>
+                              <strong className="font-mono text-sm text-slate-900">0414-8817137</strong>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyPaymentData('04148817137', 'telefono')}
+                              className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 text-[10px] font-bold hover:bg-amber-200 transition-all flex items-center gap-1"
+                            >
+                              {paymentCopyFeedback === 'telefono' ? '¡Copiado!' : <><Copy className="w-3 h-3" /> Copiar Teléfono</>}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {(selectedPaymentMethod === 'transferencia-provincial' || selectedPaymentMethod === 'transferencia-interbancaria') && (
+                        <div className="space-y-2 text-[11px]">
+                          <div className="p-2 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
+                            <div>
+                              <span className="text-[10px] text-slate-500 block">Titular:</span>
+                              <strong>CÁMARA GASTRONÓMICA DEL ESTADO MÉRIDA</strong>
+                              <span className="text-[10px] text-slate-500 block mt-0.5">RIF: J-50508608-0</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyPaymentData('J-50508608-0', 'rif-t')}
+                              className="text-amber-800 p-1 text-[10px] font-bold"
+                            >
+                              {paymentCopyFeedback === 'rif-t' ? '✓' : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+
+                          <div className="p-2 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
+                            <div>
+                              <span className="text-[10px] text-slate-500 block">Cuenta Corriente Provincial:</span>
+                              <strong className="font-mono text-xs text-slate-900">0108-0066-68-0100259821</strong>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyPaymentData('01080066680100259821', 'cuenta')}
+                              className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 text-[10px] font-bold hover:bg-amber-200 transition-all flex items-center gap-1"
+                            >
+                              {paymentCopyFeedback === 'cuenta' ? '¡Copiado!' : <><Copy className="w-3 h-3" /> Copiar Cuenta</>}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedPaymentMethod === 'zelle' && (
+                        <div className="p-3 rounded-xl bg-white border border-slate-200 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-[10px] text-slate-500 block">Destinatario Zelle:</span>
+                              <strong className="text-slate-900 font-mono text-xs">pagos@meridagastronomica.com</strong>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyPaymentData('pagos@meridagastronomica.com', 'zelle-mail')}
+                              className="px-2 py-1 rounded bg-amber-100 text-amber-900 text-[10px] font-bold"
+                            >
+                              {paymentCopyFeedback === 'zelle-mail' ? '¡Copiado!' : <Copy className="w-3 h-3" />}
+                            </button>
+                          </div>
+                          <span className="text-[10px] text-slate-500 block">
+                            En concepto o nota, coloca tu código de agremiado: <strong className="text-slate-700">{activeUser.id || activeUser.codigo_afiliado || 'CGM-2026'}</strong>
+                          </span>
+                        </div>
+                      )}
+
+                      {selectedPaymentMethod === 'efectivo-usd' && (
+                        <div className="p-3 rounded-xl bg-white border border-slate-200 text-[11px] text-slate-600">
+                          <p>Entrega en efectivo en las oficinas de la Cámara (Av. Universidad, Mérida). Indique en referencia el número de recibo físico entregado o su nombre completo.</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. Banco de Origen y Referencia */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Banco Emisor (de donde pagaste) *
+                        </label>
+                        <select
+                          value={selectedIssuingBank}
+                          onChange={(e) => setSelectedIssuingBank(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-amber-500 focus:bg-white"
+                        >
+                          <option value="Banco Provincial">Banco Provincial (Mismo Banco)</option>
+                          <option value="Banesco">Banesco</option>
+                          <option value="Banco de Venezuela">Banco de Venezuela</option>
+                          <option value="Mercantil">Mercantil</option>
+                          <option value="Bancaribe">Bancaribe</option>
+                          <option value="BNC">Banco Nacional de Crédito (BNC)</option>
+                          <option value="BAM">Banco Activo</option>
+                          <option value="Banplus">Banplus</option>
+                          <option value="Plaza">Banco Plaza</option>
+                          <option value="Zelle">Zelle / Banco Internacional</option>
+                          <option value="Otro">Otro Banco</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          N° de Referencia Bancaria *
+                        </label>
+                        <input 
+                          type="text" 
+                          required
+                          value={paymentRefInput}
+                          onChange={(e) => setPaymentRefInput(e.target.value)}
+                          placeholder="Ej. 09847291 (6 a 8 dígitos)"
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-amber-500 focus:bg-white font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 4. Adjuntar Comprobante de Pago (con Compresor Automático de Imagen) */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Paperclip className="w-3.5 h-3.5 text-amber-600" />
+                          Adjuntar Comprobante / Capture de Pantalla
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-normal">
+                          (Compresión automática a &lt;100 KB)
+                        </span>
+                      </label>
+
+                      {paymentProofOptimized ? (
+                        <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <img 
+                              src={paymentProofOptimized.dataUrl} 
+                              alt="Comprobante Optimizado" 
+                              className="w-14 h-14 object-cover rounded-xl border border-emerald-300 shadow-sm"
+                            />
+                            <div>
+                              <span className="text-xs font-bold text-emerald-950 block flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                Comprobante listo para enviar
+                              </span>
+                              <div className="text-[11px] text-emerald-800 mt-0.5 space-y-0.5">
+                                <p>Original: <strong>{paymentProofOptimized.originalSizeFormatted}</strong> &rarr; Optimizado: <strong className="text-emerald-900 font-bold">{paymentProofOptimized.compressedSizeFormatted}</strong></p>
+                                <span className="inline-block px-2 py-0.2 rounded-full bg-emerald-200/80 text-emerald-900 text-[10px] font-extrabold">
+                                  Reducción: {paymentProofOptimized.compressionRatio}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setPaymentProofOptimized(null)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
+                            title="Quitar imagen"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="relative border-2 border-dashed border-slate-300 hover:border-amber-400 rounded-2xl p-4 text-center bg-slate-50 hover:bg-amber-50/30 transition-all">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            id="payment-proof-upload"
+                            onChange={handlePaymentProofSelect}
+                            disabled={isOptimizingProof}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                          />
+                          <div className="flex flex-col items-center justify-center space-y-1.5 pointer-events-none">
+                            {isOptimizingProof ? (
+                              <>
+                                <Loader2 className="w-6 h-6 text-amber-600 animate-spin" />
+                                <span className="text-xs font-bold text-amber-900">
+                                  Comprimiendo y optimizando comprobante...
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <UploadCloud className="w-7 h-7 text-amber-600" />
+                                <p className="text-xs font-bold text-slate-800">
+                                  Haz clic o arrastra el capture de tu pago aquí
+                                </p>
+                                <p className="text-[10px] text-slate-500">
+                                  JPG, PNG o WEBP. El sistema reducirá su peso automáticamente sin perder nitidez.
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {proofOptimizeError && (
+                        <p className="text-xs text-rose-600 mt-1 flex items-center gap-1 font-medium">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          {proofOptimizeError}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Botón de Envío */}
+                    <button
+                      type="submit"
+                      disabled={paymentStep === 'processing' || isOptimizingProof}
+                      className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-600 hover:to-amber-800 text-white font-serif font-bold text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-lg mt-3 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                    >
+                      {paymentStep === 'processing' ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-white" />
+                          <span>Registrando pago en tesorería...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Reportar Pago Oficial (Bs. {selectedAmountBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
+                          <ArrowRight className="w-4 h-4 text-amber-200" />
+                        </>
+                      )}
+                    </button>
+
+                    <p className="text-[10px] text-slate-400 text-center flex items-center justify-center gap-1 mt-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Transacción procesada y auditada según la tasa oficial BCV del día.</span>
+                    </p>
+
+                  </form>
+                )}
               </div>
             </div>
           </div>
-
-          <div className="lg:col-span-6 p-6 rounded-3xl bg-white border border-slate-200 shadow-md">
-            <h3 className="font-serif text-lg font-bold text-slate-900 mb-3">Registrar Pago de Cuota</h3>
-
-            {paymentStep === 'success' ? (
-              <div className="text-center py-6 space-y-2">
-                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center">
-                  <CheckCircle2 className="w-7 h-7" />
-                </div>
-                <h4 className="font-serif font-bold text-lg text-slate-900">¡Pago Reportado con Éxito!</h4>
-                <p className="text-xs text-slate-600">El departamento de tesorería conciliará el reporte en las próximas horas.</p>
-                <button
-                  onClick={() => setPaymentStep('select')}
-                  className="mt-2 text-xs font-bold text-amber-800 underline"
-                >
-                  Registrar otro pago
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleSimulatePayment} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Método de Pago</label>
-                  <select 
-                    value={selectedPaymentMethod}
-                    onChange={(e) => setSelectedPaymentMethod(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="pago-movil">Pago Móvil Provincial (0108 - V-12517086 - 04148817137)</option>
-                    <option value="zelle">Zelle / Transferencia Internacional</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Período / Mes a Pagar</label>
-                  <input 
-                    type="text" 
-                    value={paymentPeriodInput}
-                    onChange={(e) => setPaymentPeriodInput(e.target.value)}
-                    placeholder="Ej. Octubre 2026"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Número de Referencia Bancaria</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={paymentRefInput}
-                    onChange={(e) => setPaymentRefInput(e.target.value)}
-                    placeholder="Ej. 09847291"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500 font-mono"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-serif font-bold text-xs uppercase tracking-wider transition-all shadow-sm mt-2"
-                >
-                  {paymentStep === 'processing' ? 'Procesando...' : 'Reportar Pago'}
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Tab 5: Courses (Capacitaciones & Cursos Oficiales) */}
       {activeTab === 'courses' && (

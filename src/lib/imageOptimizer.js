@@ -179,3 +179,52 @@ export async function uploadAffiliateImageToStorage(blob, affiliateCode, slotInd
     return { url: fallbackDataUrl, storagePath: null, mode: 'base64' };
   }
 }
+
+/**
+ * Sube un comprobante de pago optimizado a Supabase Storage bucket 'directorio-fotos'
+ * bajo la carpeta 'comprobantes/[codigo_afiliado]/'
+ * o retorna el dataUrl como fallback si Storage no responde.
+ * @param {Blob} blob Blob optimizado
+ * @param {string} affiliateCode Código del afiliado (ej. CGM-2026-001)
+ * @param {string} fallbackDataUrl Data URL de respaldo
+ */
+export async function uploadPaymentProofToStorage(blob, affiliateCode = 'CGM-PAGOS', fallbackDataUrl = '') {
+  const safeCode = (affiliateCode || 'CGM-PAGO').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const timestamp = Date.now();
+  const mimeType = blob?.type || 'image/webp';
+  const ext = mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : (mimeType.includes('png') ? 'png' : 'webp');
+  const filePath = `comprobantes/${safeCode}/comprobante_${timestamp}.${ext}`;
+
+  if (!supabase || !supabase.storage) {
+    return { url: fallbackDataUrl, storagePath: null, mode: 'base64' };
+  }
+
+  try {
+    const bucketName = 'directorio-fotos';
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .upload(filePath, blob, {
+        contentType: mimeType,
+        upsert: true,
+        cacheControl: '31536000'
+      });
+
+    if (error) {
+      console.warn('Aviso Supabase Storage Comprobantes:', error.message);
+      return { url: fallbackDataUrl, storagePath: null, mode: 'base64' };
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(filePath);
+
+    if (publicUrlData && publicUrlData.publicUrl) {
+      return { url: publicUrlData.publicUrl, storagePath: filePath, mode: 'supabase_storage' };
+    }
+
+    return { url: fallbackDataUrl, storagePath: null, mode: 'base64' };
+  } catch (err) {
+    console.warn('Excepción al subir comprobante a Storage:', err);
+    return { url: fallbackDataUrl, storagePath: null, mode: 'base64' };
+  }
+}

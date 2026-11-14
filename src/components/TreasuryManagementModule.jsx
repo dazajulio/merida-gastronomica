@@ -34,7 +34,8 @@ import {
   Send,
   Sparkles,
   ArrowUpRight,
-  Lock
+  Lock,
+  Paperclip
 } from 'lucide-react';
 import { 
   fetchLivePayments, 
@@ -80,6 +81,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
 
   // Modals
   const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [viewingProof, setViewingProof] = useState(null);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
@@ -1015,6 +1017,16 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                             {p.telefono_pagador && (
                               <span className="text-[10px] text-slate-400 block">Tel: {p.telefono_pagador}</span>
                             )}
+                            {p.comprobante_url && (
+                              <button
+                                type="button"
+                                onClick={() => setViewingProof(p)}
+                                className="mt-1.5 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-900 text-[10px] font-bold border border-amber-300 transition-all cursor-pointer shadow-xs"
+                              >
+                                <Paperclip className="w-3 h-3 text-amber-700" />
+                                <span>Ver Capture</span>
+                              </button>
+                            )}
                           </td>
 
                           {/* Estatus */}
@@ -1949,6 +1961,58 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
               >
                 <Check className="w-4 h-4" />
                 <span>Confirmar y Conciliar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Visualizar Comprobante de Pago / Capture */}
+      {viewingProof && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h4 className="font-serif font-bold text-lg text-slate-900">
+                  Comprobante de Pago — {viewingProof.nombre_establecimiento}
+                </h4>
+                <p className="text-xs text-slate-500 font-mono mt-0.5">
+                  Ref: {viewingProof.referencia} &bull; Período: {viewingProof.periodo_mes} &bull; Monto: ${viewingProof.monto_usd} USD
+                </p>
+              </div>
+              <button
+                onClick={() => setViewingProof(null)}
+                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="max-h-[68vh] overflow-auto flex items-center justify-center bg-slate-100 rounded-2xl p-2 border border-slate-200">
+              <img 
+                src={viewingProof.comprobante_url} 
+                alt="Capture de Pago" 
+                className="max-h-[62vh] w-auto object-contain rounded-xl shadow-md"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <a
+                href={viewingProof.comprobante_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 hover:underline"
+              >
+                <ExternalLink className="w-4 h-4" />
+                <span>Abrir imagen original en nueva pestaña</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={() => setViewingProof(null)}
+                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs"
+              >
+                Cerrar Visor
               </button>
             </div>
           </div>
