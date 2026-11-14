@@ -496,5 +496,32 @@ export const INITIAL_DIRECTORY_DATA = [
     fotos_galeria: ["/images/Director Operativo Marisabel Prieto Pérez.png"],
     destacado_portada: true,
     visible_en_guia: true
+  },
+  {
+    id: "c823a87f-e5c9-477d-83de-433ac3b7b264",
+    codigo_afiliado: "CGM-VALLE-963",
+    nombre_establecimiento: "Bonavita Bistro",
+    categoria_negocio: "Restaurante / Bistró (El Valle te Conecta)",
+    representante_legal: "Isabel Castro Bonavita",
+    rif_cedula: "En trámite",
+    telefono: "0414-0000000",
+    email: "bonavitabistro@gmail.com",
+    direccion_completa: "Ruta Turística El Valle, Sector La Joya, Mérida",
+    municipio: "Libertador (El Valle)",
+    instagram: "@bonavitabistro",
+    sitio_web: "",
+    numero_empleados: 1,
+    estado_solvencia: "Solvente (Activo)",
+    monto_inscripcion: 0.00,
+    monto_cuota_mensual: 7.00,
+    fecha_registro: "2026-11-14 03:42:21+00",
+    fecha_vencimiento: null,
+    observaciones: "Convenio Exclusivo: Grupo El Valle te Conecta. Sector: La Joya, El Valle. Cuota preferencial: $7/mes. Ref Pago Móvil: 413713 (Monto Bs: 6.224,79).",
+    created_at: "2026-11-14 03:42:21+00",
+    updated_at: "2026-11-14 03:42:21+00",
+    foto_portada: null,
+    fotos_galeria: [],
+    destacado_portada: true,
+    visible_en_guia: true
   }
 ];
