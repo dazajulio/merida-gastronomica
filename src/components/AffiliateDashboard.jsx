@@ -4524,21 +4524,12 @@ export function AffiliateDashboard({
                   </div>
                 </div>
 
-                {/* Estructura Oficial de Cuotas */}
-                <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2">
-                  <span className="font-bold text-slate-900 block uppercase text-[10px] tracking-wider flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-                    Estructura de Cuotas Oficiales (Estatutos CGEM):
+                {/* Nota de Solvencia Institucional */}
+                <div className="mt-4 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-center gap-2.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="text-[11px] leading-relaxed">
+                    Al mantener tu cuota solvente disfrutas de certificación de calidad, visibilidad preferencial en el mapa y guía gastronómica, y respaldo gremial permanente.
                   </span>
-                  <div className="space-y-1 text-[11px] text-slate-600">
-                    <p>• <strong>Grandes Empresas (20+ empleados):</strong> Mensualidad $20 USD</p>
-                    <p>• <strong>Empresas (5 a 19 empleados):</strong> Mensualidad $10 USD</p>
-                    <p>• <strong>Emprendimiento / Marca Personal:</strong> Mensualidad $10 USD</p>
-                    <p>• <strong>Circuito El Valle te Conecta:</strong> Mensualidad $7 USD</p>
-                  </div>
-                  <div className="pt-2 border-t border-slate-200 text-[10px] text-slate-500">
-                    Categoría de tu establecimiento: <strong className="text-slate-800">{activeUser.memberCategory || 'Empresa / Emprendimiento'}</strong>
-                  </div>
                 </div>
 
               </div>
