@@ -1542,6 +1542,14 @@ export function AffiliateDashboard({
         const restName = foundMember.nombre_establecimiento || foundMember.nombre_comercial || 'Mi Establecimiento Agremiado';
         const owner = foundMember.representante_legal || foundMember.titular_propietario || 'Representante Legal';
 
+        const isElValleMember = (foundMember.codigo_afiliado || '').includes('VALLE') || 
+                                (foundMember.categoria_negocio || '').toLowerCase().includes('valle') || 
+                                (foundMember.municipio || '').toLowerCase().includes('valle') ||
+                                (foundMember.observaciones || '').toLowerCase().includes('valle') ||
+                                (foundMember.email || '').toLowerCase().includes('lacasadelvalle');
+
+        const resolvedCuota = isElValleMember ? 7.00 : (parseFloat(foundMember.monto_cuota_mensual) || 10.00);
+
         const userPayload = {
           id: code,
           restaurantName: restName,
@@ -1551,7 +1559,7 @@ export function AffiliateDashboard({
           registrationDate: foundMember.fecha_registro ? new Date(foundMember.fecha_registro).toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' }) : "01 de Enero de 2026",
           expiryDate: "31 de Diciembre de 2026",
           status: foundMember.estado_solvencia || "Activo (Solvente)",
-          monthlyDues: foundMember.monto_cuota_mensual ? `$${foundMember.monto_cuota_mensual}.00` : "$10.00",
+          monthlyDues: `$${resolvedCuota.toFixed(2)}`,
           lastPaymentDate: "Reciente",
           certificateCode: `CGM-CERT-2026-${code.replace('CGM-', '')}`,
           email: foundMember.email || cleanId,

@@ -41,7 +41,17 @@ export function parsePaymentFromMember(member, index = 1) {
 
   let totalUsd = 0;
   let cuotaMesUsd = parseFloat(member.monto_cuota_mensual);
-  if (isNaN(cuotaMesUsd) || cuotaMesUsd <= 0) cuotaMesUsd = 10.00;
+  const isElValle = (member.codigo_afiliado || '').includes('VALLE') || 
+                    (member.categoria_negocio || '').toLowerCase().includes('valle') || 
+                    (member.municipio || '').toLowerCase().includes('valle') ||
+                    (member.observaciones || '').toLowerCase().includes('valle') ||
+                    (member.email || '').toLowerCase().includes('lacasadelvalle');
+
+  if (isElValle) {
+    cuotaMesUsd = 7.00;
+  } else if (isNaN(cuotaMesUsd) || cuotaMesUsd <= 0) {
+    cuotaMesUsd = 10.00;
+  }
   let inscripcionUsd = 0;
 
   if (isConvenio) {
