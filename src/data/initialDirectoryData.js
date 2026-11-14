@@ -523,5 +523,32 @@ export const INITIAL_DIRECTORY_DATA = [
     fotos_galeria: [],
     destacado_portada: true,
     visible_en_guia: true
+  },
+  {
+    id: "8764c2bb-c147-45bf-aee1-7a94403d3334",
+    codigo_afiliado: "CGM-VALLE-842",
+    nombre_establecimiento: "Piur",
+    categoria_negocio: "Casa de Postres Saludables & Kéfir Probiótico (El Valle te Conecta)",
+    representante_legal: "Isabel Perdomo",
+    rif_cedula: "En trámite",
+    telefono: "0424-7226731",
+    email: "piurmerida@gmail.com",
+    direccion_completa: "Vía principal, sector La Carbonera, a 300m arriba de la Iglesia Prado Verde, Posada La Chapeta, El Valle, Mérida",
+    municipio: "Libertador (El Valle)",
+    instagram: "@piurmerida",
+    sitio_web: "",
+    numero_empleados: 2,
+    estado_solvencia: "Solvente (Activo)",
+    monto_inscripcion: 0.00,
+    monto_cuota_mensual: 7.00,
+    fecha_registro: "2026-11-02 14:25:00+00",
+    fecha_vencimiento: "2026-12-05 00:00:00+00",
+    observaciones: "Convenio Exclusivo: Grupo El Valle te Conecta. Sector: La Carbonera / Posada La Chapeta. Cuota preferencial: $7/mes. Ref BANFANB: 822831 (Bs. 6.227,03 - 02/11/2026). Postres artesanales con kéfir probiótico.",
+    created_at: "2026-11-14 03:54:28+00",
+    updated_at: "2026-11-14 03:54:28+00",
+    foto_portada: null,
+    fotos_galeria: [],
+    destacado_portada: true,
+    visible_en_guia: true
   }
 ];
