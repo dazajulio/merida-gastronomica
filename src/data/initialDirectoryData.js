@@ -550,5 +550,32 @@ export const INITIAL_DIRECTORY_DATA = [
     fotos_galeria: [],
     destacado_portada: true,
     visible_en_guia: true
+  },
+  {
+    id: "7fdb9de2-5a8c-4a62-902f-39967af1bcdf",
+    codigo_afiliado: "CGM-2026-020",
+    nombre_establecimiento: "Chocolates La Mucuy",
+    categoria_negocio: "Empresas (5 a 19 empleados)",
+    representante_legal: "Andreina Ramirez",
+    rif_cedula: "J-30576137-0",
+    telefono: "+58 424 7487475",
+    email: "chocolateslamucuy@gmail.com",
+    direccion_completa: "C.C. Plaza Mayor",
+    municipio: "Libertador",
+    instagram: "@chocolateslamucuy",
+    sitio_web: "https://lamucuy.com/",
+    numero_empleados: 5,
+    estado_solvencia: "Solvente (Activo)",
+    monto_inscripcion: 0.00,
+    monto_cuota_mensual: 10.00,
+    fecha_registro: "2026-11-14 01:23:25+00",
+    fecha_vencimiento: null,
+    observaciones: "Agremiado por Alianza Estratégica / Intercambio Institucional (Sede/Locación para eventos de la Cámara).",
+    created_at: "2026-11-14 01:23:25+00",
+    updated_at: "2026-11-14 01:23:25+00",
+    foto_portada: null,
+    fotos_galeria: [],
+    destacado_portada: false,
+    visible_en_guia: true
   }
 ];
