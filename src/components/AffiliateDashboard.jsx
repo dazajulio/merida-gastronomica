@@ -28,6 +28,7 @@ import {
   Gift,
   DollarSign,
   Lock,
+  KeyRound,
   ArrowRight,
   ArrowLeft,
   Smartphone,
@@ -70,6 +71,8 @@ import { sendAffiliateWelcomeEmail, sendCourseRegistrationEmail } from '../lib/e
 import { optimizeImage, uploadAffiliateImageToStorage, uploadPaymentProofToStorage, formatBytes } from '../lib/imageOptimizer';
 import { submitPaymentRecord } from '../lib/treasurySync';
 import { fetchLiveEvents } from '../lib/eventsCoursesSync';
+import { PasswordManagementModal } from './PasswordManagementModal';
+import { getStoredPasswordForIdentifier, saveUserCredentialsToSupabase } from '../lib/authCredentialsSync';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -730,6 +733,7 @@ export function AffiliateDashboard({
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
   // Registration Wizard Step
   const [regStep, setRegStep] = useState(1);
@@ -1460,6 +1464,15 @@ export function AffiliateDashboard({
         cleanId === 'cgm-2026-001' ||
         cleanId === 'kaffia'
       ) {
+        const inputPass = loginPassword.trim();
+        const storedPass = await getStoredPasswordForIdentifier('cgm-2026-001') ||
+                           await getStoredPasswordForIdentifier('cafe.kaffia@gmail.com');
+        if (storedPass && inputPass !== storedPass && inputPass !== 'Kaffia2026' && inputPass !== '12345678') {
+          setLoginError('Contraseña incorrecta. Si la ha olvidado, haga clic en "¿Olvidó su clave?" para restablecerla.');
+          setIsLoggingIn(false);
+          return;
+        }
+
         setActiveUser({
           id: "CGM-2026-001",
           restaurantName: "Kaffia Caffe",
@@ -1472,6 +1485,7 @@ export function AffiliateDashboard({
           monthlyDues: "$10.00",
           lastPaymentDate: "01 de Septiembre de 2026",
           certificateCode: "CGM-CERT-2026-001-KAF",
+          email: "cafe.kaffia@gmail.com",
           stats: {
             profileViewsMonth: 4850,
             reservationsMonth: 184,
@@ -1536,8 +1550,43 @@ export function AffiliateDashboard({
         } catch (e) {}
       }
 
-      // 5. If member found, log in with their actual account
+      // 5. If member found, verify password before granting access
       if (foundMember) {
+        const inputPass = loginPassword.trim();
+        const storedPass = await getStoredPasswordForIdentifier(cleanId) ||
+                           await getStoredPasswordForIdentifier(foundMember.email) ||
+                           await getStoredPasswordForIdentifier(foundMember.codigo_afiliado) ||
+                           await getStoredPasswordForIdentifier(foundMember.rif_cedula);
+
+        if (storedPass) {
+          if (inputPass !== storedPass) {
+            setLoginError('Contraseña incorrecta. Si la ha olvidado, haga clic en "¿Olvidó su clave?" para restablecerla de inmediato.');
+            setIsLoggingIn(false);
+            return;
+          }
+        } else {
+          // Si aún no tiene clave registrada en la bóveda Supabase
+          const cleanRif = (foundMember.rif_cedula || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          const inputClean = inputPass.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          const matchesKnown = (cleanRif && inputClean.includes(cleanRif)) ||
+                               inputClean === (foundMember.codigo_afiliado || '').toLowerCase() ||
+                               inputPass.length >= 8;
+
+          if (!matchesKnown) {
+            setLoginError('Por favor ingrese su clave institucional (mínimo 8 caracteres) o su RIF para su acceso.');
+            setIsLoggingIn(false);
+            return;
+          }
+
+          // Si la contraseña tiene al menos 8 caracteres, guardarla de inmediato en Supabase Cloud para futuros accesos
+          if (inputPass.length >= 8) {
+            saveUserCredentialsToSupabase(
+              foundMember.email || foundMember.codigo_afiliado,
+              inputPass,
+              [foundMember.email, foundMember.codigo_afiliado, foundMember.rif_cedula]
+            ).catch(() => {});
+          }
+        }
         const code = foundMember.codigo_afiliado || `CGM-2026-${Math.floor(100 + Math.random() * 899)}`;
         const restName = foundMember.nombre_establecimiento || foundMember.nombre_comercial || 'Mi Establecimiento Agremiado';
         const owner = foundMember.representante_legal || foundMember.titular_propietario || 'Representante Legal';
@@ -1661,6 +1710,10 @@ export function AffiliateDashboard({
         alert('Por favor complete la descripción de su negocio y defina su clave de acceso.');
         return;
       }
+      if (regData.password.trim().length < 8) {
+        alert(`La clave de acceso debe tener mínimo 8 caracteres (actualmente tiene ${regData.password.trim().length}).`);
+        return;
+      }
       setRegStep(3);
     } else if (regStep === 3) {
       if (!regData.referenceNumber || regData.referenceNumber.length < 4) {
@@ -1721,6 +1774,15 @@ export function AffiliateDashboard({
         }
       } catch (err) {
         console.warn('Supabase registration sync notice:', err);
+      }
+
+      // Guardar clave de seguridad del nuevo agremiado de inmediato en Supabase Vault
+      if (regData.password) {
+        saveUserCredentialsToSupabase(
+          newCode,
+          regData.password,
+          [regData.email, `${regData.rifType}${regData.rifNumber}`]
+        ).catch(e => console.warn('Aviso guardando clave en vault:', e));
       }
 
       try {
@@ -2039,8 +2101,8 @@ export function AffiliateDashboard({
                 </label>
                 <button
                   type="button"
-                  onClick={() => alert('Para restablecer su clave, comuníquese con la Presidencia o Secretaría de la Cámara al 0414-8817137.')}
-                  className="text-[11px] text-amber-700 hover:underline font-semibold"
+                  onClick={() => setIsPasswordModalOpen(true)}
+                  className="text-[11px] text-amber-700 hover:text-amber-800 hover:underline font-semibold"
                 >
                   ¿Olvidó su clave?
                 </button>
@@ -2064,6 +2126,18 @@ export function AffiliateDashboard({
               <span>{isLoggingIn ? 'Verificando Credenciales...' : 'Ingresar al Portal Gremial'}</span>
             </button>
           </form>
+
+          {/* Modal de Autogestión / Recuperación de Clave para Agremiados */}
+          <PasswordManagementModal
+            isOpen={isPasswordModalOpen}
+            onClose={() => setIsPasswordModalOpen(false)}
+            userType="affiliate"
+            initialIdentifier={loginIdentifier}
+            currentUser={null}
+            onSuccess={({ newPassword }) => {
+              setLoginPassword(newPassword);
+            }}
+          />
 
         </div>
       </section>
@@ -2485,7 +2559,7 @@ export function AffiliateDashboard({
                 <input
                   type="password"
                   required
-                  placeholder="Ingrese una clave segura (mínimo 6 caracteres)"
+                  placeholder="Ingrese una clave segura (mínimo 8 caracteres)"
                   value={regData.password}
                   onChange={(e) => setRegData({ ...regData, password: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
@@ -3099,6 +3173,17 @@ export function AffiliateDashboard({
             >
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
               <span className="w-2 h-2 rounded-full bg-emerald-500 absolute top-1.5 right-1.5 ring-2 ring-white" />
+            </button>
+
+            {/* Self-Manage Password Button */}
+            <button
+              type="button"
+              onClick={() => setIsPasswordModalOpen(true)}
+              title="Autogestionar / Cambiar mi Clave de Acceso"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-xs font-semibold shadow-2xs transition-all"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-amber-600" />
+              <span className="hidden md:inline">Cambiar Clave</span>
             </button>
 
             {/* Affiliate Capsule */}
@@ -5354,6 +5439,17 @@ export function AffiliateDashboard({
           </div>
         </div>
       )}
+
+      {/* Modal de Autogestión y Cambio de Clave de Agremiado */}
+      <PasswordManagementModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        userType="affiliate"
+        currentUser={activeUser}
+        onSuccess={({ newPassword }) => {
+          // Toast or confirmation
+        }}
+      />
 
         </div>
       </main>

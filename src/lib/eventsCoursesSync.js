@@ -70,7 +70,7 @@ export async function fetchLiveEvents() {
 
       if (!error && Array.isArray(data) && data.length > 0) {
         const publicRows = data.filter(
-          row => !String(row.id || '').startsWith('board_') && !String(row.category || '').startsWith('__CGEM_BOARD_')
+          row => !String(row.id || '').startsWith('board_') && !String(row.category || '').startsWith('__CGEM_')
         );
         if (publicRows.length > 0) {
           events = publicRows.map(formatEventFromSupabase);

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   ShieldCheck, 
   Lock, 
+  KeyRound,
   Mail, 
   Calendar as CalendarIcon, 
   Clock, 
@@ -102,6 +103,8 @@ import {
   fetchLiveCompletedBoardEvents,
   markBoardEventCompletedInSupabase
 } from '../lib/eventsCoursesSync';
+import { PasswordManagementModal } from './PasswordManagementModal';
+import { getStoredPasswordForIdentifier } from '../lib/authCredentialsSync';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -397,6 +400,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
   // Agenda State (Synchronized with Supabase Cloud + localStorage resilience)
   const [agendaEvents, setAgendaEvents] = useState(() => {
@@ -931,13 +935,13 @@ export function BoardAdminPortal({ t, onNavigate }) {
     { id: 'reunion', label: 'Reunión de Junta Directiva' },
   ];
 
-  // Handle Login
-  const handleLogin = (e) => {
+  // Handle Login with Supabase Cloud Vault & Fallback
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
     setIsLoggingIn(true);
 
-    setTimeout(() => {
+    try {
       const emailClean = emailInput.trim().toLowerCase();
       const passClean = passwordInput.trim();
 
@@ -952,7 +956,30 @@ export function BoardAdminPortal({ t, onNavigate }) {
         ))
       );
 
-      if (member && member.hasPasswordSet && member.passwordHash === passClean) {
+      if (!member) {
+        setLoginError('No se encontró ningún miembro directivo con ese correo electrónico.');
+        setIsLoggingIn(false);
+        return;
+      }
+
+      // Check password in Supabase Vault first
+      let isPasswordValid = false;
+      try {
+        const storedVaultPass = await getStoredPasswordForIdentifier(emailClean) ||
+                                await getStoredPasswordForIdentifier(member.email);
+        if (storedVaultPass) {
+          isPasswordValid = (passClean === storedVaultPass);
+        } else if (member.hasPasswordSet && member.passwordHash) {
+          isPasswordValid = (passClean === member.passwordHash);
+        }
+      } catch (err) {
+        console.warn('Vault lookup error, checking fallback:', err);
+        if (member.hasPasswordSet && member.passwordHash) {
+          isPasswordValid = (passClean === member.passwordHash);
+        }
+      }
+
+      if (isPasswordValid) {
         setCurrentUser(member);
         localStorage.setItem('cgem_board_user', JSON.stringify(member));
         setIsLoggingIn(false);
@@ -960,14 +987,17 @@ export function BoardAdminPortal({ t, onNavigate }) {
       }
 
       if (member && !member.hasPasswordSet) {
-        setLoginError('Este cargo directivo está pre-registrado. Las credenciales de acceso están pendientes por activación.');
+        setLoginError('Este cargo directivo está pre-registrado. Puede activar o definir su contraseña con "¿Olvidó su contraseña?".');
         setIsLoggingIn(false);
         return;
       }
 
-      setLoginError('Credenciales incorrectas. Verifique el correo electrónico y la contraseña asignada.');
+      setLoginError('Credenciales incorrectas. Si ha olvidado su clave, haga clic en "¿Olvidó su contraseña?" para restablecerla de inmediato.');
       setIsLoggingIn(false);
-    }, 300);
+    } catch (err) {
+      setLoginError('Error de verificación. Por favor intente de nuevo.');
+      setIsLoggingIn(false);
+    }
   };
 
   // Handle Logout
@@ -2888,9 +2918,18 @@ export function BoardAdminPortal({ t, onNavigate }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 font-sans">
-                  Contraseña de Acceso
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider font-sans">
+                    Contraseña de Acceso
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsPasswordModalOpen(true)}
+                    className="text-xs text-amber-700 hover:text-amber-800 hover:underline font-semibold font-sans"
+                  >
+                    ¿Olvidó su contraseña?
+                  </button>
+                </div>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-amber-600 absolute left-4 top-1/2 -translate-y-1/2" />
                   <input
@@ -2933,6 +2972,18 @@ export function BoardAdminPortal({ t, onNavigate }) {
               &larr; Volver al Portal Principal de Mérida Gastronómica
             </button>
           </div>
+
+          {/* Modal de Recuperación y Cambio de Clave Directiva */}
+          <PasswordManagementModal
+            isOpen={isPasswordModalOpen}
+            onClose={() => setIsPasswordModalOpen(false)}
+            userType="board"
+            initialIdentifier={emailInput}
+            currentUser={null}
+            onSuccess={({ newPassword }) => {
+              setPasswordInput(newPassword);
+            }}
+          />
 
         </div>
       </div>
@@ -3262,6 +3313,15 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
           <div className="flex items-center gap-1.5">
             <button
+              onClick={() => setIsPasswordModalOpen(true)}
+              className="py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-600 hover:text-amber-800 text-[11px] font-sans font-semibold flex items-center justify-center gap-1 transition-all border border-slate-200/60 hover:border-amber-200"
+              title="Cambiar mi Contraseña de Acceso"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-amber-600" />
+              <span>Clave</span>
+            </button>
+
+            <button
               onClick={handleManualSyncEventsCourses}
               disabled={isSyncingCloud}
               className="flex-1 py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-[11px] font-sans font-semibold flex items-center justify-center gap-1.5 transition-all border border-slate-200/60 disabled:opacity-50"
@@ -3336,6 +3396,17 @@ export function BoardAdminPortal({ t, onNavigate }) {
             >
               <RefreshCw className={`w-4 h-4 ${isSyncingCloud ? 'animate-spin text-emerald-600' : ''}`} />
               <span className="w-2 h-2 rounded-full bg-emerald-500 absolute top-1.5 right-1.5 ring-2 ring-white" />
+            </button>
+
+            {/* Self-Manage Password Button */}
+            <button
+              type="button"
+              onClick={() => setIsPasswordModalOpen(true)}
+              title="Autogestionar / Cambiar mi Contraseña"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-xs font-semibold shadow-2xs transition-all"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-amber-600" />
+              <span className="hidden md:inline">Cambiar Clave</span>
             </button>
 
             {/* User Pill Capsule */}
@@ -8426,6 +8497,18 @@ export function BoardAdminPortal({ t, onNavigate }) {
           </div>
         </div>
       )}
+
+      {/* Modal de Autogestión y Cambio de Clave Directiva */}
+      <PasswordManagementModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        userType="board"
+        currentUser={currentUser}
+        onSuccess={() => {
+          setActionSuccessMessage('Su contraseña institucional ha sido actualizada exitosamente en Supabase.');
+          setTimeout(() => setActionSuccessMessage(''), 4000);
+        }}
+      />
 
     </div>
   );
