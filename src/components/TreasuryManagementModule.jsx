@@ -1124,7 +1124,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                               )}
 
                               {/* 5. Descartar / Eliminar intento duplicado o rechazado */}
-                              {!isReconciled && (!treasuryPermissions || treasuryPermissions.deleteDuplicates !== false) && (
+                              {!isApproved && (!treasuryPermissions || treasuryPermissions.deleteDuplicates !== false) && (
                                 <button
                                   onClick={() => handleDeleteDuplicatePayment(p)}
                                   className="py-1.5 px-2.5 rounded-xl bg-slate-100 hover:bg-rose-600 text-slate-600 hover:text-white border border-slate-200 hover:border-rose-600 text-[11px] font-bold flex items-center gap-1 transition-all"
