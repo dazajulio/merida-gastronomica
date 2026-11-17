@@ -344,6 +344,35 @@ export async function rejectPaymentRecord(paymentId, motivo = '', conciliatorNam
   }
 }
 
+// Eliminar / descartar un registro de pago (duplicados, intentos fallidos, etc.)
+export async function deletePaymentRecord(paymentId) {
+  if (!paymentId) return false;
+
+  try {
+    const saved = localStorage.getItem('cgem_pagos_tesoreria');
+    if (saved) {
+      const list = JSON.parse(saved);
+      const updated = list.filter(p => p.id !== paymentId);
+      localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(updated));
+    }
+  } catch (e) {}
+
+  if (supabase) {
+    try {
+      const { error } = await supabase
+        .from('pagos_tesoreria')
+        .delete()
+        .eq('id', paymentId);
+      if (error) {
+        console.warn('Supabase delete payment notice:', error);
+      }
+    } catch (err) {
+      console.warn('Supabase delete payment exception:', err);
+    }
+  }
+  return true;
+}
+
 // Guardar nuevo egreso
 export async function submitExpenseRecord(expenseData) {
   const newExpense = {

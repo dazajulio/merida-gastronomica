@@ -533,7 +533,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
                 </div>
 
                 {/* Signature Dishes */}
-                {restaurant.signatureDishes && restaurant.signatureDishes.length > 0 && (
+                {(restaurant.visibleSections ? restaurant.visibleSections.menu !== false : true) && restaurant.signatureDishes && restaurant.signatureDishes.length > 0 && (
                   <div className="space-y-4 pt-2">
                     <div className="flex items-center justify-between">
                       <h4 className="font-serif text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -568,7 +568,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
                 )}
 
                 {/* Menu Highlights */}
-                {restaurant.menuHighlights && restaurant.menuHighlights.length > 0 && (
+                {(restaurant.visibleSections ? restaurant.visibleSections.destacados !== false : true) && restaurant.menuHighlights && restaurant.menuHighlights.length > 0 && (
                   <div className="pt-2 p-5 rounded-2xl bg-amber-50/40 border border-amber-200/70">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-3">
                       Otros destacados del menú:
@@ -585,7 +585,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
                 )}
 
                 {/* Chef Profile Card */}
-                {restaurant.chef && (
+                {(restaurant.visibleSections ? restaurant.visibleSections.equipo !== false : true) && restaurant.chef && (
                   <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200">
                     <div className="flex items-center gap-2 text-amber-800 mb-2">
                       <ChefHat className="w-5 h-5 text-amber-600" />
@@ -601,7 +601,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
                 )}
 
                 {/* Features / Services Chips */}
-                {restaurant.features && restaurant.features.length > 0 && (
+                {(restaurant.visibleSections ? restaurant.visibleSections.destacados !== false : true) && restaurant.features && restaurant.features.length > 0 && (
                   <div className="space-y-2.5 pt-2">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
                       Servicios & Comodidades:

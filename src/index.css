@@ -4,8 +4,8 @@
 
 @layer base {
   body {
-    background-color: #fcfbf9;
-    color: #1e293b;
+    background-color: #FAF7F2;
+    color: #1E1C1A;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
@@ -127,4 +127,24 @@
 
 .animate-fadeIn {
   animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Slow Right-to-Left Marquee for Aliados Oficiales */
+@keyframes marquee-ltr {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee-ltr {
+  display: flex;
+  width: max-content;
+  animation: marquee-ltr 34s linear infinite;
+}
+
+.animate-marquee-ltr:hover {
+  animation-play-state: paused;
 }

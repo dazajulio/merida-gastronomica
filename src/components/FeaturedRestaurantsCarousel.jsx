@@ -13,6 +13,7 @@ import {
   Utensils
 } from 'lucide-react';
 import { RestaurantCard } from './RestaurantCard';
+import { isClassifiedRestaurant } from './RestaurantGuide';
 
 export function FeaturedRestaurantsCarousel({ 
   restaurants = [], 
@@ -25,15 +26,17 @@ export function FeaturedRestaurantsCarousel({
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
-  // Ordenar: Los marcados como destacados (destacado_portada: true) primero, luego el resto
+  // Filtrar solo restaurantes clasificados y ordenar destacados primero
   const sortedRestaurants = React.useMemo(() => {
     if (!Array.isArray(restaurants)) return [];
-    return [...restaurants].sort((a, b) => {
-      const aFeatured = a.isFeatured || a.destacado_portada ? 1 : 0;
-      const bFeatured = b.isFeatured || b.destacado_portada ? 1 : 0;
-      if (bFeatured !== aFeatured) return bFeatured - aFeatured;
-      return (b.rating || 5) - (a.rating || 5);
-    });
+    return restaurants
+      .filter(isClassifiedRestaurant)
+      .sort((a, b) => {
+        const aFeatured = a.isFeatured || a.destacado_portada ? 1 : 0;
+        const bFeatured = b.isFeatured || b.destacado_portada ? 1 : 0;
+        if (bFeatured !== aFeatured) return bFeatured - aFeatured;
+        return (b.rating || 5) - (a.rating || 5);
+      });
   }, [restaurants]);
 
   const checkScroll = () => {
@@ -65,64 +68,59 @@ export function FeaturedRestaurantsCarousel({
   }
 
   return (
-    <div className="border-t border-slate-200 bg-white py-16 relative overflow-hidden">
-      {/* Background Accent Subtle Glow */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-amber-100/40 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-100/30 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3 pointer-events-none" />
-
+    <div className="bg-white py-16 sm:py-20 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         
-        {/* Header Strip */}
-        <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-8 gap-4">
+        {/* Editorial Header Strip (Abdullah Tariq Inspired) */}
+        <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-10 gap-6">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs uppercase font-extrabold text-amber-800 flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200">
-                <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
-                Joyas Culinarias de la Cordillera
+              <span className="text-[11px] uppercase tracking-[0.2em] font-bold text-[#C85A32]">
+                Selección Oficial CGEM
               </span>
               {featuredCount > 0 && (
-                <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
-                  {featuredCount} {featuredCount === 1 ? 'Selección Oficial' : 'Selecciones Oficiales'}
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#FAF3EB] text-[#C85A32] border border-[#EAE3D5]">
+                  {featuredCount} {featuredCount === 1 ? 'Destacado' : 'Destacados'}
                 </span>
               )}
             </div>
 
-            <h2 className="font-serif text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tight">
-              Restaurantes Destacados & Cocina de Autor
+            <h2 className="font-playfair text-3xl sm:text-4xl font-bold text-[#1E1C1A] tracking-tight">
+              Guía de <span className="italic font-normal text-[#C85A32]">Restaurantes</span>
             </h2>
-            <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl font-sans">
-              Deslice lateralmente para explorar los establecimientos agremiados con los más altos estándares de calidad, producto de origen andino y hospitalidad de Mérida.
+            <p className="text-xs sm:text-sm text-[#5C554E] mt-2 max-w-2xl font-sans leading-relaxed">
+              Explora los restaurantes, cafés de especialidad y posadas agremiadas que representan lo mejor de la gastronomía merideña.
             </p>
           </div>
 
           <div className="flex items-center gap-3 self-end md:self-auto font-sans">
             {/* Carousel Navigation Buttons */}
-            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl border border-slate-200">
+            <div className="flex items-center gap-1 bg-[#FAF7F2] p-1 rounded-full border border-[#EAE3D5]">
               <button
                 onClick={() => scrollByAmount('left')}
                 disabled={!canScrollLeft}
-                className={`p-2.5 rounded-xl transition-all ${
+                className={`p-2 rounded-full transition-all ${
                   canScrollLeft
-                    ? 'bg-white text-slate-900 shadow-xs hover:bg-amber-50 hover:text-amber-800 hover:scale-105 active:scale-95'
-                    : 'text-slate-400 cursor-not-allowed opacity-50'
+                    ? 'bg-white text-[#1E1C1A] shadow-2xs hover:bg-[#FAF3EB] hover:text-[#C85A32]'
+                    : 'text-[#B5ADA4] cursor-not-allowed opacity-50'
                 }`}
                 title="Ver anteriores"
                 aria-label="Desplazar a la izquierda"
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={() => scrollByAmount('right')}
                 disabled={!canScrollRight}
-                className={`p-2.5 rounded-xl transition-all ${
+                className={`p-2 rounded-full transition-all ${
                   canScrollRight
-                    ? 'bg-white text-slate-900 shadow-xs hover:bg-amber-50 hover:text-amber-800 hover:scale-105 active:scale-95'
-                    : 'text-slate-400 cursor-not-allowed opacity-50'
+                    ? 'bg-white text-[#1E1C1A] shadow-2xs hover:bg-[#FAF3EB] hover:text-[#C85A32]'
+                    : 'text-[#B5ADA4] cursor-not-allowed opacity-50'
                 }`}
                 title="Ver siguientes"
                 aria-label="Desplazar a la derecha"
               >
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
 
@@ -130,46 +128,72 @@ export function FeaturedRestaurantsCarousel({
             {onExploreAll && (
               <button
                 onClick={onExploreAll}
-                className="py-3 px-5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all active:scale-98"
+                className="py-2.5 px-5 rounded-full bg-white hover:bg-[#FAF3EB] text-[#1E1C1A] border border-[#DED5C5] font-sans font-semibold text-xs flex items-center gap-2 shadow-2xs transition-all"
               >
                 <span>Ver Todos ({sortedRestaurants.length})</span>
-                <ArrowRight className="w-4 h-4 text-slate-950" />
+                <ArrowRight className="w-3.5 h-3.5 text-[#C85A32]" />
               </button>
             )}
           </div>
         </div>
 
-        {/* Carousel Slider Track */}
+        {/* Carousel Slider Track - Compact "Selected Projects" Style Cards */}
         <div 
           ref={scrollContainerRef}
           onScroll={checkScroll}
-          className="flex gap-6 overflow-x-auto pb-6 pt-2 scroll-smooth snap-x snap-mandatory scrollbar-none"
+          className="flex gap-5 overflow-x-auto pb-4 pt-2 scroll-smooth snap-x snap-mandatory scrollbar-none"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {sortedRestaurants.map((restaurant) => {
             const isFeatured = restaurant.isFeatured || restaurant.destacado_portada;
+            const imgSrc = restaurant.coverImage || restaurant.image || restaurant.foto_portada || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80';
+            const categoryLabel = restaurant.category || restaurant.categoria_negocio || 'Gastronomía';
+            const shortDesc = restaurant.description || restaurant.observaciones || `${restaurant.zone || restaurant.municipio || 'Mérida'}, Estado Mérida.`;
+
             return (
               <div 
                 key={restaurant.id}
-                className="w-[300px] sm:w-[360px] md:w-[380px] shrink-0 snap-start transition-all duration-300 relative flex flex-col"
+                onClick={() => onSelectRestaurant && onSelectRestaurant(restaurant)}
+                className="w-[260px] sm:w-[290px] shrink-0 snap-start rounded-2xl bg-[#FAF7F2]/60 hover:bg-white border border-[#EAE3D5] hover:border-[#C85A32]/60 shadow-2xs hover:shadow-md transition-all duration-300 p-2.5 flex flex-col cursor-pointer group"
               >
-                {/* Special Star ribbon for explicitly featured */}
-                {isFeatured && (
-                  <div className="absolute -top-2.5 left-4 z-10">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md border border-amber-300 font-sans">
-                      <Star className="w-3 h-3 fill-slate-950 text-slate-950" />
-                      <span>Destacado Oficial</span>
-                    </span>
-                  </div>
-                )}
-
-                <div className={`h-full flex flex-col ${isFeatured ? 'ring-2 ring-amber-400/80 rounded-3xl' : ''}`}>
-                  <RestaurantCard 
-                    restaurant={restaurant}
-                    onSelect={onSelectRestaurant}
-                    onViewOnMap={onViewOnMap}
-                    t={t}
+                {/* Compact Top Image */}
+                <div className="h-40 w-full rounded-xl overflow-hidden bg-[#F2ECE1] relative">
+                  <img
+                    src={imgSrc}
+                    alt={restaurant.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
                   />
+                  {isFeatured && (
+                    <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-white/95 text-[#C85A32] shadow-xs border border-[#EAE3D5]">
+                      <Star className="w-2.5 h-2.5 fill-[#C85A32] text-[#C85A32]" />
+                      <span>Destacado</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Compact Card Body */}
+                <div className="pt-3 px-1.5 pb-1 flex-1 flex flex-col justify-between gap-2">
+                  <div>
+                    <span className="inline-block px-2 py-0.5 rounded-full bg-[#C85A32] text-white text-[9px] font-bold tracking-wide mb-1.5 max-w-full truncate">
+                      {categoryLabel}
+                    </span>
+
+                    <div className="flex items-end justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-playfair font-bold text-base text-[#1E1C1A] group-hover:text-[#C85A32] transition-colors truncate">
+                          {restaurant.name}
+                        </h3>
+                        <p className="text-[11px] text-[#5C554E] line-clamp-2 mt-0.5 leading-snug">
+                          {shortDesc}
+                        </p>
+                      </div>
+
+                      <div className="w-8 h-8 rounded-full border border-[#EAE3D5] bg-white group-hover:bg-[#C85A32] group-hover:text-white group-hover:border-[#C85A32] text-[#1E1C1A] flex items-center justify-center shrink-0 transition-colors">
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             );
@@ -177,22 +201,19 @@ export function FeaturedRestaurantsCarousel({
         </div>
 
         {/* Footer Carousel Bar */}
-        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100 text-xs text-slate-500 font-sans">
+        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-[#EAE3D5]/70 text-xs text-[#7A7168] font-sans">
           <div className="flex items-center gap-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-            <span>Mostrando <strong>{sortedRestaurants.length}</strong> establecimientos miembros solventes</span>
+            <span className="inline-block w-2 h-2 rounded-full bg-[#C85A32]" />
+            <span>Mostrando <strong className="text-[#1E1C1A]">{sortedRestaurants.length}</strong> establecimientos miembros</span>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-[11px] text-slate-400 hidden sm:inline">
-              Desliza horizontalmente para ver más opciones &rarr;
-            </span>
             {onExploreAll && (
               <button 
                 onClick={onExploreAll}
-                className="text-amber-800 font-bold hover:underline flex items-center gap-1"
+                className="text-[#C85A32] font-bold hover:underline flex items-center gap-1"
               >
-                <span>Explorar Guía con Filtros por Municipio y Eje</span>
+                <span>Explorar Guía Completa</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             )}

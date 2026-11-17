@@ -58,47 +58,50 @@ export function CulturalDistrict({ t, setActiveTab, onQuickSearch }) {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 selection:bg-amber-500 selection:text-white">
       
       {/* =========================================================================
-          HERO BANNER (Fusión Centro Histórico + Video & Identidad Oficial)
+          HERO BANNER (Nuevo Diseño Editorial Cálido CGEM)
           ========================================================================= */}
-      <div className="relative rounded-3xl p-8 sm:p-14 text-white shadow-2xl overflow-hidden mb-12 border border-orange-900/40 bg-slate-950">
+      <div className="relative rounded-[2rem] p-8 sm:p-14 text-[#1E1C1A] shadow-sm overflow-hidden mb-12 border border-[#EAE3D5] bg-white">
         
-        {/* Background Visual Texture / Gradient */}
-        <div className="absolute inset-0 z-0 opacity-40">
+        {/* Background Visual with Warm Linen Melt */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
           <img 
             src="https://images.unsplash.com/photo-1539650116574-75c0c6d73f6e?w=1600&auto=format&fit=crop&q=80" 
             alt="Mérida Centro Histórico" 
-            className="w-full h-full object-cover object-center filter saturate-150 brightness-[0.4]"
+            className="w-full h-full object-cover object-center filter saturate-[1.15]"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/90 to-orange-950/70" />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-[#FAF7F2]/88 lg:hidden" />
+          <div
+            className="hidden lg:block absolute inset-0"
+            style={{
+              background:
+                'linear-gradient(90deg, #FAF7F2 0%, rgba(250, 247, 242, 0.96) 45%, rgba(250, 247, 242, 0.72) 70%, rgba(250, 247, 242, 0.15) 100%)',
+            }}
+          />
         </div>
-        
-        <div className="absolute -right-20 -top-20 w-96 h-96 bg-orange-600/25 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute left-1/3 bottom-0 w-80 h-80 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 max-w-4xl">
           
           {/* Official Location Badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-500/20 border border-orange-400/40 text-orange-300 text-xs font-bold mb-5 backdrop-blur-md font-sans">
-            <MapPin className="w-3.5 h-3.5 text-orange-400" />
-            <span className="uppercase tracking-widest">{hero.locationBadge}</span>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#FAF3EB] border border-[#EAE3D5] text-[#C85A32] text-[11px] font-bold mb-4 font-sans">
+            <MapPin className="w-3.5 h-3.5 text-[#C85A32]" />
+            <span className="uppercase tracking-[0.18em]">{hero.locationBadge}</span>
           </div>
 
-          <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight">
-            Distrito Cultural y Creativo <span className="text-orange-500 font-serif">Mérida</span>
+          <h1 className="font-playfair text-3xl sm:text-5xl font-bold tracking-tight text-[#1E1C1A] leading-tight">
+            Distrito Cultural y Creativo <span className="italic font-normal text-[#C85A32]">Mérida</span>
           </h1>
 
-          <p className="mt-4 text-slate-200 text-sm sm:text-lg leading-relaxed font-sans max-w-3xl">
+          <p className="mt-4 text-[#4F4842] text-sm sm:text-base leading-relaxed font-sans max-w-2xl">
             {hero.subtitle}
           </p>
 
           {/* Key Indicators */}
-          <div className="mt-8 flex flex-wrap items-center gap-3 font-sans">
+          <div className="mt-7 flex flex-wrap items-center gap-3 font-sans">
             <a 
               href={hero.officialWebsiteUrl || "https://patchamamatours.com/distrito-cultura-merida/"}
               target="_blank"
               rel="noopener noreferrer"
-              className="py-3 px-5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg transition-all flex items-center gap-2 active:scale-98"
+              className="py-3 px-5 rounded-full bg-[#C85A32] hover:bg-[#B04B26] text-white text-xs font-bold shadow-sm transition-all flex items-center gap-2"
             >
               <ExternalLink className="w-4 h-4" />
               <span>Portal Oficial del Distrito ↗</span>
@@ -106,23 +109,23 @@ export function CulturalDistrict({ t, setActiveTab, onQuickSearch }) {
 
             <a 
               href="#circuitos"
-              className="py-3 px-5 rounded-2xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold uppercase tracking-wider shadow-lg transition-all flex items-center gap-2 active:scale-98"
+              className="py-3 px-5 rounded-full bg-white hover:bg-[#FAF3EB] text-[#1E1C1A] border border-[#DED5C5] text-xs font-semibold shadow-2xs transition-all flex items-center gap-2"
             >
-              <Compass className="w-4 h-4" />
+              <Compass className="w-4 h-4 text-[#C85A32]" />
               <span>Descubre los Circuitos</span>
             </a>
 
             <a 
               href="#agenda"
-              className="py-3 px-5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/25 text-white text-xs font-bold uppercase tracking-wider backdrop-blur-md transition-all flex items-center gap-2"
+              className="py-3 px-5 rounded-full bg-white/90 hover:bg-[#FAF3EB] border border-[#DED5C5] text-[#1E1C1A] text-xs font-semibold transition-all flex items-center gap-2"
             >
-              <Calendar className="w-4 h-4 text-amber-400" />
+              <Calendar className="w-4 h-4 text-[#C85A32]" />
               <span>Agenda del Mes</span>
             </a>
 
             <a 
               href="#shoplocal"
-              className="py-3 px-5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/25 text-white text-xs font-bold uppercase tracking-wider backdrop-blur-md transition-all flex items-center gap-2"
+              className="py-3 px-5 rounded-full bg-white/90 hover:bg-[#FAF3EB] border border-[#DED5C5] text-[#1E1C1A] text-xs font-semibold transition-all flex items-center gap-2"
             >
               <ShoppingBag className="w-4 h-4 text-orange-400" />
               <span>Shop Local</span>

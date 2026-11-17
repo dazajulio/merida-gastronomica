@@ -38,12 +38,13 @@ export default {
         cinzel: ['"Cinzel"', 'serif'],
         cormorant: ['"Cormorant Garamond"', 'serif'],
         playfair: ['"Playfair Display"', 'serif'],
-        // Extra Condensed / Tall Display font for headings and high impact titles
-        serif: ['"Barlow Condensed"', '"Oswald"', '"Outfit"', 'sans-serif'],
+        // Editorial Serif for headings (Playfair Display / Cormorant Garamond)
+        serif: ['"Playfair Display"', '"Cormorant Garamond"', 'Georgia', 'serif'],
         condensed: ['"Barlow Condensed"', '"Oswald"', 'sans-serif'],
         // Script / Manuscrita elegante
         script: ['"Great Vibes"', '"Alex Brush"', 'cursive'],
         cursive: ['"Great Vibes"', '"Alex Brush"', 'cursive'],
+        handwritten: ['"Caveat"', 'cursive'],
         // Clean and open geometric sans for reading, body and UI
         sans: ['"Montserrat"', '"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
       },

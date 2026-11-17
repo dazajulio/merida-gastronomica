@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   ShieldCheck, 
+  Sliders,
   Lock, 
   KeyRound,
   Mail, 
@@ -105,6 +106,12 @@ import {
 } from '../lib/eventsCoursesSync';
 import { PasswordManagementModal } from './PasswordManagementModal';
 import { getStoredPasswordForIdentifier } from '../lib/authCredentialsSync';
+import { 
+  PERMISSION_SECTIONS, 
+  getDefaultPermissionsForMember, 
+  fetchBoardPermissions, 
+  saveBoardPermissions 
+} from '../lib/boardPermissionsSync';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -471,11 +478,44 @@ export function BoardAdminPortal({ t, onNavigate }) {
     currentUser?.email?.toLowerCase() === 'edreyesda@gmail.com' || 
     (currentUser?.role && currentUser?.role.toLowerCase().includes('tesorero'));
 
-  // President, Executive Director, Tesorero and Admin Level have full access to Directorio & Treasury
-  const canAccessDirectory = currentUser?.isAdminLevel || isPresident || isExecutiveDirector || isTesorero;
-  const canAccessTreasury = currentUser?.isAdminLevel || isPresident || isExecutiveDirector || isTesorero;
-  const canAccessOfficialCommunications = isPresident || isExecutiveDirector;
-  const canEditBillingSchedule = isPresident || isTesorero || currentUser?.isAdminLevel;
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [boardPermissions, setBoardPermissions] = useState({});
+  const [selectedPermMemberId, setSelectedPermMemberId] = useState(
+    () => (BOARD_MEMBERS_DATA.find(m => m.id !== 'dir-presidente')?.id || BOARD_MEMBERS_DATA[0]?.id || '')
+  );
+  const [isSavingPerms, setIsSavingPerms] = useState(false);
+
+  useEffect(() => {
+    fetchBoardPermissions().then(perms => {
+      if (perms && typeof perms === 'object') setBoardPermissions(perms);
+    });
+  }, []);
+
+  const getMemberPermissions = (member) => {
+    if (!member) return {};
+    const defaults = getDefaultPermissionsForMember(member);
+    const custom = boardPermissions[member.id] || {};
+    const merged = { ...defaults };
+    Object.keys(custom).forEach(secId => {
+      merged[secId] = { ...(defaults[secId] || {}), ...(custom[secId] || {}) };
+    });
+    return merged;
+  };
+
+  const currentUserPerms = getMemberPermissions(currentUser);
+  const hasPerm = (sectionId, actionId = 'view') => {
+    if (isPresident) {
+      if (actionId === 'showStatusOnly' || actionId === 'showMonthlyFeeOnly') return false;
+      return true;
+    }
+    return !!currentUserPerms?.[sectionId]?.[actionId];
+  };
+
+  // Dynamic Granular Access Control (Controlled by President)
+  const canAccessDirectory = hasPerm('directorio', 'view');
+  const canAccessTreasury = hasPerm('treasury', 'view');
+  const canAccessOfficialCommunications = hasPerm('communications', 'view');
+  const canEditBillingSchedule = isPresident || hasPerm('treasury', 'reconcile');
 
   // Sincronización en tiempo real de Tesorería & Pagos
   const [treasurySyncKey, setTreasurySyncKey] = useState(0);
@@ -2998,7 +3038,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
           id: 'dashboard',
           label: 'Panel General',
           icon: LayoutDashboard,
-          visible: true,
+          visible: hasPerm('dashboard', 'view'),
         },
       ]
     },
@@ -3033,38 +3073,38 @@ export function BoardAdminPortal({ t, onNavigate }) {
       items: [
         {
           id: 'timeline',
-          label: 'Agenda Cronológica',
+          label: 'Agenda',
           icon: Clock,
           badge: activeAgendaEvents.length,
-          visible: true,
+          visible: hasPerm('timeline', 'view'),
         },
         {
           id: 'courses_management',
           label: 'Cursos & Academia',
           icon: GraduationCap,
           badge: officialCourses.length,
-          visible: currentUser?.isAdminLevel,
+          visible: hasPerm('courses_management', 'view'),
         },
         {
           id: 'events_management',
           label: 'Eventos & Festivales',
           icon: Ticket,
           badge: officialEvents.length,
-          visible: currentUser?.isAdminLevel,
+          visible: hasPerm('events_management', 'view'),
         },
         {
           id: 'tourist_services',
           label: 'Servicios Turísticos VIP',
           icon: Compass,
           badge: touristServices.length,
-          visible: currentUser?.isAdminLevel,
+          visible: hasPerm('tourist_services', 'view'),
         },
         {
           id: 'completed_report',
           label: 'Eventos Cumplidos (Memoria)',
           icon: History,
           badge: completedBoardEvents.length,
-          visible: true,
+          visible: hasPerm('completed_report', 'view'),
         },
       ]
     },
@@ -3075,14 +3115,14 @@ export function BoardAdminPortal({ t, onNavigate }) {
           id: 'board_list',
           label: 'Junta Directiva',
           icon: Users,
-          badge: '12',
-          visible: true,
+          badge: String(BOARD_MEMBERS_DATA.length),
+          visible: hasPerm('board_list', 'view'),
         },
         {
-          id: 'legal_resources',
-          label: 'Marco Jurídico & Actas',
-          icon: BookOpen,
-          badge: totalLegalDocs,
+          id: 'permissions_manager',
+          label: 'Configuración de Permisos',
+          icon: Sliders,
+          badge: 'Presidente',
           visible: isPresident,
         },
       ]
@@ -3108,7 +3148,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
       case 'treasury':
         return {
           title: 'Tesorería, Conciliación & Finanzas',
-          subtitle: 'Control de cuotas, recaudación, estados de cuenta y conciliación',
+          subtitle: 'Control de cuotas, matriz mes a mes y conciliación de pagos',
           category: 'Gestión Gremial',
           icon: CircleDollarSign
         };
@@ -3121,7 +3161,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
         };
       case 'timeline':
         return {
-          title: 'Agenda Cronológica',
+          title: 'Agenda',
           subtitle: 'Planificación institucional, asambleas y actividades directivas',
           category: 'Agenda Institucional',
           icon: Clock
@@ -3161,12 +3201,12 @@ export function BoardAdminPortal({ t, onNavigate }) {
           category: 'Gobernanza Institucional',
           icon: Users
         };
-      case 'legal_resources':
+      case 'permissions_manager':
         return {
-          title: 'Marco Jurídico & Resoluciones',
-          subtitle: 'Estatutos, actas de asamblea, resoluciones y documentación legal',
-          category: 'Gobernanza Institucional',
-          icon: BookOpen
+          title: 'Configuración de Permisos',
+          subtitle: 'Control granular de accesos y funciones por cada miembro de la Junta Directiva',
+          category: 'Presidencia CGEM',
+          icon: Sliders
         };
       default:
         return {
@@ -3313,30 +3353,13 @@ export function BoardAdminPortal({ t, onNavigate }) {
 
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => setIsPasswordModalOpen(true)}
-              className="py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-600 hover:text-amber-800 text-[11px] font-sans font-semibold flex items-center justify-center gap-1 transition-all border border-slate-200/60 hover:border-amber-200"
-              title="Cambiar mi Contraseña de Acceso"
-            >
-              <KeyRound className="w-3.5 h-3.5 text-amber-600" />
-              <span>Clave</span>
-            </button>
-
-            <button
               onClick={handleManualSyncEventsCourses}
               disabled={isSyncingCloud}
-              className="flex-1 py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-[11px] font-sans font-semibold flex items-center justify-center gap-1.5 transition-all border border-slate-200/60 disabled:opacity-50"
+              className="w-full py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-[11px] font-sans font-semibold flex items-center justify-center gap-1.5 transition-all border border-slate-200/60 disabled:opacity-50"
               title="Sincronizar Cloud"
             >
               <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 ${isSyncingCloud ? 'animate-spin' : ''}`} />
-              <span>Sincronizar</span>
-            </button>
-
-            <button
-              onClick={handleLogout}
-              className="py-1.5 px-3 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 text-[11px] font-sans font-semibold flex items-center justify-center gap-1.5 transition-all border border-slate-200/60 hover:border-rose-200"
-              title="Cerrar Sesión"
-            >
-              <LogOut className="w-3.5 h-3.5" />
+              <span>Sincronizar en la Nube</span>
             </button>
           </div>
         </div>
@@ -3398,26 +3421,57 @@ export function BoardAdminPortal({ t, onNavigate }) {
               <span className="w-2 h-2 rounded-full bg-emerald-500 absolute top-1.5 right-1.5 ring-2 ring-white" />
             </button>
 
-            {/* Self-Manage Password Button */}
-            <button
-              type="button"
-              onClick={() => setIsPasswordModalOpen(true)}
-              title="Autogestionar / Cambiar mi Contraseña"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-xs font-semibold shadow-2xs transition-all"
-            >
-              <KeyRound className="w-3.5 h-3.5 text-amber-600" />
-              <span className="hidden md:inline">Cambiar Clave</span>
-            </button>
+            {/* User Pill Capsule with Dropdown Menu (Incluye Cambiar Clave & Cerrar Sesión) */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsUserMenuOpen(prev => !prev)}
+                className="flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full bg-white hover:bg-slate-50 border border-slate-200/80 shadow-2xs transition-all cursor-pointer"
+                title="Opciones de cuenta directiva"
+              >
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 text-slate-950 font-bold text-xs flex items-center justify-center">
+                  {(currentUser?.name || 'D')[0]}
+                </div>
+                <span className="text-xs font-bold text-slate-800 hidden sm:inline">
+                  {currentUser?.name || 'Directivo'}
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-            {/* User Pill Capsule */}
-            <div className="flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full bg-white border border-slate-200/80 shadow-2xs">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 text-slate-950 font-bold text-xs flex items-center justify-center">
-                {(currentUser?.name || 'D')[0]}
-              </div>
-              <span className="text-xs font-bold text-slate-800 hidden sm:inline">
-                {currentUser?.name || 'Directivo'}
-              </span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              {isUserMenuOpen && (
+                <div className="absolute right-0 mt-2 w-60 rounded-2xl bg-white border border-slate-200 shadow-xl py-2 z-50 animate-fadeIn">
+                  <div className="px-4 py-2 border-b border-slate-100">
+                    <p className="text-xs font-bold text-slate-900 truncate">{currentUser?.name || 'Directivo'}</p>
+                    <p className="text-[10px] text-amber-700 font-semibold truncate">{currentUser?.role || 'Junta Directiva CGEM'}</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      setIsPasswordModalOpen(true);
+                    }}
+                    className="w-full px-4 py-2.5 text-left text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-900 flex items-center gap-2 transition-colors"
+                  >
+                    <KeyRound className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Cambiar Clave de Acceso</span>
+                  </button>
+
+                  <div className="my-1 border-t border-slate-100" />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="w-full px-4 py-2.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition-colors"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Cerrar Sesión / Salir</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -3425,10 +3479,10 @@ export function BoardAdminPortal({ t, onNavigate }) {
         {/* Inner Content Area */}
         <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-          {/* Greeting Row (Oripio Style) */}
+          {/* Greeting Row */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h1 className="font-sans font-black text-2xl sm:text-3xl text-slate-900 tracking-tight">
+              <h1 className="font-playfair font-bold text-2xl sm:text-3xl text-[#1E1C1A] tracking-tight">
                 {viewMode === 'dashboard'
                   ? `Bienvenido de nuevo, ${currentUser?.name || 'Directivo'}`
                   : currentMeta.title}
@@ -5487,161 +5541,169 @@ export function BoardAdminPortal({ t, onNavigate }) {
         )}
 
         {/* =========================================================================
-            VIEW MODE 4: LEGAL RESOURCES & DOCUMENTS MANAGER (EXCLUSIVO PRESIDENTE)
+            VIEW MODE 4: CONFIGURACIÓN DE PERMISOS POR DIRECTIVO (EXCLUSIVO PRESIDENTE)
             ========================================================================= */}
-        {viewMode === 'legal_resources' && isPresident && (
-          <div className="space-y-8">
-            
-            {/* Header info box */}
-            <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-indigo-800/40">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/40 text-[10px] font-extrabold uppercase tracking-wider mb-3">
-                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Facultad Exclusiva de Presidencia</span>
-                  </div>
-                  <h2 className="font-serif font-black text-2xl sm:text-3xl text-white">
-                    Gestor de Recursos & Marco Jurídico Institucional
-                  </h2>
-                  <p className="text-xs sm:text-sm text-slate-300 mt-2 max-w-3xl leading-relaxed font-sans">
-                    Como Presidente de la Cámara Gastronómica del Estado Mérida, usted puede cargar, editar o actualizar las leyes, providencias del SENIAT, normativas sanitarias (SACS), ordenanzas municipales de licores y guías técnicas. 
-                    <strong className="text-amber-300 block mt-1">Los documentos guardados aquí quedan inmediatamente disponibles para descarga pública en la sección "Marco Legal".</strong>
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => openNewLegalDocModal('fiscal')}
-                  className="py-3.5 px-6 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider shadow-lg shrink-0 flex items-center justify-center gap-2 transition-all active:scale-98"
-                >
-                  <Plus className="w-4 h-4 text-slate-950" />
-                  <span>Cargar Nuevo Documento</span>
-                </button>
+        {viewMode === 'permissions_manager' && isPresident && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#C85A32] block mb-1">
+                  Facultad Exclusiva de Presidencia
+                </span>
+                <h2 className="font-playfair text-2xl sm:text-3xl font-bold text-[#1E1C1A]">
+                  Configuración Granular de Permisos
+                </h2>
+                <p className="text-xs text-slate-600 mt-1 max-w-2xl">
+                  Selecciona cualquier integrante de la Junta Directiva para activar o restringir su acceso por sección y por acción específica (ej. ver eventos sin poder cargar nuevos, o ver Tesorería solo con estatus/cuota).
+                </p>
               </div>
             </div>
 
-            {/* List by Categories */}
-            <div className="space-y-8">
-              {legalCategories.map((category) => {
-                const items = category.items || [];
-                return (
-                  <div 
-                    key={category.id} 
-                    className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-sm overflow-hidden"
-                  >
-                    {/* Category Title & Action */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-                      <div>
-                        <div className="flex items-center gap-2.5">
-                          <span className="p-2 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200">
-                            <BookOpen className="w-4 h-4" />
-                          </span>
-                          <h3 className="font-serif font-bold text-lg text-slate-900">
-                            {category.name}
-                          </h3>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1 font-sans">
-                          {category.description}
-                        </p>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left: Board Members List */}
+              <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200 p-4 shadow-sm space-y-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 px-2 pb-2 border-b border-slate-100">
+                  Integrantes de Junta Directiva
+                </h3>
+                {BOARD_MEMBERS_DATA.map((member) => {
+                  const isSelfPres = member.id === 'dir-presidente';
+                  const isSelected = selectedPermMemberId === member.id;
+                  return (
+                    <button
+                      key={member.id}
+                      type="button"
+                      onClick={() => setSelectedPermMemberId(member.id)}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center gap-3 ${
+                        isSelected
+                          ? 'bg-amber-50/90 border-amber-400 shadow-2xs'
+                          : 'bg-slate-50/60 border-transparent hover:bg-slate-100'
+                      }`}
+                    >
+                      <img
+                        src={member.avatar}
+                        alt={member.name}
+                        className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-900 truncate">{member.name}</p>
+                        <p className="text-[10px] text-amber-800 font-semibold truncate">{member.role}</p>
                       </div>
-
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-sans">
-                          {items.length} {items.length === 1 ? 'documento' : 'documentos'}
+                      {isSelfPres && (
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-900 text-amber-300 shrink-0">
+                          Acceso Total
                         </span>
-                        <button
-                          onClick={() => openNewLegalDocModal(category.id)}
-                          className="py-2 px-3.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center gap-1.5 border border-indigo-200 transition-all font-sans"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Agregar a esta sección</span>
-                        </button>
-                      </div>
-                    </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
 
-                    {/* Documents List */}
-                    {items.length === 0 ? (
-                      <div className="py-8 text-center text-slate-400 space-y-2 font-sans">
-                        <FolderOpen className="w-8 h-8 text-slate-300 mx-auto" />
-                        <p className="text-xs">No hay documentos registrados en esta sección aún.</p>
-                        <button
-                          onClick={() => openNewLegalDocModal(category.id)}
-                          className="text-xs font-bold text-indigo-600 hover:text-indigo-800 underline"
-                        >
-                          + Cargar el primer documento para {category.name}
-                        </button>
+              {/* Right: Granular Permission Matrix for Selected Member */}
+              <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-5">
+                {(() => {
+                  const targetMember = BOARD_MEMBERS_DATA.find(m => m.id === selectedPermMemberId) || BOARD_MEMBERS_DATA[1];
+                  const isTargetPresident = targetMember?.id === 'dir-presidente';
+                  const targetPerms = getMemberPermissions(targetMember);
+
+                  const handleTogglePermission = async (sectionId, actionId) => {
+                    if (isTargetPresident) return;
+                    const currentSectionPerms = targetPerms[sectionId] || {};
+                    const nextVal = !currentSectionPerms[actionId];
+
+                    const updatedMemberPerms = {
+                      ...targetPerms,
+                      [sectionId]: {
+                        ...currentSectionPerms,
+                        [actionId]: nextVal,
+                      },
+                    };
+
+                    const nextMap = {
+                      ...boardPermissions,
+                      [targetMember.id]: updatedMemberPerms,
+                    };
+
+                    setBoardPermissions(nextMap);
+                    setIsSavingPerms(true);
+                    try {
+                      await saveBoardPermissions(nextMap);
+                      setActionSuccessMessage(`Permisos actualizados para ${targetMember.name} y sincronizados en Supabase.`);
+                      setTimeout(() => setActionSuccessMessage(''), 3500);
+                    } finally {
+                      setIsSavingPerms(false);
+                    }
+                  };
+
+                  return (
+                    <>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                            Editando permisos de:
+                          </span>
+                          <h3 className="font-playfair text-xl font-bold text-slate-900">
+                            {targetMember?.name}
+                          </h3>
+                          <p className="text-xs text-slate-500">{targetMember?.role} • {targetMember?.email}</p>
+                        </div>
+                        {isSavingPerms && (
+                          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+                            Guardando en Supabase...
+                          </span>
+                        )}
                       </div>
-                    ) : (
-                      <div className="divide-y divide-slate-100 mt-2">
-                        {items.map((doc) => (
-                          <div 
-                            key={doc.id}
-                            className="py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:bg-slate-50/70 p-3 rounded-2xl transition-colors"
-                          >
-                            <div className="space-y-1.5 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-[10px] uppercase font-extrabold px-2.5 py-0.5 rounded-md bg-indigo-100 text-indigo-900 border border-indigo-200 font-sans">
-                                  {doc.category || 'Organismo Oficial'}
-                                </span>
-                                <span className="text-[11px] font-bold text-slate-500 font-sans">
-                                  {doc.format || 'PDF'} {doc.size ? `• ${doc.size}` : ''}
-                                </span>
-                                <span className="text-[11px] text-slate-400 font-sans">
-                                  Vigencia: <strong>{doc.dateUpdated || 'Vigente'}</strong>
-                                </span>
-                                {doc.isOfficial && (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-sans">
-                                    Oficial
+
+                      {isTargetPresident ? (
+                        <div className="p-6 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-950 font-medium">
+                          La cuenta de <strong>Presidencia</strong> posee acceso total irrestricto a todos los módulos y configuraciones de la plataforma. Selecciona otro integrante en la columna izquierda para personalizar sus accesos.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {PERMISSION_SECTIONS.map((sec) => {
+                            const secPerms = targetPerms[sec.id] || {};
+                            return (
+                              <div key={sec.id} className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-2.5">
+                                <div className="flex items-center justify-between border-b border-slate-200/70 pb-2">
+                                  <span className="text-xs font-bold text-slate-900">{sec.label}</span>
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                    secPerms.view
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : 'bg-slate-200 text-slate-600'
+                                  }`}>
+                                    {secPerms.view ? 'Habilitado' : 'Oculto'}
                                   </span>
-                                )}
-                              </div>
-
-                              <h4 className="font-serif font-bold text-base text-slate-900">
-                                {doc.title}
-                              </h4>
-
-                              <p className="text-xs text-slate-600 leading-relaxed font-sans line-clamp-2 max-w-3xl">
-                                {doc.summary}
-                              </p>
-
-                              {doc.fileUrl && (
-                                <div className="text-[11px] text-indigo-600 flex items-center gap-1 font-sans">
-                                  <ExternalLink className="w-3 h-3" />
-                                  <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="hover:underline truncate max-w-md">
-                                    {doc.fileUrl}
-                                  </a>
                                 </div>
-                              )}
-                            </div>
 
-                            {/* Actions */}
-                            <div className="flex items-center gap-2 shrink-0 self-end md:self-center font-sans">
-                              <button
-                                onClick={() => openEditLegalDocModal(doc, category.id)}
-                                className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-colors"
-                                title="Editar ficha del documento"
-                              >
-                                <Edit3 className="w-3.5 h-3.5 text-indigo-700" />
-                                <span>Editar</span>
-                              </button>
-
-                              <button
-                                onClick={() => handleDeleteLegalDoc(category.id, doc.id, doc.title)}
-                                className="p-2.5 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-700 font-bold text-xs flex items-center gap-1.5 transition-colors"
-                                title="Eliminar documento"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span>Eliminar</span>
-                              </button>
-                            </div>
-
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                  </div>
-                );
-              })}
+                                <div className="space-y-1.5">
+                                  {sec.actions.map((act) => {
+                                    const checked = !!secPerms[act.id];
+                                    return (
+                                      <label
+                                        key={act.id}
+                                        className="flex items-center justify-between gap-2 text-xs text-slate-700 cursor-pointer hover:bg-white p-1.5 rounded-lg transition-colors"
+                                      >
+                                        <span className={checked ? 'font-semibold text-slate-900' : 'text-slate-500'}>
+                                          {act.label}
+                                        </span>
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={() => handleTogglePermission(sec.id, act.id)}
+                                          className="w-4 h-4 rounded border-slate-300 text-[#C85A32] focus:ring-[#C85A32]"
+                                        />
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
             </div>
           </div>
         )}
@@ -5654,6 +5716,7 @@ export function BoardAdminPortal({ t, onNavigate }) {
             currentUser={currentUser}
             directoryMembers={directoryMembers}
             onDirectoryUpdate={(updated) => setDirectoryMembers(updated)}
+            treasuryPermissions={currentUserPerms?.treasury}
           />
         )}
 

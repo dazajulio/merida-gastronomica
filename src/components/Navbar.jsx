@@ -53,8 +53,10 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
       category: "Turismo & Gastronomía",
       items: [
         { id: 'home', label: 'Inicio', desc: 'Portada editorial y bienvenida oficial', icon: Mountain },
-        { id: 'guide', label: 'Guía de Restaurantes', desc: 'Fichas oficiales, menús, fotos y contacto', icon: UtensilsCrossed },
-        { id: 'lidar', label: 'Mapa Gastronómico 3D', desc: 'Cartografía satelital y rutas interactivas', icon: Compass },
+        { id: 'guide', label: 'Guía de Restaurantes', desc: 'Restaurantes clasificados por tipo de comida', icon: UtensilsCrossed },
+        { id: 'prestadores', label: 'Prestadores de Servicios', desc: 'Guía general de cafés, posadas, marcas y servicios', icon: Building2 },
+        { id: 'el_valle_ruta', label: 'Ruta El Valle te Conecta', desc: 'Posadas, bistros y paquetes turísticos de montaña', icon: Mountain },
+        { id: 'lidar', label: 'Mapa de Ubicación', desc: 'Mapa 2D interactivo y enlace directo a Google Maps', icon: Compass },
         { id: 'terroir', label: 'Rutas Mérida', desc: 'Productos de páramo, piso térmico y terruño', icon: Sparkles },
         { id: 'cafe', label: 'Café de Especialidad', desc: 'Rutas andinas, microclimas y métodos de extracción', icon: Coffee },
         { id: 'cacao', label: 'Cacao Porcelana', desc: 'Genética criolla pura, bean-to-bar y maridajes', icon: Sparkles },
@@ -66,22 +68,20 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
     {
       category: "Gremio & Desarrollo Empresarial",
       items: [
-        { id: 'affiliates_el_valle', label: 'El Valle te Conecta', desc: 'Convenio exclusivo: Inscripción $0 y cuota $7/mes', icon: Mountain },
-        { id: 'affiliates_express', label: 'Afiliación Express (60s)', desc: 'Pago Móvil, Transferencia Provincial y activación rápida', icon: Sparkles },
+        { id: 'affiliates_el_valle', label: 'Afiliación El Valle te Conecta', desc: 'Convenio exclusivo: Inscripción $0 y cuota $7/mes', icon: Mountain },
+        { id: 'affiliates_register', label: 'Solicitar Afiliación', desc: 'Registro formal de nuevo establecimiento agremiado', icon: Sparkles },
         { id: 'directorio', label: 'Directorio de Agremiados', desc: 'Nómina oficial de marcas, restaurantes y productores', icon: Building2 },
         { id: 'junta_directiva', label: 'Junta Directiva Oficial', desc: 'Equipo directivo y coordinaciones especializadas', icon: Users },
         { id: 'beneficios', label: 'Beneficios de Ser Agremiado', desc: 'Los 10 pilares estratégicos y valor institucional', icon: Award },
         { id: 'affiliates', label: 'Portal de Afiliados', desc: 'Acceso con clave, solvencias y certificados', icon: ShieldCheck },
-        { id: 'sello', label: 'Sello de Calidad AAA', desc: 'Norma técnica de 226 ítems de excelencia', icon: Award },
         { id: 'jobs', label: 'Bolsa de Empleo Agremiada', desc: 'Ofertas laborales en sala, cocina y barismo', icon: Briefcase },
         { id: 'academy', label: 'Cursos & Academia Gastronómica', desc: 'Capacitaciones oficiales, talleres técnicos, Alianza ULA y Expo 2027', icon: GraduationCap },
-        { id: 'legal', label: 'Marco Jurídico & SENIAT', desc: 'Normativas SAMAT, SACS y ordenanzas', icon: Scale },
         { id: 'admin', label: 'Portal Junta Directiva (Privado)', desc: 'Acceso privado de planificación, agenda y actas', icon: Lock },
       ]
     }
   ];
 
-  const isTransparent = !isScrolled && activeTab === 'home';
+  const isAtTopHome = !isScrolled && activeTab === 'home';
 
   const handleNavClick = (tabId) => {
     setActiveTab(tabId);
@@ -93,59 +93,47 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
   return (
     <>
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isTransparent 
-          ? 'bg-transparent py-4 border-b border-white/10' 
-          : 'bg-white/95 backdrop-blur-md py-3 border-b border-slate-200 shadow-md'
+        isAtTopHome 
+          ? 'bg-[#FAF7F2]/85 backdrop-blur-md py-3.5 border-b border-[#EAE3D5]/70' 
+          : 'bg-[#FAF7F2]/95 backdrop-blur-md py-3 border-b border-[#EAE3D5] shadow-sm'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             
             {/* Left: Brand Logo & Institutional Title */}
             <div 
               onClick={() => handleNavClick('home')}
               className="flex items-center gap-3 cursor-pointer group shrink-0"
             >
-              <div className="relative w-11 h-11 rounded-2xl overflow-hidden shadow-md group-hover:scale-105 transition-transform bg-white/95 p-1 border border-amber-300/80 shrink-0 flex items-center justify-center">
+              <div className="relative w-10 h-10 rounded-xl overflow-hidden shadow-2xs group-hover:scale-105 transition-transform bg-white p-1 border border-[#EAE3D5] shrink-0 flex items-center justify-center">
                 <img 
                   src="/logo-merida-gastronomica.png" 
                   alt="Mérida Gastronómica Logo Oficial" 
-                  className="w-full h-full object-contain filter drop-shadow-sm"
+                  className="w-full h-full object-contain"
                 />
               </div>
               
               <div className="flex flex-col">
-                <span className={`font-playfair tracking-[0.03em] font-semibold text-base sm:text-[17px] uppercase leading-tight transition-colors ${
-                  isTransparent ? 'text-white drop-shadow-md' : 'text-slate-900 group-hover:text-amber-700'
-                }`}>
+                <span className="font-playfair tracking-[0.01em] font-bold text-base sm:text-lg text-[#1E1C1A] group-hover:text-[#C85A32] leading-tight transition-colors">
                   Mérida Gastronómica
                 </span>
-                <p className={`text-[9.5px] uppercase tracking-[0.06em] font-medium flex items-center gap-1 mt-0.5 transition-colors ${
-                  isTransparent ? 'text-slate-200/90 drop-shadow-sm' : 'text-slate-500'
-                }`}>
-                  Cámara Gastronómica del Estado Mérida
+                <p className="text-[10px] tracking-[0.05em] font-medium text-[#7A7168] uppercase mt-0.5 hidden sm:block">
+                  Cámara Gastronómica • Mérida
                 </p>
               </div>
             </div>
 
-            {/* Center: Desktop Navigation Bar */}
-            <nav className={`hidden lg:flex items-center gap-1 p-1 rounded-full border transition-all ${
-              isTransparent 
-                ? 'bg-black/35 backdrop-blur-md border-white/20 shadow-lg' 
-                : 'bg-slate-100/90 border-slate-200/80 shadow-inner'
-            }`}>
+            {/* Center: Clean Editorial Desktop Navigation */}
+            <nav className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/80 border border-[#EAE3D5] shadow-2xs">
               
               {/* "☰ Todos" Trigger Button */}
               <button
                 onClick={() => setAllSectionsModalOpen(true)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
-                  isTransparent
-                    ? 'bg-white/20 text-white hover:bg-white/30'
-                    : 'bg-slate-200 text-slate-800 hover:bg-slate-300'
-                }`}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold text-[#5C554E] hover:text-[#1E1C1A] hover:bg-[#F5EFE6] transition-all duration-200 flex items-center gap-1.5"
                 title="Ver todas las secciones de la plataforma"
               >
-                <LayoutGrid className="w-3.5 h-3.5 text-amber-400" />
-                <span>Todos</span>
+                <LayoutGrid className="w-3.5 h-3.5 text-[#C85A32]" />
+                <span>Menú</span>
               </button>
 
               {/* Main Visible Items */}
@@ -155,12 +143,10 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
                   <button
                     key={item.id}
                     onClick={() => handleNavClick(item.id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 flex items-center ${
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 flex items-center ${
                       isActive 
-                        ? 'bg-white text-slate-900 shadow-md font-extrabold scale-105'
-                        : isTransparent
-                          ? 'text-white/90 hover:text-white hover:bg-white/20'
-                          : 'text-slate-600 hover:text-amber-700 hover:bg-white/70'
+                        ? 'text-[#C85A32] bg-[#FAF3EB] font-bold' 
+                        : 'text-[#5C554E] hover:text-[#1E1C1A] hover:bg-[#FAF7F2]'
                     }`}
                   >
                     <span>{item.label}</span>
@@ -169,48 +155,44 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
               })}
             </nav>
 
-            {/* Right: Portal Afiliados & Afiliación Express Action Button */}
-            <div className="hidden sm:flex items-center gap-2">
+            {/* Right: Portal Afiliados & Afíliate Pill CTA */}
+            <div className="hidden sm:flex items-center gap-2.5 shrink-0">
               <button
-                onClick={() => handleNavClick('affiliates_express')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm ${
-                  activeTab === 'affiliates_express'
-                    ? 'bg-amber-500 text-slate-950 font-black shadow-md'
-                    : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-amber-500/20'
+                onClick={() => handleNavClick('affiliates')}
+                className={`px-4 py-2 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all border ${
+                  activeTab === 'affiliates'
+                    ? 'bg-[#1E1C1A] text-white border-[#1E1C1A] shadow-sm'
+                    : 'bg-white hover:bg-[#FAF3EB] text-[#1E1C1A] border-[#DED5C5]'
                 }`}
-                title="Afiliación Express en 60 Segundos"
               >
-                <Sparkles className="w-3.5 h-3.5 text-white" />
-                <span>Afiliación Express</span>
+                <ShieldCheck className="w-3.5 h-3.5 text-[#C85A32]" />
+                <span>Portal Afiliados</span>
               </button>
 
               <button
-                onClick={() => handleNavClick('affiliates')}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm ${
-                  activeTab === 'affiliates'
-                    ? 'bg-amber-500 text-white shadow-md'
-                    : isTransparent
-                      ? 'bg-white/15 hover:bg-white/25 text-amber-300 border border-amber-400/40 backdrop-blur-md'
-                      : 'bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-700'
-                }`}
+                onClick={() => handleNavClick('affiliates_register')}
+                className="px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm bg-[#C85A32] hover:bg-[#B04B26] text-white active:scale-[0.98]"
+                title="Solicitar Afiliación"
               >
-                <ShieldCheck className="w-4 h-4 text-amber-400" />
-                <span>Portal Afiliados</span>
+                <span>Afíliate</span>
+                <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* Mobile Menu Button */}
+            {/* Mobile Action + Menu Button */}
             <div className="lg:hidden flex items-center gap-2">
               <button
+                onClick={() => handleNavClick('affiliates_register')}
+                className="sm:hidden px-3 py-1.5 rounded-full text-[11px] font-bold bg-[#C85A32] text-white shadow-2xs"
+              >
+                Afíliate
+              </button>
+              <button
                 onClick={() => setAllSectionsModalOpen(true)}
-                className={`p-2 rounded-xl border ${
-                  isTransparent 
-                    ? 'bg-white/10 text-white border-white/20' 
-                    : 'bg-slate-100 text-slate-800 border-slate-200'
-                }`}
+                className="p-2 rounded-full bg-white text-[#1E1C1A] border border-[#EAE3D5] shadow-2xs"
                 title="Menú Completo"
               >
-                <LayoutGrid className="w-5 h-5 text-amber-400" />
+                <LayoutGrid className="w-5 h-5 text-[#C85A32]" />
               </button>
             </div>
 

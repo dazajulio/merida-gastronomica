@@ -11,17 +11,18 @@ import { TouristServices } from './components/TouristServices';
 import { AffiliateDashboard } from './components/AffiliateDashboard';
 import { JobsSection } from './components/JobsSection';
 import { CulturalDistrict } from './components/CulturalDistrict';
-import { SelloGastronomico } from './components/SelloGastronomico';
 import { AcademyGlubbiSection } from './components/AcademyGlubbiSection';
-import { LegalResourceCenter } from './components/LegalResourceCenter';
 import { CoffeeSection } from './components/CoffeeSection';
 import { CacaoSection } from './components/CacaoSection';
 import { GuildBenefitsSection } from './components/GuildBenefitsSection';
 import { BoardAdminPortal } from './components/BoardAdminPortal';
 import { Footer } from './components/Footer';
 import { DirectoryAgremiadosSection } from './components/DirectoryAgremiadosSection';
-import { ExpressAffiliationLanding } from './components/ExpressAffiliationLanding';
 import { ElValleAffiliationLanding } from './components/ElValleAffiliationLanding';
+import { ElValleSpotlightSection } from './components/ElValleSpotlightSection';
+import { AlliesMarqueeStrip } from './components/AlliesMarqueeStrip';
+import { ElValleTouristPage } from './components/ElValleTouristPage';
+import { NewsMediaSection } from './components/NewsMediaSection';
 import { INITIAL_DIRECTORY_DATA } from './data/initialDirectoryData';
 
 import { RESTAURANTS_DATA } from './data/restaurantsData';
@@ -38,31 +39,33 @@ import {
   ShieldCheck, 
   Building2, 
   CheckCircle2,
-  Lock
+  Lock,
+  UtensilsCrossed,
+  Calendar,
+  Compass
 } from 'lucide-react';
 
 // Route Definitions with Canonical URLs and Meta Titles
 const ROUTE_CONFIG = [
   { tab: 'home', paths: ['/', '/inicio', ''], url: '/', title: 'Mérida Gastronómica | Cámara Gastronómica del Estado Mérida' },
-  { tab: 'guide', paths: ['/guia-restaurantes', '/restaurantes', '/guia'], url: '/guia-restaurantes', title: 'Guía Oficial de Restaurantes | Mérida Gastronómica' },
+  { tab: 'guide', paths: ['/guia-restaurantes', '/restaurantes'], url: '/guia-restaurantes', title: 'Guía de Restaurantes | Mérida Gastronómica' },
+  { tab: 'prestadores', paths: ['/prestadores-servicios', '/guia-oficial', '/guia', '/prestadores'], url: '/prestadores-servicios', title: 'Guía de Prestadores de Servicios en Mérida | Mérida Gastronómica' },
   { tab: 'directorio', paths: ['/directorio', '/agremiados', '/directorio-agremiados', '/miembros'], url: '/directorio', title: 'Directorio Oficial de Agremiados | Cámara Gastronómica de Mérida' },
-  { tab: 'lidar', paths: ['/mapa', '/mapa-3d', '/lidar'], url: '/mapa', title: 'Mapa Gastronómico 3D & Cartografía | Mérida Gastronómica' },
+  { tab: 'lidar', paths: ['/mapa', '/mapa-3d', '/lidar'], url: '/mapa', title: 'Mapa de Ubicación | Mérida Gastronómica' },
   { tab: 'terroir', paths: ['/rutas-origen', '/terroir', '/rutas'], url: '/rutas-origen', title: 'Rutas & Sabores de Origen Andino | Mérida Gastronómica' },
   { tab: 'cafe', paths: ['/cafe-especialidad', '/cafe', '/cafes'], url: '/cafe-especialidad', title: 'Café de Especialidad de Altura | Mérida Gastronómica' },
   { tab: 'cacao', paths: ['/cacao-porcelana', '/cacao'], url: '/cacao-porcelana', title: 'Cacao Porcelana del Sur del Lago | Mérida Gastronómica' },
   { tab: 'cultural', paths: ['/distrito-cultural', '/cultural'], url: '/distrito-cultural', title: 'Distrito Cultural Urbano | Mérida Gastronómica' },
-  { tab: 'sello', paths: ['/sello-calidad', '/sello', '/sello-aaa'], url: '/sello-calidad', title: 'Sello de Calidad AAA (226 Ítems) | Mérida Gastronómica' },
   { tab: 'beneficios', paths: ['/beneficios-agremiados', '/beneficios'], url: '/beneficios-agremiados', title: 'Beneficios de Ser Agremiado | Mérida Gastronómica' },
   { tab: 'junta_directiva', paths: ['/junta-directiva', '/directiva', '/junta-directiva-oficial', '/junta'], url: '/junta-directiva', title: 'Junta Directiva Oficial & Coordinaciones | Mérida Gastronómica' },
   { tab: 'jobs', paths: ['/bolsa-empleo', '/empleo', '/jobs'], url: '/bolsa-empleo', title: 'Bolsa de Empleo Agremiada | Mérida Gastronómica' },
   { tab: 'academy', paths: ['/academia', '/expo-2027', '/academia-ula'], url: '/academia', title: 'Academia Gastronómica & Expo 2027 | Mérida Gastronómica' },
-  { tab: 'legal', paths: ['/marco-legal', '/legal', '/seniat'], url: '/marco-legal', title: 'Marco Jurídico & SENIAT/SAMAT | Mérida Gastronómica' },
   { tab: 'events', paths: ['/eventos', '/agenda'], url: '/eventos', title: 'Calendario Oficial de Eventos | Mérida Gastronómica' },
   { tab: 'services', paths: ['/servicios-turisticos', '/servicios'], url: '/servicios-turisticos', title: 'Servicios Turísticos & Concierge | Mérida Gastronómica' },
   { tab: 'affiliates', paths: ['/afiliacion', '/afiliados', '/portal-afiliados'], url: '/afiliacion', title: 'Portal Oficial de Afiliados | Mérida Gastronómica' },
   { tab: 'affiliates_register', paths: ['/afiliacion/registro', '/solicitar-afiliacion', '/registro'], url: '/afiliacion/registro', title: 'Solicitar Afiliación / Registrar Nuevo Miembro | Mérida Gastronómica' },
-  { tab: 'affiliates_express', paths: ['/afiliacion-express', '/express', '/unete', '/registro-express'], url: '/afiliacion-express', title: 'Afiliación Express 2026 | Cámara Gastronómica del Estado Mérida' },
   { tab: 'affiliates_el_valle', paths: ['/el-valle-te-conecta', '/el-valle', '/afiliacion-el-valle', '/elvalleteconecta'], url: '/el-valle-te-conecta', title: 'Afiliación Exclusiva: El Valle te Conecta | Cámara Gastronómica del Estado Mérida' },
+  { tab: 'el_valle_ruta', paths: ['/ruta-el-valle', '/el-valle-turismo'], url: '/ruta-el-valle', title: 'El Valle te Conecta — Ruta Turística Certificada | Mérida Gastronómica' },
   { tab: 'admin', paths: ['/admin', '/portal-admin', '/portal-directiva'], url: '/admin', title: 'Portal Privado Junta Directiva & Agenda | Cámara Gastronómica de Mérida' },
 ];
 
@@ -344,15 +347,93 @@ export function App() {
         {/* 1. PORTADA PRINCIPAL / HOME LANDING                       */}
         {/* ========================================================= */}
         {activeTab === 'home' && (
-          <div>
+          <div className="bg-[#FAF7F2]">
             {/* Hero Landing */}
             <HeroSection 
               t={t} 
               setActiveTab={(tab) => navigateTo(tab)} 
-              onQuickSearch={handleQuickSearch} 
+              onQuickSearch={handleQuickSearch}
+              restaurantCount={restaurants.length}
             />
 
-            {/* Featured Section 1: Gastronomic Highlights Carousel */}
+            {/* Ecosystem Quick Cards: "De la Cordillera a tu Mesa" (Inspired by From Ideas to Impact) */}
+            <section className="py-16 bg-[#FAF7F2] border-b border-[#EAE3D5]">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mb-10">
+                  <div className="lg:col-span-5">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#C85A32] block mb-1.5">
+                      Qué Ofrecemos
+                    </span>
+                    <h2 className="font-playfair text-3xl sm:text-4xl font-bold text-[#1E1C1A] leading-tight">
+                      De las Ideas al <span className="italic font-normal text-[#C85A32]">Paladar</span>
+                    </h2>
+                    <p className="text-xs sm:text-sm text-[#5C554E] mt-3 leading-relaxed font-sans max-w-md">
+                      Conectamos a comensales y turistas con los establecimientos más auténticos de Mérida, impulsando la calidad y el producto de origen.
+                    </p>
+                  </div>
+
+                  <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[
+                      {
+                        id: 'prestadores',
+                        title: 'Guía Oficial',
+                        desc: 'Prestadores de servicios gastronómicos y turísticos en Mérida.',
+                        icon: UtensilsCrossed,
+                      },
+                      {
+                        id: 'events',
+                        title: 'Eventos & Festivales',
+                        desc: 'Ferias, catas, congresos y festividades más prestigiosas de Mérida.',
+                        icon: Calendar,
+                      },
+                      {
+                        id: 'cultural',
+                        title: 'Distrito Cultural',
+                        desc: 'Entre callejones y casonas coloniales, el corazón de Mérida late con fuerza propia.',
+                        icon: Palette,
+                      },
+                      {
+                        id: 'terroir',
+                        title: 'Rutas Mérida',
+                        desc: 'Mérida es un territorio de contrastes únicos: desde el frío de los páramos agrícolas hasta el cacao fino del Sur del Lago.',
+                        icon: Compass,
+                      },
+                    ].map((card) => {
+                      const IconComp = card.icon;
+                      return (
+                        <button
+                          key={card.id}
+                          type="button"
+                          onClick={() => navigateTo(card.id)}
+                          className="text-left p-5 rounded-3xl bg-white border border-[#EAE3D5] hover:border-[#C85A32]/60 hover:shadow-md transition-all group flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="w-10 h-10 rounded-2xl bg-[#FAF3EB] text-[#C85A32] flex items-center justify-center mb-3.5 group-hover:scale-105 transition-transform">
+                              <IconComp className="w-5 h-5" />
+                            </div>
+                            <h3 className="font-playfair font-bold text-base text-[#1E1C1A] group-hover:text-[#C85A32] transition-colors">
+                              {card.title}
+                            </h3>
+                            <p className="text-[11px] text-[#7A7168] mt-1 leading-relaxed">
+                              {card.desc}
+                            </p>
+                          </div>
+                          <span className="mt-4 inline-flex items-center gap-1 text-[11px] font-bold text-[#C85A32]">
+                            <span>Explorar</span>
+                            <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Cinta de Aliados Oficiales (Desplazamiento lento de izquierda a derecha) */}
+            <AlliesMarqueeStrip />
+
+            {/* Featured Section 1: Guía de Restaurantes */}
             <FeaturedRestaurantsCarousel 
               restaurants={restaurants} 
               onSelectRestaurant={setSelectedRestaurant}
@@ -361,202 +442,47 @@ export function App() {
               t={t}
             />
 
-            {/* Featured Section 2: Sello Mérida Gastronómica Spotlight */}
-            <div className="border-t border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 py-16 text-white">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                  <div className="lg:col-span-7 space-y-4">
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold">
-                      <Award className="w-3.5 h-3.5" />
-                      <span>Norma Técnica Oficial de la Cámara</span>
-                    </div>
-                    <h2 className="font-serif text-3xl sm:text-5xl font-black text-white uppercase tracking-tight leading-tight">
-                      Sello Mérida Gastronómica
-                    </h2>
-                    <p className="font-sans text-amber-200/90 italic text-base">
-                      "Para ser referentes globales, la excelencia debe ser medible."
-                    </p>
-                    <p className="text-sm text-slate-300 leading-relaxed max-w-2xl font-sans">
-                      A través de una rigurosa auditoría de <strong>226 ítems</strong> sustentada en tres pilares —<strong>Calidad, Servicio y Limpieza</strong>—, evaluamos la gestión operativa, la seguridad alimentaria, el manejo de mermas y la excelencia de servicio. Quien ostente este sello en su fachada acredita ante Venezuela y el mundo una <strong>Calificación AAA</strong>.
-                    </p>
-                    <div className="pt-2 flex flex-wrap items-center gap-3">
-                      <button
-                        onClick={() => navigateTo('sello')}
-                        className="py-3 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg transition-all"
-                      >
-                        <span>Conocer los 226 Ítems del Sello</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+            {/* Featured Section: Noticias & Medios */}
+            <NewsMediaSection />
 
-                  <div className="lg:col-span-5 grid grid-cols-1 gap-3">
-                    <div className="p-4 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-md">
-                      <span className="text-xl font-serif font-black text-amber-400 block uppercase">Pilar I: Calidad (80 Ítems)</span>
-                      <p className="text-xs text-slate-300 mt-1 font-sans">Estandarización de recetas, trazabilidad de origen andino y termorregulación.</p>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-md">
-                      <span className="text-xl font-serif font-black text-sky-400 block uppercase">Pilar II: Servicio (72 Ítems)</span>
-                      <p className="text-xs text-slate-300 mt-1 font-sans">Hospitalidad andina, comanda cronometrada y cata de café y vinos.</p>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-md">
-                      <span className="text-xl font-serif font-black text-emerald-400 block uppercase">Pilar III: Limpieza & Mermas (74 Ítems)</span>
-                      <p className="text-xs text-slate-300 mt-1 font-sans">Inocuidad HACCP, desinfección profunda y economía circular de residuos.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* Featured Section 2: El Valle te Conecta (Case Study Spotlight Style) */}
+            <ElValleSpotlightSection onExplore={() => navigateTo('el_valle_ruta')} />
 
-            {/* Featured Section 3: Leaflet Route Map */}
-            <div className="border-t border-slate-200 bg-[#f8f6f0] py-16">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <LidarMap 
-                  onSelectRestaurantById={handleSelectRestaurantById}
-                  t={t}
-                />
-              </div>
-            </div>
-
-            {/* Featured Section 4: Rutas & Sabores de Origen */}
-            <div className="border-t border-slate-200 bg-white py-16">
-              <TerroirSection 
-                t={t}
-                setActiveTab={(tab) => navigateTo(tab)}
-                onQuickSearch={handleQuickSearch}
-              />
-            </div>
-
-            {/* Featured Section 5: Distrito Cultural Urbano */}
-            <div className="border-t border-slate-200 bg-[#faf8f5] py-16">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-10 gap-4">
-                  <div>
-                    <span className="text-xs uppercase font-extrabold text-amber-800 flex items-center gap-1.5 mb-2">
-                      <Palette className="w-4 h-4 text-pink-600" />
-                      Arte, Gastronomía & Vida Nocturna
-                    </span>
-                    <h2 className="font-serif text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tight">
-                      Distrito Cultural Urbano de Mérida
-                    </h2>
-                  </div>
-                  <button
-                    onClick={() => navigateTo('cultural')}
-                    className="py-2.5 px-5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all"
-                  >
-                    <span>Explorar el Distrito</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Card 1: Jobs */}
-                  <div className="p-8 rounded-3xl bg-slate-50 border border-slate-200 flex flex-col justify-between hover:border-amber-400 hover:bg-white transition-all shadow-sm">
-                    <div>
-                      <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mb-4">
-                        <Briefcase className="w-6 h-6" />
-                      </div>
-                      <h3 className="font-serif font-black text-xl text-slate-900 uppercase">
-                        Bolsa de Empleo Agremiada
-                      </h3>
-                      <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                        Requerimientos laborales en cocina, barismo, sala y gerencia de A&B con salarios formales en divisas y beneficios preferenciales.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => navigateTo('jobs')}
-                      className="mt-6 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all"
-                    >
-                      <span>Ver Vacantes Activas</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {/* Card 2: Academy & Glubbi & Expo */}
-                  <div className="p-8 rounded-3xl bg-slate-50 border border-slate-200 flex flex-col justify-between hover:border-sky-400 hover:bg-white transition-all shadow-sm">
-                    <div>
-                      <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-800 flex items-center justify-center mb-4">
-                        <GraduationCap className="w-6 h-6" />
-                      </div>
-                      <h3 className="font-serif font-black text-xl text-slate-900 uppercase">
-                        Cursos, Capacitaciones & Academia
-                      </h3>
-                      <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                        Oferta formativa oficial de la Cámara, masterclasses, alianza con la ULA y Hotel Escuela para la Licenciatura en Gastronomía, y proyección hacia Expo Andes 2027.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => navigateTo('academy')}
-                      className="mt-6 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all"
-                    >
-                      <span>Ver Cursos & Academia</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {/* Card 3: Legal & SENIAT */}
-                  <div className="p-8 rounded-3xl bg-slate-50 border border-slate-200 flex flex-col justify-between hover:border-indigo-400 hover:bg-white transition-all shadow-sm">
-                    <div>
-                      <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-800 flex items-center justify-center mb-4">
-                        <Scale className="w-6 h-6" />
-                      </div>
-                      <h3 className="font-serif font-black text-xl text-slate-900 uppercase">
-                        Centro de Recursos & Marco Jurídico
-                      </h3>
-                      <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                        Repositorio actualizado en normativas del SENIAT, SAMAT, SACS, ordenanzas fiscales y checklist interactivo de deberes formales.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => navigateTo('legal')}
-                      className="mt-6 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all"
-                    >
-                      <span>Consultar Normativas</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                </div>
-              </div>
-            </div>
-
-            {/* Featured Section 7: Events Calendar */}
-            <div className="border-t border-slate-200 bg-[#f8f6f0] py-16">
+            {/* Featured Section 3: Events Calendar */}
+            <div className="border-t border-[#EAE3D5] bg-white py-16">
               <EventsCalendar t={t} />
             </div>
 
-            {/* Featured Section 8: Tourist Concierge */}
-            <div className="border-t border-slate-200 bg-white py-16">
-              <TouristServices t={t} />
-            </div>
-
-            {/* Guild Callout Banner */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-              <div className="p-8 sm:p-10 rounded-3xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
-                <div className="space-y-2">
-                  <span className="text-xs uppercase font-extrabold px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                    Gremio Empresarial
-                  </span>
-                  <h3 className="font-serif text-2xl sm:text-3xl font-black text-white uppercase tracking-wide">
-                    ¿Es Propietario o Chef de un Restaurante en Mérida?
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-300 max-w-2xl font-sans">
-                    Únase a la Cámara Gastronómica del Estado Mérida. Obtenga el Sello Oficial de Calidad AAA, auditorías sanitarias, compras conjuntas y posicionamiento en guías turísticas internacionales.
-                  </p>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={() => navigateTo('affiliates_register')}
-                    className="py-3.5 px-6 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider shadow-md shrink-0 transition-all"
-                  >
-                    Solicitar Afiliación
-                  </button>
-                  <button
-                    onClick={() => navigateTo('affiliates')}
-                    className="py-3.5 px-6 rounded-2xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 font-serif font-black text-xs uppercase tracking-wider shadow-md shrink-0 transition-all"
-                  >
-                    Portal de Agremiados
-                  </button>
+            {/* Clean Editorial Guild Callout (Inspired by "Have a Project in Mind?") */}
+            <div className="border-t border-[#EAE3D5] bg-white py-16">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="p-8 sm:p-12 rounded-[2rem] bg-[#FAF7F2] border border-[#EAE3D5] shadow-2xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+                  <div className="space-y-3 max-w-2xl">
+                    <span className="text-[11px] uppercase tracking-[0.2em] font-bold text-[#C85A32] block">
+                      Gremio Empresarial
+                    </span>
+                    <h3 className="font-playfair text-3xl sm:text-4xl font-bold text-[#1E1C1A] leading-tight">
+                      ¿Tienes un Restaurante o Posada en <span className="italic font-normal text-[#C85A32]">Mérida?</span>
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[#5C554E] font-sans leading-relaxed">
+                      Únete a la Cámara Gastronómica del Estado Mérida. Posiciona tu marca en la guía oficial, accede a convenios preferenciales, asesoría gremial y eventos turísticos.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 shrink-0">
+                    <button
+                      onClick={() => navigateTo('affiliates_register')}
+                      className="py-3.5 px-6 rounded-full bg-[#C85A32] hover:bg-[#B04B26] text-white font-sans font-bold text-xs flex items-center gap-2 shadow-sm transition-all"
+                    >
+                      <span>Solicitar Afiliación</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => navigateTo('affiliates')}
+                      className="py-3.5 px-6 rounded-full bg-white hover:bg-[#FAF3EB] text-[#1E1C1A] border border-[#DED5C5] font-sans font-semibold text-xs shadow-2xs transition-all"
+                    >
+                      Portal de Agremiados
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -569,13 +495,28 @@ export function App() {
 
         {/* Dedicated Page: Guía de Restaurantes (/guia-restaurantes) */}
         {activeTab === 'guide' && (
-          <div className="pt-24 pb-16">
+          <div className="pt-24 pb-16 bg-[#FAF7F2]">
             <RestaurantGuide 
               restaurants={restaurants} 
               onSelectRestaurant={setSelectedRestaurant}
               onViewOnMap={handleViewOnMap}
               t={t}
               initialSearch={guideSearchTerm}
+              mode="restaurants"
+            />
+          </div>
+        )}
+
+        {/* Dedicated Page: Guía de Prestadores de Servicios en Mérida (/prestadores-servicios) */}
+        {activeTab === 'prestadores' && (
+          <div className="pt-24 pb-16 bg-[#FAF7F2]">
+            <RestaurantGuide 
+              restaurants={restaurants} 
+              onSelectRestaurant={setSelectedRestaurant}
+              onViewOnMap={handleViewOnMap}
+              t={t}
+              initialSearch={guideSearchTerm}
+              mode="providers"
             />
           </div>
         )}
@@ -606,21 +547,11 @@ export function App() {
 
         {/* Dedicated Page: Rutas & Sabores de Origen (/rutas-origen) */}
         {activeTab === 'terroir' && (
-          <div className="pt-24 pb-16">
+          <div className="pt-24 pb-16 bg-[#FAF7F2]">
             <TerroirSection 
               t={t}
               setActiveTab={(tab) => navigateTo(tab)}
               onQuickSearch={handleQuickSearch}
-            />
-          </div>
-        )}
-
-        {/* Dedicated Page: Sello Mérida Gastronómica (/sello-calidad) */}
-        {activeTab === 'sello' && (
-          <div className="pt-24 pb-16">
-            <SelloGastronomico 
-              t={t}
-              setActiveTab={(tab) => navigateTo(tab)}
             />
           </div>
         )}
@@ -648,18 +579,8 @@ export function App() {
 
         {/* Dedicated Page: Academia, Glubbi AI & Expo 2027 (/academia) */}
         {activeTab === 'academy' && (
-          <div className="pt-24 pb-16">
+          <div className="pt-24 pb-16 bg-[#FAF7F2]">
             <AcademyGlubbiSection 
-              t={t}
-              setActiveTab={(tab) => navigateTo(tab)}
-            />
-          </div>
-        )}
-
-        {/* Dedicated Page: Centro de Recursos y Marco Jurídico (/marco-legal) */}
-        {activeTab === 'legal' && (
-          <div className="pt-24 pb-16">
-            <LegalResourceCenter 
               t={t}
               setActiveTab={(tab) => navigateTo(tab)}
             />
@@ -716,23 +637,6 @@ export function App() {
           </div>
         )}
 
-        {/* Dedicated Page: Afiliación Express Masiva (/afiliacion-express, /express, /unete) */}
-        {activeTab === 'affiliates_express' && (
-          <div className="pt-20 pb-12">
-            <ExpressAffiliationLanding 
-              onNavigate={(tab) => navigateTo(tab)}
-              onCompleteExpress={(userPayload) => {
-                setAffiliateDirectUser(userPayload);
-                setAffiliateInitialTab('my_business');
-                setAffiliateViewMode('dashboard');
-                setActiveTab('affiliates');
-                window.history.pushState(null, '', '/afiliacion');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-            />
-          </div>
-        )}
-
         {/* Dedicated Page: Afiliación Exclusiva El Valle te Conecta (/el-valle-te-conecta, /el-valle, /afiliacion-el-valle) */}
         {activeTab === 'affiliates_el_valle' && (
           <div className="pt-20 pb-12">
@@ -748,6 +652,16 @@ export function App() {
               }}
             />
           </div>
+        )}
+
+        {/* Dedicated Page: Ruta Turística El Valle te Conecta para el Turista (/ruta-el-valle) */}
+        {activeTab === 'el_valle_ruta' && (
+          <ElValleTouristPage
+            restaurants={restaurants}
+            onSelectRestaurant={setSelectedRestaurant}
+            onBack={() => navigateTo('home')}
+            onNavigate={(tab) => navigateTo(tab)}
+          />
         )}
 
         {/* Dedicated Page: Portal de Afiliados y Registro (/afiliacion, /afiliacion/registro) */}

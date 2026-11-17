@@ -38,13 +38,22 @@ export function EventsCalendar({ t }) {
   const [paymentPhone, setPaymentPhone] = useState('');
   const [institutionOrRole, setInstitutionOrRole] = useState('');
 
-  // Live synced events (Supabase Cloud + localStorage fallback)
+  // Live synced events (Supabase Cloud + localStorage fallback + curated EVENTS_DATA)
+  const mergeWithCurated = (incoming = []) => {
+    const map = new Map();
+    EVENTS_DATA.forEach(ev => map.set(ev.id, ev));
+    (Array.isArray(incoming) ? incoming : []).forEach(ev => {
+      if (ev && ev.id) map.set(ev.id, ev);
+    });
+    return Array.from(map.values());
+  };
+
   const [eventsList, setEventsList] = useState(() => {
     try {
       const saved = localStorage.getItem('cgem_official_events');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return mergeWithCurated(parsed);
       }
     } catch (e) {}
     return EVENTS_DATA;
@@ -54,7 +63,7 @@ export function EventsCalendar({ t }) {
     // 1. Cargar desde Supabase Cloud al montar
     fetchLiveEvents().then(live => {
       if (Array.isArray(live) && live.length > 0) {
-        setEventsList(live);
+        setEventsList(mergeWithCurated(live));
       }
     });
 
@@ -63,7 +72,7 @@ export function EventsCalendar({ t }) {
         const saved = localStorage.getItem('cgem_official_events');
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) setEventsList(parsed);
+          if (Array.isArray(parsed)) setEventsList(mergeWithCurated(parsed));
         }
       } catch (e) {}
     };
@@ -183,17 +192,16 @@ export function EventsCalendar({ t }) {
   return (
     <section className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       
-      {/* Header */}
+      {/* Warm Editorial Header */}
       <div className="text-center max-w-3xl mx-auto mb-10">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold mb-3 shadow-sm">
-          <Calendar className="w-3.5 h-3.5 text-amber-600" />
-          <span>Programación Oficial 2026</span>
-        </div>
-        <h2 className="font-serif text-3xl sm:text-5xl font-bold text-slate-900 tracking-tight">
-          Agenda Anual de Eventos & Festivales
+        <span className="inline-block text-[11px] font-bold uppercase tracking-[0.22em] text-[#C85A32] mb-2">
+          Programación Oficial 2026
+        </span>
+        <h2 className="font-playfair text-3xl sm:text-5xl font-bold text-[#1E1C1A] tracking-tight">
+          Eventos &amp; <span className="italic font-normal text-[#C85A32]">Festivales</span>
         </h2>
-        <p className="mt-3 text-slate-600 text-sm sm:text-base leading-relaxed">
-          Programe su visita culinaria y viva las ferias, catas, congresos y festividades más prestigiosas de Mérida con el aval de la Cámara Gastronómica del Estado Mérida.
+        <p className="mt-3 text-[#5C554E] text-xs sm:text-sm leading-relaxed">
+          Programa tu visita culinaria y vive las ferias, catas, congresos y festividades más prestigiosas de Mérida con el aval de la Cámara Gastronómica del Estado Mérida.
         </p>
       </div>
 
@@ -350,13 +358,15 @@ export function EventsCalendar({ t }) {
                     </span>
                   </div>
 
-                  <button
-                    onClick={() => handleOpenRsvp(event)}
-                    className="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all active:scale-95 shrink-0"
-                  >
-                    <Ticket className="w-3.5 h-3.5 text-slate-950" />
-                    <span>Inscribirse</span>
-                  </button>
+                  {!event.hideRsvpButton && (
+                    <button
+                      onClick={() => handleOpenRsvp(event)}
+                      className="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all active:scale-95 shrink-0"
+                    >
+                      <Ticket className="w-3.5 h-3.5 text-slate-950" />
+                      <span>Inscribirse</span>
+                    </button>
+                  )}
                 </div>
 
               </div>
@@ -608,20 +618,22 @@ export function EventsCalendar({ t }) {
               <p className="text-xs text-amber-400 font-medium">
                 {flyerPreviewEvent.date} — {flyerPreviewEvent.location}
               </p>
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const evt = flyerPreviewEvent;
-                    setFlyerPreviewEvent(null);
-                    handleOpenRsvp(evt);
-                  }}
-                  className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
-                >
-                  <Ticket className="w-4 h-4" />
-                  <span>Inscribirse en este Evento</span>
-                </button>
-              </div>
+              {!flyerPreviewEvent.hideRsvpButton && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const evt = flyerPreviewEvent;
+                      setFlyerPreviewEvent(null);
+                      handleOpenRsvp(evt);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
+                  >
+                    <Ticket className="w-4 h-4" />
+                    <span>Inscribirse en este Evento</span>
+                  </button>
+                </div>
+              )}
             </div>
 
           </div>

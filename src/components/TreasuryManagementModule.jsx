@@ -43,6 +43,7 @@ import {
   submitPaymentRecord, 
   reconcilePaymentRecord, 
   rejectPaymentRecord, 
+  deletePaymentRecord,
   submitExpenseRecord, 
   deleteExpenseRecord, 
   exportTreasuryCSV,
@@ -52,12 +53,13 @@ import {
 import { supabase } from '../lib/supabaseClient';
 import { sendPaymentReceiptEmail } from '../lib/emailService';
 
-export function TreasuryManagementModule({ currentUser, directoryMembers = [], onDirectoryUpdate }) {
+export function TreasuryManagementModule({ currentUser, directoryMembers = [], onDirectoryUpdate, treasuryPermissions = null }) {
   // State
   const [payments, setPayments] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [treasuryTab, setTreasuryTab] = useState('conciliacion'); // 'conciliacion' | 'cuotas' | 'egresos' | 'recibos'
+  const isRestrictedView = !!(treasuryPermissions && (treasuryPermissions.showStatusOnly || treasuryPermissions.showMonthlyFeeOnly));
+  const [treasuryTab, setTreasuryTab] = useState(() => isRestrictedView ? 'cuotas' : 'conciliacion'); // 'conciliacion' | 'cuotas' | 'egresos' | 'recibos'
   
   // Filters & Search
   const [paymentFilter, setPaymentFilter] = useState('todos'); // 'todos' | 'pendiente' | 'conciliado' | 'rechazado'
@@ -546,6 +548,23 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
     }
   };
 
+  // Discard / Delete duplicate or failed payment attempt
+  const handleDeleteDuplicatePayment = async (payment) => {
+    if (!payment) return;
+    const confirmed = window.confirm(
+      `¿Deseas descartar y eliminar este registro de pago (${payment.nombre_establecimiento || payment.codigo_afiliado} — Ref: ${payment.referencia || 'N/A'})? Esta acción limpiará el intento duplicado.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await deletePaymentRecord(payment.id);
+      setPayments(prev => prev.filter(p => p.id !== payment.id));
+      showToast('Registro duplicado o fallido descartado exitosamente.', 'success');
+    } catch (err) {
+      alert('Error al eliminar registro: ' + err.message);
+    }
+  };
+
   // Submit Manual Payment
   const handleSubmitManualPayment = async (e) => {
     e.preventDefault();
@@ -835,17 +854,19 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
 
       {/* Sub-Navigation Tabs */}
       <div className="flex flex-wrap items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-        <button
-          onClick={() => setTreasuryTab('conciliacion')}
-          className={`py-2.5 px-5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            treasuryTab === 'conciliacion'
-              ? 'bg-teal-700 text-white shadow-sm font-extrabold ring-2 ring-teal-400/20'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-white'
-          }`}
-        >
-          <Clock className="w-4 h-4" />
-          <span>Bandeja de Conciliación ({pendingPayments.length} Pendientes)</span>
-        </button>
+        {!isRestrictedView && (
+          <button
+            onClick={() => setTreasuryTab('conciliacion')}
+            className={`py-2.5 px-5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              treasuryTab === 'conciliacion'
+                ? 'bg-teal-700 text-white shadow-sm font-extrabold ring-2 ring-teal-400/20'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            <span>Bandeja de Conciliación ({pendingPayments.length} Pendientes)</span>
+          </button>
+        )}
 
         <button
           onClick={() => setTreasuryTab('cuotas')}
@@ -856,32 +877,36 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
           }`}
         >
           <Building2 className="w-4 h-4" />
-          <span>Control de Cuotas & Agremiados ({directoryMembers.length})</span>
+          <span>Matriz Mes a Mes ({directoryMembers.length})</span>
         </button>
 
-        <button
-          onClick={() => setTreasuryTab('egresos')}
-          className={`py-2.5 px-5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            treasuryTab === 'egresos'
-              ? 'bg-teal-700 text-white shadow-sm font-extrabold ring-2 ring-teal-400/20'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-white'
-          }`}
-        >
-          <TrendingDown className="w-4 h-4" />
-          <span>Libro de Egresos ({expenses.length})</span>
-        </button>
+        {!isRestrictedView && (
+          <>
+            <button
+              onClick={() => setTreasuryTab('egresos')}
+              className={`py-2.5 px-5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                treasuryTab === 'egresos'
+                  ? 'bg-teal-700 text-white shadow-sm font-extrabold ring-2 ring-teal-400/20'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+              }`}
+            >
+              <TrendingDown className="w-4 h-4" />
+              <span>Libro de Egresos ({expenses.length})</span>
+            </button>
 
-        <button
-          onClick={() => setTreasuryTab('recibos')}
-          className={`py-2.5 px-5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            treasuryTab === 'recibos'
-              ? 'bg-teal-700 text-white shadow-sm font-extrabold ring-2 ring-teal-400/20'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-white'
-          }`}
-        >
-          <Receipt className="w-4 h-4" />
-          <span>Recibos Digitales Emitidos ({reconciledPayments.length})</span>
-        </button>
+            <button
+              onClick={() => setTreasuryTab('recibos')}
+              className={`py-2.5 px-5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                treasuryTab === 'recibos'
+                  ? 'bg-teal-700 text-white shadow-sm font-extrabold ring-2 ring-teal-400/20'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+              }`}
+            >
+              <Receipt className="w-4 h-4" />
+              <span>Recibos Digitales Emitidos ({reconciledPayments.length})</span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* =========================================================================
@@ -1056,7 +1081,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                             <div className="flex flex-wrap items-center justify-end gap-1.5">
                               
                               {/* 1. Botón Conciliar */}
-                              {isPending && (
+                              {isPending && (!treasuryPermissions || treasuryPermissions.reconcile !== false) && (
                                 <button
                                   onClick={() => handleOpenReconcileModal(p)}
                                   className="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-sm transition-all active:scale-98"
@@ -1088,13 +1113,25 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                               </button>
 
                               {/* 4. Rechazar (si está pendiente) */}
-                              {isPending && (
+                              {isPending && (!treasuryPermissions || treasuryPermissions.reconcile !== false) && (
                                 <button
                                   onClick={() => handleOpenRejectModal(p)}
                                   className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold transition-all"
                                   title="Rechazar con observación"
                                 >
                                   <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+
+                              {/* 5. Descartar / Eliminar intento duplicado o rechazado */}
+                              {!isReconciled && (!treasuryPermissions || treasuryPermissions.deleteDuplicates !== false) && (
+                                <button
+                                  onClick={() => handleDeleteDuplicatePayment(p)}
+                                  className="py-1.5 px-2.5 rounded-xl bg-slate-100 hover:bg-rose-600 text-slate-600 hover:text-white border border-slate-200 hover:border-rose-600 text-[11px] font-bold flex items-center gap-1 transition-all"
+                                  title="Descartar y eliminar registro duplicado o fallido"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Descartar</span>
                                 </button>
                               )}
                             </div>
@@ -1111,24 +1148,24 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
       )}
 
       {/* =========================================================================
-          TAB 2: CONTROL DE CUOTAS & CARTERA DE AGREMIADOS
+          TAB 2: MATRIZ MES A MES DE CUOTAS & SOLVENCIAS
           ========================================================================= */}
       {treasuryTab === 'cuotas' && (
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
               <div>
-                <h3 className="font-serif font-black text-lg text-slate-900">
-                  Matriz de Control de Cuotas Ordinarias & Solvencias
+                <h3 className="font-playfair font-bold text-xl text-slate-900">
+                  Matriz Mes a Mes de Cuotas Ordinarias &amp; Estatus
                 </h3>
                 <p className="text-xs text-slate-600">
-                  Supervisión de aportes gremiales, montos mensuales y recordatorios directos por WhatsApp.
+                  Control administrativo mensual por agremiado (Octubre, Noviembre y Diciembre 2026).
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200">
-                  {solventMembersCount} Solventes (Activos)
+                  {solventMembersCount} Activos / Solventes
                 </span>
                 <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200">
                   {pendingMembersCount} En Trámite / Pendientes
@@ -1140,41 +1177,76 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
               <table className="w-full text-left text-xs text-slate-600 border-collapse">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
                   <tr>
-                    <th className="py-3.5 px-4">Código / RIF</th>
-                    <th className="py-3.5 px-4">Establecimiento</th>
-                    <th className="py-3.5 px-4">Titular & Contacto</th>
-                    <th className="py-3.5 px-4">Cuota Mensual</th>
-                    <th className="py-3.5 px-4 text-center">Solvencia</th>
-                    <th className="py-3.5 px-4 text-right">Gestión Directa</th>
+                    <th className="py-3.5 px-4">Agremiado &amp; Código</th>
+                    {(!treasuryPermissions?.showStatusOnly || treasuryPermissions?.showMonthlyFeeOnly) && (
+                      <th className="py-3.5 px-4">Cuota Mensual</th>
+                    )}
+                    <th className="py-3.5 px-3 text-center">Octubre 2026</th>
+                    <th className="py-3.5 px-3 text-center">Noviembre 2026</th>
+                    <th className="py-3.5 px-3 text-center">Diciembre 2026</th>
+                    <th className="py-3.5 px-4 text-center">Estatus Global</th>
+                    {!isRestrictedView && (
+                      <th className="py-3.5 px-4 text-right">Gestión</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {directoryMembers.map((member) => {
                     const isSolvent = (member.estado_solvencia || '').toLowerCase().includes('solvente');
+                    const memberPayments = payments.filter(p =>
+                      (p.codigo_afiliado && member.codigo_afiliado && p.codigo_afiliado.toLowerCase() === member.codigo_afiliado.toLowerCase()) ||
+                      (p.email && member.email && p.email.toLowerCase() === member.email.toLowerCase())
+                    );
+
+                    const getMonthBadge = (monthKw) => {
+                      const found = memberPayments.find(p =>
+                        (p.periodo_mes || '').toLowerCase().includes(monthKw) ||
+                        (p.concepto || '').toLowerCase().includes(monthKw)
+                      );
+                      if (found) {
+                        const est = (found.estado || '').toLowerCase();
+                        if (est === 'conciliado') {
+                          return (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-200">
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              Pagado
+                            </span>
+                          );
+                        }
+                        if (est === 'pendiente') {
+                          return (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                              <Clock className="w-3 h-3 text-amber-600" />
+                              En Revisión
+                            </span>
+                          );
+                        }
+                      }
+                      return (
+                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500">
+                          Pendiente
+                        </span>
+                      );
+                    };
 
                     return (
                       <tr key={member.id || member.codigo_afiliado} className="hover:bg-slate-50/80 transition-colors">
                         <td className="py-3.5 px-4">
-                          <span className="font-mono font-bold text-slate-900 block">{member.codigo_afiliado}</span>
-                          <span className="text-[10px] text-slate-400">{member.rif_cedula || 'Sin RIF'}</span>
-                        </td>
-
-                        <td className="py-3.5 px-4">
                           <span className="font-bold text-slate-900 block">{member.nombre_establecimiento}</span>
-                          <span className="text-[10px] text-slate-500">{member.categoria_negocio || 'Empresas'}</span>
+                          <span className="font-mono text-[10px] text-slate-500">{member.codigo_afiliado}</span>
                         </td>
 
-                        <td className="py-3.5 px-4">
-                          <span className="text-slate-800 font-medium block">{member.representante_legal || 'Titular'}</span>
-                          <span className="text-[10px] text-slate-500">{member.telefono || 'Sin teléfono'}</span>
-                        </td>
+                        {(!treasuryPermissions?.showStatusOnly || treasuryPermissions?.showMonthlyFeeOnly) && (
+                          <td className="py-3.5 px-4">
+                            <span className="font-playfair font-bold text-sm text-slate-900 block">
+                              ${member.monto_cuota_mensual || 10}.00 USD
+                            </span>
+                          </td>
+                        )}
 
-                        <td className="py-3.5 px-4">
-                          <span className="font-serif font-black text-sm text-slate-900 block">
-                            ${member.monto_cuota_mensual || 10}.00 USD
-                          </span>
-                          <span className="text-[10px] text-slate-400">Cuota Mensual</span>
-                        </td>
+                        <td className="py-3.5 px-3 text-center">{getMonthBadge('octubre')}</td>
+                        <td className="py-3.5 px-3 text-center">{getMonthBadge('noviembre')}</td>
+                        <td className="py-3.5 px-3 text-center">{getMonthBadge('diciembre')}</td>
 
                         <td className="py-3.5 px-4 text-center">
                           {isSolvent ? (
@@ -1190,29 +1262,31 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                           )}
                         </td>
 
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => {
-                                handleSelectMemberForManualPayment(member.codigo_afiliado);
-                                setIsManualModalOpen(true);
-                              }}
-                              className="py-1 px-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[11px] shadow-sm transition-all"
-                              title="Registrar cobro manual de cuota para este miembro"
-                            >
-                              + Cobro
-                            </button>
+                        {!isRestrictedView && (
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => {
+                                  handleSelectMemberForManualPayment(member.codigo_afiliado);
+                                  setIsManualModalOpen(true);
+                                }}
+                                className="py-1 px-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[11px] shadow-sm transition-all"
+                                title="Registrar cobro manual de cuota para este miembro"
+                              >
+                                + Cobro
+                              </button>
 
-                            <button
-                              onClick={() => handleSendWhatsAppReminder(member)}
-                              className="py-1 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-sm transition-all"
-                              title="Enviar recordatorio de cuota con datos de pago por WhatsApp"
-                            >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                              <span>WhatsApp</span>
-                            </button>
-                          </div>
-                        </td>
+                              <button
+                                onClick={() => handleSendWhatsAppReminder(member)}
+                                className="py-1 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-sm transition-all"
+                                title="Enviar recordatorio de cuota con datos de pago por WhatsApp"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                                <span>WhatsApp</span>
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}

@@ -682,9 +682,6 @@ export function AffiliateDashboard({
   useEffect(() => {
     if (initialViewMode) {
       setViewMode(initialViewMode);
-      if (initialViewMode === 'register' && autoOpenVideo) {
-        setShowVideoModal(true);
-      }
     }
   }, [initialViewMode, autoOpenVideo]);
 
@@ -734,6 +731,7 @@ export function AffiliateDashboard({
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   // Registration Wizard Step
   const [regStep, setRegStep] = useState(1);
@@ -856,6 +854,19 @@ export function AffiliateDashboard({
   const [businessProfile, setBusinessProfile] = useState(() => {
     return createBlankBusinessProfile(AFFILIATES_DATA.currentUser);
   });
+
+  const isSectionVisible = (key) => {
+    if (key === 'identidad') return true;
+    if (businessProfile?.visibleSections && typeof businessProfile.visibleSections[key] === 'boolean') {
+      return businessProfile.visibleSections[key];
+    }
+    if (key === 'galeria') return !!(businessProfile.gallery && businessProfile.gallery.length > 0);
+    if (key === 'ubicacion') return !!(businessProfile.location || businessProfile.openingHours || businessProfile.phone || businessProfile.whatsapp);
+    if (key === 'equipo') return !!(businessProfile.chef || businessProfile.chefBio);
+    if (key === 'menu') return !!(businessProfile.signatureDishes && businessProfile.signatureDishes.length > 0);
+    if (key === 'destacados') return !!((businessProfile.menuHighlights && businessProfile.menuHighlights.length > 0) || (businessProfile.features && businessProfile.features.length > 0));
+    return false;
+  };
 
   // Mantener la ficha del negocio sincronizada estrictamente con el usuario activo y Supabase
   useEffect(() => {
@@ -1706,8 +1717,8 @@ export function AffiliateDashboard({
       }
       setRegStep(2);
     } else if (regStep === 2) {
-      if (!regData.specialty || !regData.password) {
-        alert('Por favor complete la descripción de su negocio y defina su clave de acceso.');
+      if (!regData.password) {
+        alert('Por favor defina su clave de acceso para continuar.');
         return;
       }
       if (regData.password.trim().length < 8) {
@@ -2029,28 +2040,11 @@ export function AffiliateDashboard({
               onClick={() => {
                 setRegStep(1);
                 updateViewMode('register');
-                setShowVideoModal(true);
               }}
               className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 hover:from-amber-600 hover:to-amber-700 text-white font-serif font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.99] transition-all"
             >
               <Building2 className="w-4 h-4 text-white" />
               <span>Solicitar Afiliación / Formulario Completo</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (onNavigate) {
-                  onNavigate('affiliates_express');
-                } else {
-                  window.history.pushState(null, '', '/afiliacion-express');
-                  window.location.reload();
-                }
-              }}
-              className="w-full py-2.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-serif font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-xs"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              <span>Afiliación Express en 60 Segundos (Pago Móvil / Transf.)</span>
             </button>
           </div>
 
@@ -2145,71 +2139,351 @@ export function AffiliateDashboard({
   }
 
   // ==========================================
-  // VIEW 2: REGISTRATION WIZARD WITH PAGO MOVIL PROVINCIAL
+  // VIEW 2: REGISTRATION WIZARD (MOBILE-FIRST DEDICATED + DESKTOP)
   // ==========================================
   if (viewMode === 'register') {
+    const mobileCopy = (txt) => {
+      if (navigator?.clipboard) {
+        navigator.clipboard.writeText(txt);
+      }
+    };
+
     return (
-      <section className="py-12 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        
-        {/* VIDEO MODAL MOTIVACIONAL */}
-        {showVideoModal && (
-          <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
-            <div className="bg-slate-900 border border-amber-500/30 w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
-              <div className="px-5 sm:px-6 py-4 border-b border-slate-800 flex items-center justify-between gap-4 bg-slate-950/60">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
-                    <Sparkles className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-amber-400 block">
-                      Cámara Gastronómica del Estado Mérida
-                    </span>
-                    <h3 className="font-serif text-base sm:text-lg font-bold text-white leading-tight">
-                      ¿Por qué afiliarte a nuestra Cámara Gastronómica?
-                    </h3>
-                  </div>
-                </div>
+      <section className="py-6 md:py-12 max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 relative bg-[#FAF7F2] md:bg-transparent min-h-screen md:min-h-0">
 
-                <button
-                  onClick={handleCloseVideoModal}
-                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                  title="Cerrar video"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+        {/* ============================================================
+            VERSIÓN MÓVIL DEDICADA (/afiliacion/registro en Celulares)
+            Ligera, intuitiva, teclados nativos, 1-tap Pago Móvil
+            ============================================================ */}
+        <div className="md:hidden space-y-4 pt-16 pb-10">
+          {/* Compact Mobile Header & Progress Bar */}
+          <div className="bg-white rounded-3xl p-4 border border-[#EAE3D5] shadow-2xs space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#C85A32] block">
+                  Afiliación Móvil CGEM
+                </span>
+                <h2 className="font-playfair text-xl font-bold text-[#1E1C1A] leading-tight">
+                  Registro Rápido
+                </h2>
               </div>
+              <button
+                type="button"
+                onClick={() => updateViewMode('login')}
+                className="px-3 py-1.5 rounded-full bg-[#FAF7F2] border border-[#EAE3D5] text-[11px] font-semibold text-[#5C554E]"
+              >
+                Ya tengo cuenta
+              </button>
+            </div>
 
-              <div className="p-3 sm:p-5 bg-black flex-1 flex flex-col items-center justify-center overflow-hidden">
-                <div className="w-full relative rounded-2xl overflow-hidden shadow-2xl bg-black border border-slate-800 flex items-center justify-center">
-                  <video
-                    ref={videoRef}
-                    controls
-                    autoPlay
-                    playsInline
-                    preload="metadata"
-                    className="w-full max-h-[55vh] object-contain rounded-xl"
-                  >
-                    <source src="/video-afiliacion.mp4" type="video/mp4" />
-                    <source src="/Video%20Afiliacion.mp4" type="video/mp4" />
-                    Su navegador no soporta el formato de video.
-                  </video>
-                </div>
+            {/* 3-Step Visual Progress Bar */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-[11px] font-bold text-[#5C554E]">
+                <span>Paso {Math.min(regStep, 3)} de 3</span>
+                <span className="text-[#C85A32]">
+                  {regStep === 1 ? 'Datos Básicos' : regStep === 2 ? 'Categoría & Clave' : regStep === 3 ? 'Pago Móvil' : '¡Completado!'}
+                </span>
               </div>
-
-              <div className="p-4 sm:p-5 bg-slate-950/90 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <p className="text-xs text-slate-400 text-center sm:text-left">
-                  Conozca los 10 pilares estratégicos y el respaldo integral de la Cámara.
-                </p>
-                <button
-                  onClick={handleCloseVideoModal}
-                  className="w-full sm:w-auto py-2.5 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-serif font-bold text-xs uppercase tracking-wider shadow-md transition-all shrink-0"
-                >
-                  Continuar con el Formulario de Afiliación
-                </button>
+              <div className="w-full h-2 rounded-full bg-[#F2ECE1] overflow-hidden">
+                <div
+                  className="h-full bg-[#C85A32] rounded-full transition-all duration-300"
+                  style={{ width: `${Math.min((regStep / 3) * 100, 100)}%` }}
+                />
               </div>
             </div>
           </div>
-        )}
+
+          {/* MOBILE STEP 1 */}
+          {regStep === 1 && (
+            <form onSubmit={handleRegNext} className="bg-white rounded-3xl p-5 border border-[#EAE3D5] shadow-2xs space-y-4 animate-fadeIn">
+              <div>
+                <label className="block text-xs font-bold text-[#1E1C1A] mb-1.5">Tipo de Establecimiento *</label>
+                <select
+                  value={regData.businessType}
+                  onChange={(e) => setRegData({ ...regData, businessType: e.target.value })}
+                  className="w-full px-4 py-3.5 rounded-2xl border border-[#EAE3D5] bg-[#FAF7F2] text-sm font-semibold text-[#1E1C1A] focus:outline-none focus:border-[#C85A32]"
+                >
+                  {BUSINESS_TIERS.map((tier) => (
+                    <option key={tier.id} value={tier.id}>
+                      {tier.name} — Inscripción ${tier.inscriptionUsd}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#1E1C1A] mb-1.5">Nombre del Negocio / Marca *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej. Café Cordillera"
+                  value={regData.restaurantName}
+                  onChange={(e) => setRegData({ ...regData, restaurantName: e.target.value })}
+                  className="w-full px-4 py-3.5 rounded-2xl border border-[#EAE3D5] bg-[#FAF7F2] text-sm text-[#1E1C1A] focus:outline-none focus:border-[#C85A32]"
+                />
+              </div>
+
+              <div className="grid grid-cols-12 gap-2">
+                <div className="col-span-4">
+                  <label className="block text-xs font-bold text-[#1E1C1A] mb-1.5">Tipo *</label>
+                  <select
+                    value={regData.rifType}
+                    onChange={(e) => setRegData({ ...regData, rifType: e.target.value })}
+                    className="w-full px-3 py-3.5 rounded-2xl border border-[#EAE3D5] bg-[#FAF7F2] text-sm font-bold text-[#1E1C1A]"
+                  >
+                    <option value="J-">J-</option>
+                    <option value="V-">V-</option>
+                    <option value="E-">E-</option>
+                    <option value="G-">G-</option>
+                  </select>
+                </div>
+                <div className="col-span-8">
+                  <label className="block text-xs font-bold text-[#1E1C1A] mb-1.5">RIF o Cédula *</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    required
+                    placeholder="Ej. 501234567"
+                    value={regData.rifNumber}
+                    onChange={(e) => setRegData({ ...regData, rifNumber: e.target.value })}
+                    className="w-full px-4 py-3.5 rounded-2xl border border-[#EAE3D5] bg-[#FAF7F2] text-sm text-[#1E1C1A] focus:outline-none focus:border-[#C85A32]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#1E1C1A] mb-1.5">Titular / Representante *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Nombre y Apellido"
+                  value={regData.ownerName}
+                  onChange={(e) => setRegData({ ...regData, ownerName: e.target.value })}
+                  className="w-full px-4 py-3.5 rounded-2xl border border-[#EAE3D5] bg-[#FAF7F2] text-sm text-[#1E1C1A] focus:outline-none focus:border-[#C85A32]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#1E1C1A] mb-1.5">Teléfono / WhatsApp *</label>
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  required
+                  placeholder="0414-0000000"
+                  value={regData.phone}
+                  onChange={(e) => setRegData({ ...regData, phone: e.target.value })}
+                  className="w-full px-4 py-3.5 rounded-2xl border border-[#EAE3D5] bg-[#FAF7F2] text-sm text-[#1E1C1A] focus:outline-none focus:border-[#C85A32]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#1E1C1A] mb-1.5">Correo Electrónico *</label>
+                <input
+                  type="email"
+                  inputMode="email"
+                  required
+                  placeholder="correo@minegocio.com"
+                  value={regData.email}
+                  onChange={(e) => setRegData({ ...regData, email: e.target.value })}
+                  className="w-full px-4 py-3.5 rounded-2xl border border-[#EAE3D5] bg-[#FAF7F2] text-sm text-[#1E1C1A] focus:outline-none focus:border-[#C85A32]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#1E1C1A] mb-1.5">Municipio</label>
+                <select
+                  value={regData.municipio}
+                  onChange={(e) => setRegData({ ...regData, municipio: e.target.value })}
+                  className="w-full px-4 py-3.5 rounded-2xl border border-[#EAE3D5] bg-[#FAF7F2] text-sm text-[#1E1C1A]"
+                >
+                  {MUNICIPIOS_MERIDA.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-4 rounded-full bg-[#C85A32] hover:bg-[#B04B26] text-white font-sans font-bold text-sm flex items-center justify-center gap-2 shadow-md active:scale-[0.99] transition-all"
+              >
+                <span>Continuar al Paso 2</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+          )}
+
+          {/* MOBILE STEP 2 */}
+          {regStep === 2 && (
+            <form onSubmit={handleRegNext} className="bg-white rounded-3xl p-5 border border-[#EAE3D5] shadow-2xs space-y-4 animate-fadeIn">
+              <div>
+                <label className="block text-xs font-bold text-[#1E1C1A] mb-1.5">Categoría de tu Negocio *</label>
+                <select
+                  value={regData.category}
+                  onChange={(e) => setRegData({ ...regData, category: e.target.value })}
+                  className="w-full px-4 py-3.5 rounded-2xl border border-[#EAE3D5] bg-[#FAF7F2] text-sm font-medium text-[#1E1C1A] focus:outline-none focus:border-[#C85A32]"
+                >
+                  {GASTRONOMIC_CATEGORIES.map((cat, idx) => (
+                    <option key={idx} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#1E1C1A] mb-1.5">Instagram (Opcional)</label>
+                <input
+                  type="text"
+                  placeholder="@minegocio"
+                  value={regData.instagram}
+                  onChange={(e) => setRegData({ ...regData, instagram: e.target.value })}
+                  className="w-full px-4 py-3.5 rounded-2xl border border-[#EAE3D5] bg-[#FAF7F2] text-sm text-[#1E1C1A] focus:outline-none focus:border-[#C85A32]"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-[#1E1C1A]">Clave de Acceso *</label>
+                  <span className={`text-[11px] font-bold ${regData.password.trim().length >= 8 ? 'text-emerald-600' : 'text-[#8C8277]'}`}>
+                    {regData.password.trim().length}/8 mín.
+                  </span>
+                </div>
+                <input
+                  type="password"
+                  required
+                  placeholder="Mínimo 8 caracteres"
+                  value={regData.password}
+                  onChange={(e) => setRegData({ ...regData, password: e.target.value })}
+                  className="w-full px-4 py-3.5 rounded-2xl border border-[#EAE3D5] bg-[#FAF7F2] text-sm text-[#1E1C1A] focus:outline-none focus:border-[#C85A32]"
+                />
+                <p className="text-[11px] text-[#7A7168] mt-1">Números, letras o combinados (solo 8 caracteres).</p>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRegStep(1)}
+                  className="px-5 py-3.5 rounded-full border border-[#EAE3D5] bg-[#FAF7F2] text-[#1E1C1A] text-xs font-bold"
+                >
+                  Atrás
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3.5 rounded-full bg-[#C85A32] text-white font-sans font-bold text-sm flex items-center justify-center gap-2 shadow-md"
+                >
+                  <span>Ir a Pago Móvil</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* MOBILE STEP 3 */}
+          {regStep === 3 && (
+            <form onSubmit={handleRegNext} className="bg-white rounded-3xl p-5 border border-[#EAE3D5] shadow-2xs space-y-4 animate-fadeIn">
+              {/* 1-Tap Copy Pago Móvil Box */}
+              <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#EAE3D5] space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#C85A32]">
+                    Pago Móvil Provincial (0108)
+                  </span>
+                  <span className="text-[11px] font-bold text-[#1E1C1A]">
+                    Inscripción: ${currentTier.inscriptionUsd} USD
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => mobileCopy('V12517086')}
+                    className="p-2.5 rounded-xl bg-white border border-[#EAE3D5] text-left active:bg-[#FAF3EB]"
+                  >
+                    <span className="text-[10px] text-[#7A7168] block">Cédula / RIF (Toca para copiar)</span>
+                    <span className="font-mono font-bold text-[#1E1C1A]">V-12.517.086</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => mobileCopy('04148817137')}
+                    className="p-2.5 rounded-xl bg-white border border-[#EAE3D5] text-left active:bg-[#FAF3EB]"
+                  >
+                    <span className="text-[10px] text-[#7A7168] block">Teléfono (Toca para copiar)</span>
+                    <span className="font-mono font-bold text-[#1E1C1A]">0414-8817137</span>
+                  </button>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white border border-[#C85A32]/30 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-[#7A7168] block">Monto a Transferir (Tasa BCV: {bcvRate})</span>
+                    <span className="font-mono font-black text-base text-[#C85A32]">
+                      Bs. {(currentTier.inscriptionUsd * bcvRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => mobileCopy((currentTier.inscriptionUsd * bcvRate).toFixed(2))}
+                    className="px-3 py-1.5 rounded-full bg-[#FAF3EB] text-[#C85A32] text-[11px] font-bold"
+                  >
+                    Copiar Bs
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#1E1C1A] mb-1.5">Número de Referencia Bancaria *</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  required
+                  placeholder="Últimos 6 a 8 dígitos (ej. 09847291)"
+                  value={regData.referenceNumber}
+                  onChange={(e) => setRegData({ ...regData, referenceNumber: e.target.value })}
+                  className="w-full px-4 py-3.5 rounded-2xl border border-[#EAE3D5] bg-[#FAF7F2] text-sm font-mono font-bold text-[#1E1C1A] focus:outline-none focus:border-[#C85A32]"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRegStep(2)}
+                  className="px-5 py-3.5 rounded-full border border-[#EAE3D5] bg-[#FAF7F2] text-[#1E1C1A] text-xs font-bold"
+                >
+                  Atrás
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingReg}
+                  className="flex-1 py-3.5 rounded-full bg-[#C85A32] text-white font-sans font-bold text-sm flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
+                >
+                  <span>{isSubmittingReg ? 'Registrando...' : 'Finalizar Registro'}</span>
+                  <CheckCircle2 className="w-4 h-4" />
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* MOBILE STEP 4 (SUCCESS) */}
+          {regStep === 4 && (
+            <div className="bg-white rounded-3xl p-6 border border-[#EAE3D5] shadow-sm text-center space-y-4 animate-fadeIn">
+              <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+              <h3 className="font-playfair text-2xl font-bold text-[#1E1C1A]">¡Bienvenido a la Cámara!</h3>
+              <p className="text-xs text-[#5C554E]">
+                Tu código de afiliado es <strong className="font-mono text-[#C85A32]">{regData.generatedAffiliateCode || 'CGM-2026'}</strong>.
+              </p>
+              <button
+                type="button"
+                onClick={() => updateViewMode('dashboard')}
+                className="w-full py-3.5 rounded-full bg-[#C85A32] text-white font-sans font-bold text-sm shadow-md"
+              >
+                Ingresar a Mi Panel
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ============================================================
+            VERSIÓN ESCRITORIO (Desktop Wizard)
+            ============================================================ */}
+        <div className="hidden md:block">
 
         {/* Top Header Stepper */}
         <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8 mb-8">
@@ -2269,27 +2543,6 @@ export function AffiliateDashboard({
         {/* STEP 1: Tipo de Negocio & Ubicación */}
         {regStep === 1 && (
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8 animate-fadeIn">
-            
-            <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-slate-50 border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
-                  <Film className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900">Video Institucional de Afiliación</h4>
-                  <p className="text-[11px] text-slate-500">Descubre los beneficios y proyección gremial merideña.</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowVideoModal(true)}
-                className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all shrink-0"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Ver Video Agremiados</span>
-              </button>
-            </div>
-
             <h3 className="font-serif text-xl font-bold text-slate-900 mb-1">
               Paso 1: Tipo de Negocio Gastronómico, Identificación & Ubicación
             </h3>
@@ -2505,10 +2758,10 @@ export function AffiliateDashboard({
         {regStep === 2 && (
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8 animate-fadeIn">
             <h3 className="font-serif text-xl font-bold text-slate-900 mb-1">
-              Paso 2: Categoría, Descripción & Clave Institucional
+              Paso 2: Categoría &amp; Clave de Acceso
             </h3>
             <p className="text-xs text-slate-500 mb-6">
-              Defina la categoría gastronómica y describa su negocio o marca culinaria.
+              Selecciona la categoría de tu establecimiento y define tu clave personal (mínimo 8 caracteres).
             </p>
 
             <form onSubmit={handleRegNext} className="space-y-4">
@@ -2537,21 +2790,6 @@ export function AffiliateDashboard({
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
                   />
                 </div>
-              </div>
-
-              {/* Redefinido como "Describe tu Negocio, Marca o Especialidad *" */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Describe tu Negocio, Marca o Especialidad *
-                </label>
-                <textarea
-                  rows="3"
-                  required
-                  placeholder="Ej. Describa brevemente su concepto culinario, platos insignia, especialidades, historia de su marca o propuesta de valor..."
-                  value={regData.specialty}
-                  onChange={(e) => setRegData({ ...regData, specialty: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-slate-50"
-                />
               </div>
 
               <div>
@@ -2793,6 +3031,7 @@ export function AffiliateDashboard({
           </div>
         )}
 
+        </div>
       </section>
     );
   }
@@ -2902,7 +3141,7 @@ export function AffiliateDashboard({
     {
       title: 'MENÚ PRINCIPAL',
       items: [
-        { id: 'overview', label: 'Panel General & Eventos', icon: LayoutDashboard, badge: 'En Vivo' },
+        { id: 'overview', label: 'Panel General', icon: LayoutDashboard, badge: 'En Vivo' },
         { id: 'my_business', label: 'Mi Ficha de Negocio', icon: Store, badge: 'En Guía' },
         { id: 'benefits', label: 'Beneficios de Membresía', icon: Award, badge: '10' },
       ]
@@ -2911,8 +3150,7 @@ export function AffiliateDashboard({
       title: 'GESTIÓN GREMIAL & MEMBRESÍA',
       items: [
         { id: 'certificate', label: 'Certificado Digital', icon: ShieldCheck, badge: 'Oficial' },
-        { id: 'payments', label: 'Tesorería & Cuotas', icon: CreditCard, badge: '$ USD' },
-        { id: 'gps_calibration', label: 'Calibración GPS 3D', icon: MapPin, badge: '3D' },
+        { id: 'payments', label: 'Pagos', icon: CreditCard, badge: '$ USD' },
         { id: 'jobs', label: 'Bolsa de Empleo', icon: Briefcase, badge: 'Vacantes' },
       ]
     },
@@ -2932,7 +3170,7 @@ export function AffiliateDashboard({
     },
     my_business: {
       title: 'Mi Ficha de Negocio en la Guía',
-      subtitle: 'Edite su información pública, fotografías, menú, horarios y redes sociales.'
+      subtitle: 'Personaliza las secciones visibles de tu ficha pública según la naturaleza de tu negocio.'
     },
     benefits: {
       title: 'Beneficios Activos de su Membresía Gremial',
@@ -2943,12 +3181,8 @@ export function AffiliateDashboard({
       subtitle: 'Constancia oficial de registro gremial con código de validación QR.'
     },
     payments: {
-      title: 'Tesorería & Reporte de Cuotas',
+      title: 'Pagos & Reporte de Cuotas',
       subtitle: 'Historial de aportes mensuales, tasa BCV oficial y reporte de transferencias o Pago Móvil.'
-    },
-    gps_calibration: {
-      title: 'Calibración Satelital & Radar 3D',
-      subtitle: 'Ajuste fino de coordenadas GPS para precisión en la Guía Gastronómica y Mapas.'
     },
     jobs: {
       title: 'Bolsa de Empleo Gremial',
@@ -3089,26 +3323,11 @@ export function AffiliateDashboard({
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setActiveTab('certificate')}
-              className="flex-1 py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-[11px] font-sans font-semibold flex items-center justify-center gap-1.5 transition-all border border-slate-200/60"
+              className="w-full py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-[11px] font-sans font-semibold flex items-center justify-center gap-1.5 transition-all border border-slate-200/60"
               title="Ver Certificado Digital"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Certificado</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveUser(null);
-                try {
-                  localStorage.removeItem('cgem_active_session');
-                  localStorage.removeItem('cgem_active_affiliate');
-                } catch (e) {}
-                updateViewMode('login');
-              }}
-              className="py-1.5 px-3 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 text-[11px] font-sans font-semibold flex items-center justify-center gap-1.5 transition-all border border-slate-200/60 hover:border-rose-200"
-              title="Cerrar Sesión Gremial"
-            >
-              <LogOut className="w-3.5 h-3.5" />
+              <span>Certificado Oficial</span>
             </button>
           </div>
         </div>
@@ -3186,28 +3405,75 @@ export function AffiliateDashboard({
               <span className="hidden md:inline">Cambiar Clave</span>
             </button>
 
-            {/* Affiliate Capsule */}
-            <div className="flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full bg-white border border-slate-200/80 shadow-2xs">
-              <div className="w-7 h-7 rounded-full bg-slate-900 border border-amber-400/40 text-white font-bold text-xs flex items-center justify-center overflow-hidden shrink-0">
-                {businessProfile.coverImage ? (
-                  <img 
-                    src={businessProfile.coverImage} 
-                    alt={businessProfile.name || activeUser.restaurantName} 
-                    className="w-full h-full object-cover" 
-                  />
-                ) : (
-                  <span>{(businessProfile.name || activeUser.restaurantName || 'A')[0]}</span>
-                )}
-              </div>
-              <div className="hidden sm:flex flex-col text-left">
-                <span className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[140px]">
-                  {businessProfile.name || activeUser.restaurantName}
-                </span>
-                <span className="text-[10px] text-amber-600 font-mono font-bold leading-none">
-                  {activeUser.id}
-                </span>
-              </div>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            {/* Affiliate Capsule with Dropdown Menu (Incluye Cerrar Sesión) */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsUserMenuOpen(prev => !prev)}
+                className="flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full bg-white hover:bg-slate-50 border border-slate-200/80 shadow-2xs transition-all cursor-pointer"
+                title="Opciones de cuenta"
+              >
+                <div className="w-7 h-7 rounded-full bg-slate-900 border border-amber-400/40 text-white font-bold text-xs flex items-center justify-center overflow-hidden shrink-0">
+                  {businessProfile.coverImage ? (
+                    <img 
+                      src={businessProfile.coverImage} 
+                      alt={businessProfile.name || activeUser.restaurantName} 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : (
+                    <span>{(businessProfile.name || activeUser.restaurantName || 'A')[0]}</span>
+                  )}
+                </div>
+                <div className="hidden sm:flex flex-col text-left">
+                  <span className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[140px]">
+                    {businessProfile.name || activeUser.restaurantName}
+                  </span>
+                  <span className="text-[10px] text-amber-600 font-mono font-bold leading-none">
+                    {activeUser.id}
+                  </span>
+                </div>
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isUserMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white border border-slate-200 shadow-xl py-2 z-50 animate-fadeIn">
+                  <div className="px-4 py-2 border-b border-slate-100">
+                    <p className="text-xs font-bold text-slate-900 truncate">{businessProfile.name || activeUser.restaurantName}</p>
+                    <p className="text-[10px] text-amber-700 font-mono font-semibold">{activeUser.id}</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      setIsPasswordModalOpen(true);
+                    }}
+                    className="w-full px-4 py-2.5 text-left text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-900 flex items-center gap-2 transition-colors"
+                  >
+                    <KeyRound className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Cambiar Clave de Acceso</span>
+                  </button>
+
+                  <div className="my-1 border-t border-slate-100" />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      setActiveUser(null);
+                      try {
+                        localStorage.removeItem('cgem_active_session');
+                        localStorage.removeItem('cgem_active_affiliate');
+                      } catch (e) {}
+                      updateViewMode('login');
+                    }}
+                    className="w-full px-4 py-2.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition-colors"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Cerrar Sesión / Salir</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -3354,22 +3620,6 @@ export function AffiliateDashboard({
                         <span className="text-[11px] text-slate-600 font-medium">Guía Web</span>
                       </div>
                       <span className="text-xs font-bold text-slate-900">Visible</span>
-                    </div>
-
-                    <div className="p-2.5 rounded-2xl bg-slate-50/70 border border-slate-100 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-sky-500" />
-                        <span className="text-[11px] text-slate-600 font-medium">Radar 3D</span>
-                      </div>
-                      <span className="text-xs font-bold text-slate-900">Activo</span>
-                    </div>
-
-                    <div className="p-2.5 rounded-2xl bg-slate-50/70 border border-slate-100 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-purple-500" />
-                        <span className="text-[11px] text-slate-600 font-medium">Empleos</span>
-                      </div>
-                      <span className="text-xs font-bold text-slate-900">Gremio ULA</span>
                     </div>
 
                     <div className="p-2.5 rounded-2xl bg-slate-50/70 border border-slate-100 flex items-center justify-between">
@@ -3668,7 +3918,7 @@ export function AffiliateDashboard({
                 Ficha Oficial de Mi Negocio: {businessProfile.name}
               </h3>
               <p className="text-xs sm:text-sm text-slate-300">
-                Complete y modifique todos los datos, horarios, platos insignia, descripción y redes de su establecimiento que se muestran públicamente en la web y en el Mapa LiDAR 3D.
+                Selecciona manualmente qué secciones deseas mostrar en tu ficha pública según la naturaleza de tu negocio y completa únicamente lo que aplique.
               </p>
             </div>
 
@@ -3688,11 +3938,93 @@ export function AffiliateDashboard({
               <div>
                 <p>¡Ficha de negocio actualizada satisfactoriamente!</p>
                 <p className="text-[11px] text-emerald-700 font-normal">
-                  Los cambios ya se encuentran sincronizados y visibles en la Guía Oficial y en el modal del restaurante.
+                  Solo las secciones marcadas como visibles con datos cargados se mostrarán en la Guía Pública.
                 </p>
               </div>
             </div>
           )}
+
+          {/* Selector Manual de Secciones + Ubicación Automática en la Web */}
+          {(() => {
+            const activeVis = businessProfile.visibleSections || {
+              identidad: true,
+              galeria: !!(businessProfile.gallery && businessProfile.gallery.length > 0),
+              ubicacion: !!(businessProfile.location || businessProfile.openingHours || businessProfile.phone || businessProfile.whatsapp),
+              equipo: !!(businessProfile.chef || businessProfile.chefBio),
+              menu: !!(businessProfile.signatureDishes && businessProfile.signatureDishes.length > 0),
+              destacados: !!((businessProfile.menuHighlights && businessProfile.menuHighlights.length > 0) || (businessProfile.features && businessProfile.features.length > 0)),
+            };
+
+            const catLower = (businessProfile.category || '').toLowerCase();
+            const isRest = ['restaurante', 'bistró', 'bistro', 'alta cocina', 'cocina de autor', 'cocina internacional', 'comida típica', 'tasca', 'comida rápida', 'food truck'].some(k => catLower.includes(k));
+            const isValle = (activeUser?.id || '').includes('VALLE') || catLower.includes('valle');
+
+            const sectionOptions = [
+              { key: 'identidad', label: '1. Identidad & Descripción', locked: true },
+              { key: 'galeria', label: '2. Galería Fotográfica' },
+              { key: 'ubicacion', label: '3. Ubicación, Horarios & Redes' },
+              { key: 'equipo', label: '4. Chef / Especialista & Equipo' },
+              { key: 'menu', label: '5. Platos / Productos Estrella' },
+              { key: 'destacados', label: '6. Destacados & Comodidades' },
+            ];
+
+            const toggleSec = (key) => {
+              if (key === 'identidad') return;
+              setBusinessProfile(prev => ({
+                ...prev,
+                visibleSections: {
+                  ...activeVis,
+                  [key]: !activeVis[key]
+                }
+              }));
+            };
+
+            return (
+              <div className="p-5 sm:p-6 rounded-3xl bg-white border border-amber-200/80 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div>
+                    <h4 className="font-serif text-base font-bold text-slate-900">
+                      Configurar Secciones de tu Ficha Pública
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Activa o desactiva las secciones que aplican para tu marca. Solo las activadas con datos serán visibles al público.
+                    </p>
+                  </div>
+                  <div className="text-[11px] px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-900 font-semibold shrink-0">
+                    Ubicación automática en web:{' '}
+                    <strong>
+                      {isRest ? 'Guía de Restaurantes + Prestadores' : 'Guía de Prestadores de Servicios'}
+                      {isValle ? ' + El Valle te Conecta' : ''}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {sectionOptions.map((sec) => {
+                    const isOn = !!activeVis[sec.key];
+                    return (
+                      <button
+                        key={sec.key}
+                        type="button"
+                        disabled={sec.locked}
+                        onClick={() => toggleSec(sec.key)}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                          sec.locked
+                            ? 'bg-slate-900 text-white border-slate-900 cursor-default'
+                            : isOn
+                              ? 'bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100'
+                              : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-amber-400 hover:text-amber-800'
+                        }`}
+                      >
+                        {isOn ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Plus className="w-3.5 h-3.5" />}
+                        <span>{sec.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           <form onSubmit={handleSaveBusinessProfile} className="space-y-6">
             
@@ -3754,6 +4086,7 @@ export function AffiliateDashboard({
             </div>
 
             {/* Bloque 2: Galería Fotográfica Oficial (Máximo 5 Fotos & Conversor Inteligente) */}
+            {isSectionVisible('galeria') && (
             <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                 <div className="flex items-center gap-2.5">
@@ -3952,8 +4285,10 @@ export function AffiliateDashboard({
                 })}
               </div>
             </div>
+            )}
 
             {/* Bloque 3: Ubicación, Horarios & Contacto */}
+            {isSectionVisible('ubicacion') && (
             <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                 <MapPin className="w-5 h-5 text-amber-600" />
@@ -4046,8 +4381,10 @@ export function AffiliateDashboard({
                 </div>
               </div>
             </div>
+            )}
 
             {/* Bloque 4: Chef Ejecutivo & Equipo */}
+            {isSectionVisible('equipo') && (
             <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                 <ChefHat className="w-5 h-5 text-amber-600" />
@@ -4078,8 +4415,10 @@ export function AffiliateDashboard({
                 </div>
               </div>
             </div>
+            )}
 
             {/* Bloque 5: Platos Insignia del Menú */}
+            {isSectionVisible('menu') && (
             <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
@@ -4173,8 +4512,10 @@ export function AffiliateDashboard({
                 )}
               </div>
             </div>
+            )}
 
             {/* Bloque 6: Otros Destacados & Comodidades */}
+            {isSectionVisible('destacados') && (
             <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-md space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
@@ -4241,6 +4582,7 @@ export function AffiliateDashboard({
                 </div>
               </div>
             </div>
+            )}
 
             <div className="flex justify-end">
               <button
@@ -4283,11 +4625,6 @@ export function AffiliateDashboard({
           )}
 
         </div>
-      )}
-
-      {/* Tab: Calibrar Ubicación GPS 3D Satelital */}
-      {activeTab === 'gps_calibration' && (
-        <GpsCalibrationTab activeUser={activeUser} />
       )}
 
       {/* Tab 2: Certificate */}

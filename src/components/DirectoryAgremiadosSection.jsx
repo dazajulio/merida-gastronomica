@@ -170,59 +170,66 @@ export function DirectoryAgremiadosSection({
   }, [restaurants, searchTerm, selectedSector, selectedMunicipio, onlySolvent]);
 
   return (
-    <div className="bg-[#fcfbf9] min-h-screen text-slate-800">
+    <div className="bg-[#FAF7F2] min-h-screen text-[#1E1C1A]">
       
       {/* ============================================================== */}
-      {/* 1. HERO HEADER INSTITUCIONAL                                   */}
+      {/* 1. HERO HEADER EDITORIAL CÁLIDO (Nuevo Diseño CGEM)            */}
       {/* ============================================================== */}
-      <section className="relative pt-28 pb-16 overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
-        <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+      <section className="relative pt-28 pb-14 overflow-hidden bg-[#FAF7F2] border-b border-[#EAE3D5]">
+        <div className="absolute inset-0 z-0 pointer-events-none">
           <img 
             src="/images/merida_hero_gastronomica.jpg" 
             alt="Fondo Los Andes" 
-            className="w-full h-full object-cover object-center"
+            className="w-full h-full object-cover object-center opacity-30 filter saturate-[1.1]"
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'linear-gradient(180deg, rgba(250, 247, 242, 0.92) 0%, rgba(250, 247, 242, 0.85) 60%, #FAF7F2 100%)',
+            }}
           />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/60 pointer-events-none" />
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold uppercase tracking-wider mb-4 backdrop-blur-md shadow-sm">
-            <ShieldCheck className="w-4 h-4 text-amber-400" />
-            <span>Cámara Gastronómica del Estado Mérida &bull; Registro Oficial 2026</span>
-          </div>
+          <span className="inline-block text-[11px] font-bold uppercase tracking-[0.22em] text-[#C85A32] mb-2">
+            Cámara Gastronómica del Estado Mérida &bull; Registro Oficial 2026
+          </span>
 
-          <h1 className="font-serif text-3xl sm:text-5xl md:text-6xl font-black text-white uppercase tracking-tight leading-tight max-w-4xl mx-auto">
-            Directorio Oficial de Agremiados
+          <h1 className="font-playfair text-3xl sm:text-5xl font-bold text-[#1E1C1A] tracking-tight leading-tight max-w-4xl mx-auto">
+            Directorio Oficial de <span className="italic font-normal text-[#C85A32]">Agremiados</span>
           </h1>
 
-          <p className="font-sans text-sm sm:text-base md:text-lg text-slate-300 max-w-3xl mx-auto mt-4 leading-relaxed">
+          <p className="font-sans text-xs sm:text-sm md:text-base text-[#5C554E] max-w-3xl mx-auto mt-3 leading-relaxed">
             Nómina pública de restaurantes, cafeterías de especialidad, bistrós, marcas y empresas productoras certificadas que integran el ecosistema culinario formal de Mérida.
           </p>
 
-          {/* Quick Metrics */}
-          <div className="mt-8 pt-6 border-t border-white/10 max-w-3xl mx-auto grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
-              <span className="font-serif font-black text-2xl sm:text-3xl text-amber-400 block">
-                {restaurants.length || 17}
+          {/* Clean Editorial Metrics */}
+          <div className="mt-8 pt-6 border-t border-[#EAE3D5] max-w-2xl mx-auto flex flex-wrap items-center justify-center gap-8 sm:gap-12">
+            <div>
+              <span className="font-playfair font-bold text-2xl sm:text-3xl text-[#1E1C1A] block">
+                {restaurants.length || 17}+
               </span>
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <span className="text-[11px] font-medium text-[#7A7168]">
                 Marcas Agremiadas
               </span>
             </div>
-            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
-              <span className="font-serif font-black text-2xl sm:text-3xl text-emerald-400 block">
+            <div className="h-8 w-px bg-[#DED5C5]" />
+            <div>
+              <span className="font-playfair font-bold text-2xl sm:text-3xl text-[#1E1C1A] block">
                 100%
               </span>
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <span className="text-[11px] font-medium text-[#7A7168]">
                 Formalidad Verificada
               </span>
             </div>
-            <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
-              <span className="font-serif font-black text-2xl sm:text-3xl text-sky-400 block">
-                AAA
+            <div className="h-8 w-px bg-[#DED5C5]" />
+            <div>
+              <span className="font-playfair font-bold text-2xl sm:text-3xl text-[#C85A32] block">
+                Mérida
               </span>
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                Estándar Calidad CGEM
+              <span className="text-[11px] font-medium text-[#7A7168]">
+                Identidad Regional
               </span>
             </div>
           </div>
@@ -367,20 +374,12 @@ export function DirectoryAgremiadosSection({
               </select>
             </div>
 
-            {/* Checkbox Solo Solventes Activos */}
+            {/* Estado Agremiado Verificado */}
             <div className="md:col-span-3 flex items-center justify-end">
-              <label className="inline-flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-700 bg-slate-50 hover:bg-amber-50/50 px-3 py-2 rounded-xl border border-slate-200 transition-colors w-full sm:w-auto justify-center sm:justify-start">
-                <input 
-                  type="checkbox"
-                  checked={onlySolvent}
-                  onChange={(e) => setOnlySolvent(e.target.checked)}
-                  className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 w-3.5 h-3.5"
-                />
-                <span className="flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Solo Solventes Activos</span>
-                </span>
-              </label>
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#C85A32] bg-[#FAF7F2] px-3.5 py-2 rounded-xl border border-[#EAE3D5]">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#C85A32]" />
+                <span>Miembro Oficial CGEM</span>
+              </span>
             </div>
 
           </div>
@@ -441,25 +440,13 @@ export function DirectoryAgremiadosSection({
 
                     {/* Placa Superior Izquierda: Código Oficial CGM */}
                     <div className="absolute top-3 left-3">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-950/85 backdrop-blur-md text-amber-300 border border-amber-500/50 text-[10px] font-black uppercase tracking-wider shadow-sm">
-                        <Award className="w-3 h-3 text-amber-400" />
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/95 backdrop-blur-md text-[#1E1C1A] border border-[#EAE3D5] text-[10px] font-bold uppercase tracking-wider shadow-sm">
+                        <Award className="w-3 h-3 text-[#C85A32]" />
                         <span>{code}</span>
                       </span>
                     </div>
 
-                    {/* Placa Superior Derecha: Solvencia */}
-                    <div className="absolute top-3 right-3">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm backdrop-blur-md ${
-                        isSolvent 
-                          ? 'bg-emerald-600/90 text-white border border-emerald-400/60' 
-                          : 'bg-amber-600/90 text-white border border-amber-400/60'
-                      }`}>
-                        <CheckCircle2 className="w-3 h-3" />
-                        <span>{isSolvent ? 'Solvente' : 'En Trámite'}</span>
-                      </span>
-                    </div>
-
-                    {/* Icono Central de Pin Georreferenciado (Inspirado en el mockup del usuario) */}
+                    {/* Icono Central de Pin Georreferenciado */}
                     <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-10">
                       <div className="w-10 h-10 rounded-full bg-white text-emerald-600 flex items-center justify-center shadow-lg border-2 border-emerald-500 group-hover:scale-110 transition-transform">
                         <MapPin className="w-5 h-5 fill-emerald-600 text-emerald-600" />

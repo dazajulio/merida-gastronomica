@@ -55,36 +55,35 @@ export function TouristServices({ t }) {
   return (
     <section className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 animate-fadeIn">
       
-      {/* Header */}
+      {/* Warm Editorial Header */}
       <div className="text-center max-w-3xl mx-auto mb-10">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold mb-3 shadow-sm">
-          <Compass className="w-4 h-4 text-amber-600" />
-          <span>Concierge & Convenios Certificados</span>
-        </div>
-        <h2 className="font-serif text-3xl sm:text-5xl font-bold text-slate-900 tracking-tight">
-          Vinculaciones Turísticas & Servicios Oficiales
+        <span className="inline-block text-[11px] font-bold uppercase tracking-[0.22em] text-[#C85A32] mb-2">
+          Concierge &amp; Convenios Certificados
+        </span>
+        <h2 className="font-playfair text-3xl sm:text-5xl font-bold text-[#1E1C1A] tracking-tight leading-tight">
+          Vinculaciones Turísticas &amp; <span className="italic font-normal text-[#C85A32]">Servicios Oficiales</span>
         </h2>
-        <p className="mt-3 text-slate-600 text-xs sm:text-sm max-w-2xl mx-auto">
+        <p className="mt-3 text-[#5C554E] text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed">
           Alianzas estratégicas, operadores turísticos certificados, traslados y hospitalidad avalada por la Cámara Gastronómica del Estado Mérida.
         </p>
       </div>
 
-      {/* Services Grid or Institutional Empty Notice */}
+      {/* Services Grid or Warm Editorial Notice */}
       {services.length === 0 ? (
-        <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-amber-950 text-white rounded-3xl p-8 sm:p-14 border border-amber-500/30 shadow-2xl text-center max-w-3xl mx-auto">
-          <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center mx-auto mb-5 text-amber-400 shadow-lg">
+        <div className="bg-white text-[#1E1C1A] rounded-[2rem] p-8 sm:p-14 border border-[#EAE3D5] shadow-2xs text-center max-w-3xl mx-auto">
+          <div className="w-16 h-16 rounded-2xl bg-[#FAF3EB] border border-[#EAE3D5] flex items-center justify-center mx-auto mb-5 text-[#C85A32]">
             <ShieldCheck className="w-8 h-8" />
           </div>
           
-          <span className="inline-block px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-[11px] font-bold uppercase tracking-wider mb-3">
+          <span className="inline-block px-3.5 py-1 rounded-full bg-[#FAF3EB] text-[#C85A32] border border-[#EAE3D5] text-[11px] font-bold uppercase tracking-wider mb-3">
             Homologación en Curso • 2026 - 2027
           </span>
 
-          <h3 className="font-serif text-2xl sm:text-3xl font-bold text-white mb-3">
-            Certificación de Vinculaciones Turísticas
+          <h3 className="font-playfair text-2xl sm:text-3xl font-bold text-[#1E1C1A] mb-3">
+            Certificación de Vinculaciones <span className="italic font-normal text-[#C85A32]">Turísticas</span>
           </h3>
 
-          <p className="text-xs sm:text-sm text-slate-300 max-w-xl mx-auto leading-relaxed mb-6 font-light">
+          <p className="text-xs sm:text-sm text-[#5C554E] max-w-xl mx-auto leading-relaxed mb-6">
             Actualmente la Presidencia y la Dirección de la Cámara Gastronómica del Estado Mérida se encuentran en fase de homologación técnica y suscripción de convenios oficiales con operadores de transporte, hotelería y actividades turísticas de élite.
           </p>
 
@@ -93,7 +92,7 @@ export function TouristServices({ t }) {
               href="https://wa.me/584148817137?text=Hola,%20deseo%20información%20sobre%20convenios%20y%20vinculaciones%20turísticas%20con%20la%20Cámara%20Gastronómica%20de%20Mérida"
               target="_blank"
               rel="noopener noreferrer"
-              className="py-3 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-serif font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all"
+              className="py-3 px-6 rounded-full bg-[#C85A32] hover:bg-[#B04B26] text-white font-sans font-bold text-xs flex items-center gap-2 shadow-sm transition-all"
             >
               <MessageCircle className="w-4 h-4" />
               <span>Contactar a la Dirección de Turismo</span>
