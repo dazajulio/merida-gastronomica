@@ -525,9 +525,8 @@ export const INITIAL_DIRECTORY_DATA = [
     observaciones: "Convenio Exclusivo: Grupo El Valle te Conecta. Sector: La Joya, El Valle. Cuota preferencial: $7/mes. Ref Pago Móvil: 413713 (Monto Bs: 6.224,79).",
     created_at: "2026-11-14 03:42:21+00",
     updated_at: "2026-11-14 03:42:21+00",
-    foto_portada: "/images/afiliados/bonavita-bistro-4.jpg",
+    foto_portada: "/images/afiliados/bonavita-bistro-1.jpg",
     fotos_galeria: [
-      "/images/afiliados/bonavita-bistro-4.jpg",
       "/images/afiliados/bonavita-bistro-1.jpg",
       "/images/afiliados/bonavita-bistro-2.jpg",
       "/images/afiliados/bonavita-bistro-3.jpg"
@@ -560,6 +559,7 @@ export const INITIAL_DIRECTORY_DATA = [
     foto_portada: "/images/afiliados/piur-3.jpg",
     fotos_galeria: [
       "/images/afiliados/piur-3.jpg",
+      "/images/afiliados/piur-5.jpg",
       "/images/afiliados/piur-1.jpg",
       "/images/afiliados/piur-2.jpg",
       "/images/afiliados/piur-4.jpg"
