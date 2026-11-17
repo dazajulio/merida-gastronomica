@@ -444,8 +444,14 @@ export const INITIAL_DIRECTORY_DATA = [
     observaciones: "Chía Resto Bar es la terraza gastronómica de Mérida en el Teleférico Mukumbarí que fusiona la Sierra Nevada con la gastronomía andina contemporánea e internacional.",
     created_at: "2026-10-23 19:05:53.939903+00",
     updated_at: "2026-10-27 00:06:52.736577+00",
-    foto_portada: null,
-    fotos_galeria: [],
+    foto_portada: "/images/afiliados/chia-restobar-5.jpg",
+    fotos_galeria: [
+      "/images/afiliados/chia-restobar-5.jpg",
+      "/images/afiliados/chia-restobar-2.jpg",
+      "/images/afiliados/chia-restobar-3.jpg",
+      "/images/afiliados/chia-restobar-1.jpg",
+      "/images/afiliados/chia-restobar-4.jpg"
+    ],
     destacado_portada: false,
     visible_en_guia: true
   },
