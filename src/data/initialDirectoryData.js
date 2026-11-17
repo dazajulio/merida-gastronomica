@@ -124,7 +124,7 @@ export const INITIAL_DIRECTORY_DATA = [
     email: "leonardo.andre.maldonado@gmail.com",
     direccion_completa: "sector las heroinas, Sector Las Heroínas / Paredes",
     municipio: "Libertador (Mérida Ciudad)",
-    instagram: "@lacasadelvalle",
+    instagram: "",
     sitio_web: "",
     numero_empleados: 2,
     estado_solvencia: "En Trámite (Verificación Pago)",
@@ -132,7 +132,7 @@ export const INITIAL_DIRECTORY_DATA = [
     monto_cuota_mensual: 10.00,
     fecha_registro: "2026-10-08 19:07:20.351+00",
     fecha_vencimiento: null,
-    observaciones: "Registro Web Público. Ref: 000000580971 (BOD / 100% Banco / Otro). Tel. Pagador: 04247602051. Descripción: La Casa Del Valle. Monto Bs: 26.241,96",
+    observaciones: "Registro Web Público. Ref: 000000580971 (BOD / 100% Banco / Otro). Tel. Pagador: 04247602051. Monto Bs: 26.241,96",
     created_at: "2026-10-08 19:07:22.097184+00",
     updated_at: "2026-10-27 00:09:40.156379+00",
     foto_portada: null,
@@ -162,8 +162,14 @@ export const INITIAL_DIRECTORY_DATA = [
     observaciones: "Convenio Exclusivo: Grupo El Valle te Conecta. Sector: Carretera vía El Valle km 2.5 Sector La Cuchilla. Cuota preferencial: $7/mes. RIF: J-403437408.",
     created_at: "2026-10-08 18:54:25.444892+00",
     updated_at: "2026-10-27 00:09:58.104822+00",
-    foto_portada: null,
-    fotos_galeria: [],
+    foto_portada: "/images/afiliados/la-casa-del-valle-4.jpg",
+    fotos_galeria: [
+      "/images/afiliados/la-casa-del-valle-4.jpg",
+      "/images/afiliados/la-casa-del-valle-3.jpg",
+      "/images/afiliados/la-casa-del-valle-2.jpg",
+      "/images/afiliados/la-casa-del-valle-1.jpg",
+      "/images/afiliados/la-casa-del-valle-5.jpg"
+    ],
     destacado_portada: true,
     visible_en_guia: true
   },
@@ -519,8 +525,13 @@ export const INITIAL_DIRECTORY_DATA = [
     observaciones: "Convenio Exclusivo: Grupo El Valle te Conecta. Sector: La Joya, El Valle. Cuota preferencial: $7/mes. Ref Pago Móvil: 413713 (Monto Bs: 6.224,79).",
     created_at: "2026-11-14 03:42:21+00",
     updated_at: "2026-11-14 03:42:21+00",
-    foto_portada: null,
-    fotos_galeria: [],
+    foto_portada: "/images/afiliados/bonavita-bistro-4.jpg",
+    fotos_galeria: [
+      "/images/afiliados/bonavita-bistro-4.jpg",
+      "/images/afiliados/bonavita-bistro-1.jpg",
+      "/images/afiliados/bonavita-bistro-2.jpg",
+      "/images/afiliados/bonavita-bistro-3.jpg"
+    ],
     destacado_portada: true,
     visible_en_guia: true
   },
@@ -546,8 +557,13 @@ export const INITIAL_DIRECTORY_DATA = [
     observaciones: "Convenio Exclusivo: Grupo El Valle te Conecta. Sector: La Carbonera / Posada La Chapeta. Cuota preferencial: $7/mes. Ref BANFANB: 822831 (Bs. 6.227,03 - 02/11/2026). Postres artesanales con kéfir probiótico.",
     created_at: "2026-11-14 03:54:28+00",
     updated_at: "2026-11-14 03:54:28+00",
-    foto_portada: null,
-    fotos_galeria: [],
+    foto_portada: "/images/afiliados/piur-3.jpg",
+    fotos_galeria: [
+      "/images/afiliados/piur-3.jpg",
+      "/images/afiliados/piur-1.jpg",
+      "/images/afiliados/piur-2.jpg",
+      "/images/afiliados/piur-4.jpg"
+    ],
     destacado_portada: true,
     visible_en_guia: true
   },

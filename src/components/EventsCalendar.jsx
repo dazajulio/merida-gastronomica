@@ -91,6 +91,17 @@ export function EventsCalendar({ t }) {
     return selectedMonth === 'all' || event.month === selectedMonth;
   });
 
+  const isFreeOpenEvent = (event) => {
+    if (!event) return false;
+    if (event.hideRsvpButton) return true;
+    if (event.accessType === 'free') return true;
+    if (Array.isArray(event.priceTiers) && event.priceTiers.length > 0) {
+      return event.priceTiers.every((tier) => tier.isFree || Number(tier.priceUSD) === 0);
+    }
+    const ticketText = String(event.ticketPrice || '').toLowerCase();
+    return ticketText.includes('libre') || ticketText.includes('gratuita') || ticketText === 'gratis';
+  };
+
   const handleOpenRsvp = (event) => {
     setRsvpModalEvent(event);
     
@@ -272,11 +283,6 @@ export function EventsCalendar({ t }) {
                   <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-600 text-white shadow-sm font-sans">
                     {event.category}
                   </span>
-                  {event.imageAspect === '9:16' && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-900/80 text-amber-400 border border-amber-400/30">
-                      Flyer 9:16
-                    </span>
-                  )}
                 </div>
 
                 {/* Lightbox Zoom Button for Flyer */}
@@ -358,7 +364,7 @@ export function EventsCalendar({ t }) {
                     </span>
                   </div>
 
-                  {!event.hideRsvpButton && (
+                  {!isFreeOpenEvent(event) && (
                     <button
                       onClick={() => handleOpenRsvp(event)}
                       className="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all active:scale-95 shrink-0"
@@ -618,7 +624,7 @@ export function EventsCalendar({ t }) {
               <p className="text-xs text-amber-400 font-medium">
                 {flyerPreviewEvent.date} — {flyerPreviewEvent.location}
               </p>
-              {!flyerPreviewEvent.hideRsvpButton && (
+              {!isFreeOpenEvent(flyerPreviewEvent) && (
                 <div className="pt-2">
                   <button
                     type="button"

@@ -237,6 +237,27 @@ export async function fetchLiveRestaurants() {
   // Fallback garantizado a INITIAL_DIRECTORY_DATA si no hay datos en Supabase ni en localStorage
   if (!Array.isArray(directoryMembers) || directoryMembers.length === 0) {
     directoryMembers = [...INITIAL_DIRECTORY_DATA];
+  } else {
+    // Enriquecer fotos locales curadas cuando el registro en Supabase aún no tiene portada/galería
+    const initialByCode = new Map(
+      INITIAL_DIRECTORY_DATA.filter(i => i.codigo_afiliado).map(i => [i.codigo_afiliado.toLowerCase().trim(), i])
+    );
+    const initialByName = new Map(
+      INITIAL_DIRECTORY_DATA.map(i => [normalizeEstablishmentName(i.nombre_establecimiento), i])
+    );
+    directoryMembers = directoryMembers.map(m => {
+      const codeKey = (m.codigo_afiliado || '').toLowerCase().trim();
+      const nameKey = normalizeEstablishmentName(m.nombre_establecimiento);
+      const seed = (codeKey && initialByCode.get(codeKey)) || initialByName.get(nameKey);
+      if (!seed) return m;
+
+      const hasGallery = Array.isArray(m.fotos_galeria) && m.fotos_galeria.length > 0;
+      return {
+        ...m,
+        foto_portada: m.foto_portada || seed.foto_portada || null,
+        fotos_galeria: hasGallery ? m.fotos_galeria : (Array.isArray(seed.fotos_galeria) ? seed.fotos_galeria : [])
+      };
+    });
   }
 
   // 3. Obtener perfil enriquecido guardado localmente si existe

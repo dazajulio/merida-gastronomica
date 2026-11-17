@@ -75,24 +75,22 @@ export function ElValleTouristPage({
     if (!Array.isArray(restaurants)) return [];
     return restaurants.filter((r) => {
       const text = [
-        r.id,
         r.codigo_afiliado,
         r.category,
         r.categoria_negocio,
         r.zone,
         r.municipio,
         r.address,
-        r.description,
-        r.observaciones,
-        r.email,
-        r.eje,
+        r.direccion_completa,
       ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
 
       return (
-        text.includes('valle') ||
+        text.includes('el valle') ||
+        text.includes('valle grande') ||
+        text.includes('valle-') ||
         text.includes('culata') ||
         text.includes('chapeta') ||
         text.includes('carbonera') ||

@@ -82,6 +82,7 @@ import {
 import { BOARD_MEMBERS_DATA, INITIAL_BOARD_AGENDA_DATA, INITIAL_BOARD_COMPLETED_DATA } from '../data/boardData';
 import { LEGAL_DATA } from '../data/legalData';
 import { INITIAL_DIRECTORY_DATA } from '../data/initialDirectoryData';
+import { EVENTS_DATA } from '../data/eventsData';
 import { TreasuryManagementModule } from './TreasuryManagementModule';
 import { OfficialCommunicationsModule } from './OfficialCommunicationsModule';
 import { sendBoardAttendanceEmail, sendAffiliateWelcomeEmail } from '../lib/emailService';
@@ -784,17 +785,30 @@ export function BoardAdminPortal({ t, onNavigate }) {
   // =========================================================================
   // 3. OFFICIAL PUBLIC EVENTS & FESTIVALS MANAGEMENT (PRESIDENCY)
   // =========================================================================
+  const mergeOfficialEventsWithCurated = (incoming = []) => {
+    const map = new Map();
+    (Array.isArray(EVENTS_DATA) ? EVENTS_DATA : []).forEach(ev => {
+      if (ev && ev.id) map.set(ev.id, ev);
+    });
+    (Array.isArray(incoming) ? incoming : []).forEach(ev => {
+      if (ev && ev.id) map.set(ev.id, ev);
+    });
+    return Array.from(map.values());
+  };
+
   const [officialEvents, setOfficialEvents] = useState(() => {
     try {
       const saved = localStorage.getItem('cgem_official_events');
-      if (saved) return JSON.parse(saved);
+      if (saved) return mergeOfficialEventsWithCurated(JSON.parse(saved));
     } catch (e) {}
-    return [];
+    return mergeOfficialEventsWithCurated([]);
   });
 
   useEffect(() => {
     fetchLiveEvents().then(data => {
-      if (Array.isArray(data) && data.length > 0) setOfficialEvents(data);
+      if (Array.isArray(data) && data.length > 0) {
+        setOfficialEvents(mergeOfficialEventsWithCurated(data));
+      }
     });
   }, []);
 
@@ -5178,11 +5192,13 @@ export function BoardAdminPortal({ t, onNavigate }) {
                               {event.month}
                             </span>
                           </div>
-                          <div className="absolute top-3 right-3">
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/90 text-slate-900 shadow-sm">
-                              {event.badge || 'Flyer 9:16'}
-                            </span>
-                          </div>
+                          {event.badge && (
+                            <div className="absolute top-3 right-3">
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/90 text-slate-900 shadow-sm">
+                                {event.badge}
+                              </span>
+                            </div>
+                          )}
                           <div className="absolute bottom-2.5 left-3">
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-600 text-white shadow-xs">
                               {event.category}
