@@ -653,6 +653,12 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
     }
   };
 
+  // Calendar View Filters & Navigation
+  const [selectedYear, setSelectedYear] = useState('all');
+  const [selectedMonth, setSelectedMonth] = useState('all'); // 'all' or 1..12
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
+  const [viewMode, setViewMode] = useState('dashboard'); // dashboard | timeline | directorio | completed_report | courses_management | events_management | board_list | legal_resources
+
   useEffect(() => {
     if (canAccessDirectory) {
       fetchDirectoryFromSupabase();
@@ -661,12 +667,6 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
       if (Array.isArray(p)) setLivePaymentsForStats(p);
     });
   }, [canAccessDirectory, viewMode]);
-
-  // Calendar View Filters & Navigation
-  const [selectedYear, setSelectedYear] = useState('all');
-  const [selectedMonth, setSelectedMonth] = useState('all'); // 'all' or 1..12
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('dashboard'); // dashboard | timeline | directorio | completed_report | courses_management | events_management | board_list | legal_resources
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [calendarViewDate, setCalendarViewDate] = useState(() => new Date(2026, 9, 26));
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(() => 26);
