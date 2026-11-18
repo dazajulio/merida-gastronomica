@@ -2176,6 +2176,7 @@ export function AffiliateDashboard({
   // VIEW 2: REGISTRATION WIZARD (MOBILE-FIRST DEDICATED + DESKTOP)
   // ==========================================
   if (viewMode === 'register') {
+    const currentTier = getBusinessTier(regData.businessType);
     const mobileCopy = (txt) => {
       if (navigator?.clipboard) {
         navigator.clipboard.writeText(txt);
