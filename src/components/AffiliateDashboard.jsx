@@ -1437,7 +1437,7 @@ export function AffiliateDashboard({
           referencia_pago_movil: courseRegData.referenceNumber,
           monto_bs: courseRegData.amountPaidBs,
           created_at: new Date().toISOString()
-        }]).catch(() => {});
+        }]).then(() => {}, () => {});
       }
 
       setCourseRegSuccess(true);
@@ -1734,129 +1734,162 @@ export function AffiliateDashboard({
       }
       
       setIsSubmittingReg(true);
-      const newCode = `CGM-2026-${String(Math.floor(Math.random() * 899) + 101)}`;
-      const tierInfo = getBusinessTier(regData.businessType);
-      
-      const newDirectoryEntry = {
-        codigo_afiliado: newCode,
-        nombre_establecimiento: regData.restaurantName,
-        categoria_negocio: regData.category || tierInfo.name,
-        representante_legal: regData.ownerName,
-        rif_cedula: `${regData.rifType}${regData.rifNumber}`,
-        telefono: regData.phone,
-        email: regData.email,
-        direccion_completa: `${regData.address || ''}${regData.cityTown ? `, ${regData.cityTown}` : ''}`,
-        municipio: currentMunicipioObj?.name || 'Libertador',
-        instagram: regData.instagram || '',
-        sitio_web: '',
-        numero_empleados: regData.businessType?.includes('20 o más') ? 20 : regData.businessType?.includes('5 y 19') ? 8 : 2,
-        estado_solvencia: 'En Trámite (Verificación Pago)',
-        monto_inscripcion: tierInfo.inscriptionUsd || 30,
-        monto_cuota_mensual: tierInfo.monthlyUsd || 10,
-        fecha_registro: new Date().toISOString(),
-        observaciones: regData.specialty ? `${regData.specialty}. Establecimiento afiliado a la Cámara Gastronómica del Estado Mérida.` : 'Establecimiento gastronómico afiliado a la Cámara Gastronómica del Estado Mérida.'
-      };
-
       try {
-        if (supabase) {
-          await supabase.from('directorio_agremiados').insert([newDirectoryEntry]);
-          await supabase.from('solicitudes_afiliacion').insert([
-            {
-              codigo_afiliado: newCode,
-              tipo_negocio: regData.businessType,
-              nombre_comercial: regData.restaurantName,
-              rif: `${regData.rifType}${regData.rifNumber}`,
-              titular_propietario: regData.ownerName,
-              telefono: regData.phone,
-              correo: regData.email,
-              municipio: currentMunicipioObj.name,
-              ciudad_poblacion: regData.cityTown,
-              direccion: regData.address,
-              categoria: regData.category,
-              especialidad: regData.specialty,
-              instagram: regData.instagram,
-              banco_pago_movil: regData.issuingBank,
-              telefono_pagador: regData.payerPhone,
-              referencia_pago_movil: regData.referenceNumber,
-              monto_bs: regData.amountPaidBs,
-              estado: 'pago_en_verificacion',
-              created_at: new Date().toISOString()
-            }
-          ]).catch(() => {});
+        const newCode = `CGM-2026-${String(Math.floor(Math.random() * 899) + 101)}`;
+        const tierInfo = getBusinessTier(regData.businessType);
+        const municipioName = currentMunicipioObj?.name || 'Libertador';
+        const effectiveRate = bcvRate || 874.73;
+        const computedBs = regData.amountPaidBs || (tierInfo.inscriptionUsd * effectiveRate).toFixed(2);
+        
+        const newDirectoryEntry = {
+          codigo_afiliado: newCode,
+          nombre_establecimiento: regData.restaurantName,
+          categoria_negocio: regData.category || tierInfo.name,
+          representante_legal: regData.ownerName,
+          rif_cedula: `${regData.rifType}${regData.rifNumber}`,
+          telefono: regData.phone,
+          email: regData.email,
+          direccion_completa: `${regData.address || ''}${regData.cityTown ? `, ${regData.cityTown}` : ''}`,
+          municipio: municipioName,
+          instagram: regData.instagram || '',
+          sitio_web: '',
+          numero_empleados: regData.businessType?.includes('20 o más') ? 20 : regData.businessType?.includes('5 y 19') ? 8 : 2,
+          estado_solvencia: 'En Trámite (Verificación Pago)',
+          monto_inscripcion: tierInfo.inscriptionUsd || 30,
+          monto_cuota_mensual: tierInfo.monthlyUsd || 10,
+          fecha_registro: new Date().toISOString(),
+          observaciones: regData.specialty ? `${regData.specialty}. Establecimiento afiliado a la Cámara Gastronómica del Estado Mérida.` : 'Establecimiento gastronómico afiliado a la Cámara Gastronómica del Estado Mérida.'
+        };
+
+        try {
+          if (supabase) {
+            await supabase.from('directorio_agremiados').insert([newDirectoryEntry]).then(() => {}, () => {});
+            await supabase.from('solicitudes_afiliacion').insert([
+              {
+                codigo_afiliado: newCode,
+                tipo_negocio: regData.businessType,
+                nombre_comercial: regData.restaurantName,
+                rif: `${regData.rifType}${regData.rifNumber}`,
+                titular_propietario: regData.ownerName,
+                telefono: regData.phone,
+                correo: regData.email,
+                municipio: municipioName,
+                ciudad_poblacion: regData.cityTown,
+                direccion: regData.address,
+                categoria: regData.category,
+                especialidad: regData.specialty,
+                instagram: regData.instagram,
+                banco_pago_movil: regData.issuingBank,
+                telefono_pagador: regData.payerPhone || regData.phone,
+                referencia_pago_movil: regData.referenceNumber,
+                monto_bs: computedBs,
+                estado: 'pago_en_verificacion',
+                created_at: new Date().toISOString()
+              }
+            ]).then(() => {}, () => {});
+          }
+        } catch (err) {
+          console.warn('Supabase registration sync notice:', err);
         }
-      } catch (err) {
-        console.warn('Supabase registration sync notice:', err);
-      }
 
-      // Guardar clave de seguridad del nuevo agremiado de inmediato en Supabase Vault
-      if (regData.password) {
-        saveUserCredentialsToSupabase(
-          newCode,
-          regData.password,
-          [regData.email, `${regData.rifType}${regData.rifNumber}`]
-        ).catch(e => console.warn('Aviso guardando clave en vault:', e));
-      }
+        // Registrar pago en Tesorería para validación inmediata
+        submitPaymentRecord({
+          codigo_afiliado: newCode,
+          nombre_establecimiento: regData.restaurantName,
+          representante_legal: regData.ownerName,
+          rif_cedula: `${regData.rifType}${regData.rifNumber}`,
+          telefono: regData.phone,
+          email: regData.email,
+          concepto: 'Inscripción + 1er Mes de Membresía',
+          periodo_mes: 'Noviembre 2026',
+          monto_inscripcion_usd: Math.max(0, (tierInfo.inscriptionUsd || 30) - (tierInfo.monthlyUsd || 10)),
+          monto_cuota_mes_usd: tierInfo.monthlyUsd || 10,
+          monto_usd: tierInfo.inscriptionUsd || 30,
+          monto_bs: parseFloat(String(computedBs).replace(/\./g, '').replace(',', '.')) || (tierInfo.inscriptionUsd * effectiveRate),
+          tasa_bcv: effectiveRate,
+          metodo_pago: 'pago_movil',
+          banco_emisor: regData.issuingBank || 'Banco Provincial',
+          banco_receptor: 'Banco Provincial (0108)',
+          referencia: regData.referenceNumber,
+          telefono_pagador: regData.payerPhone || regData.phone,
+          estado: 'pendiente',
+          observaciones: 'Registro Web Público - Paso 3'
+        }).catch(() => {});
 
-      try {
-        const existingLocal = JSON.parse(localStorage.getItem('cgem_directorio_agremiados') || '[]');
-        const updatedList = [newDirectoryEntry, ...existingLocal.filter(item => item.codigo_afiliado !== newCode)];
-        localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
-      } catch (e) {}
+        // Guardar clave de seguridad del nuevo agremiado de inmediato en Supabase Vault
+        if (regData.password) {
+          saveUserCredentialsToSupabase(
+            newCode,
+            regData.password,
+            [regData.email, `${regData.rifType}${regData.rifNumber}`]
+          ).catch(e => console.warn('Aviso guardando clave en vault:', e));
+        }
 
-      if (regData.email) {
-        sendAffiliateWelcomeEmail({
-          affiliateCode: newCode,
+        try {
+          const existingLocal = JSON.parse(localStorage.getItem('cgem_directorio_agremiados') || '[]');
+          const updatedList = [newDirectoryEntry, ...existingLocal.filter(item => item.codigo_afiliado !== newCode)];
+          localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updatedList));
+        } catch (e) {}
+
+        if (regData.email) {
+          sendAffiliateWelcomeEmail({
+            affiliateCode: newCode,
+            restaurantName: regData.restaurantName,
+            ownerName: regData.ownerName,
+            email: regData.email,
+            phone: regData.phone,
+            businessType: tierInfo.name,
+            category: regData.category,
+            referenceNumber: regData.referenceNumber,
+            amountBs: computedBs,
+          }).catch(err => console.warn('Error al enviar correo de bienvenida con Resend:', err));
+        }
+
+        setRegData(prev => ({ ...prev, generatedAffiliateCode: newCode }));
+        
+        setActiveUser({
+          id: newCode,
           restaurantName: regData.restaurantName,
           ownerName: regData.ownerName,
-          email: regData.email,
-          phone: regData.phone,
-          businessType: tierInfo.name,
+          memberCategory: `${tierInfo.name} (Nuevo Agremiado 2026)`,
+          businessType: regData.businessType,
+          registrationDate: "Noviembre 2026",
+          expiryDate: "Diciembre 2026",
+          status: "Activo (Pago Móvil en Verificación)",
+          monthlyDues: `$${tierInfo.monthlyUsd}.00`,
+          lastPaymentDate: "Hoy",
+          certificateCode: `${newCode}-PROV`,
+          stats: {
+            profileViewsMonth: 0,
+            reservationsMonth: 0,
+            chamberRating: "En Proceso de Verificación"
+          }
+        });
+
+        // Crear ficha limpia exclusiva para este nuevo agremiado
+        const newBlankProfile = createBlankBusinessProfile({
+          id: newCode,
+          restaurantName: regData.restaurantName,
+          ownerName: regData.ownerName,
           category: regData.category,
-          referenceNumber: regData.referenceNumber,
-          amountBs: regData.amountPaidBs,
-        }).catch(err => console.warn('Error al enviar correo de bienvenida con Resend:', err));
+          memberCategory: tierInfo.name,
+          phone: regData.phone,
+          email: regData.email,
+          location: `${municipioName} - ${regData.cityTown || regData.town || 'Mérida'}`,
+          instagram: regData.instagram
+        });
+        setBusinessProfile(newBlankProfile);
+        try {
+          localStorage.setItem(`cgem_biz_profile_${newCode}`, JSON.stringify(newBlankProfile));
+        } catch (e) {}
+
+        setRegStep(4);
+      } catch (outerErr) {
+        console.error('Error en Paso 3 de afiliación:', outerErr);
+        alert('Ocurrió un error procesando tu registro. Por favor verifica tu conexión e intenta nuevamente.');
+      } finally {
+        setIsSubmittingReg(false);
       }
-
-      setRegData(prev => ({ ...prev, generatedAffiliateCode: newCode }));
-      
-      setActiveUser({
-        id: newCode,
-        restaurantName: regData.restaurantName,
-        ownerName: regData.ownerName,
-        memberCategory: `${tierInfo.name} (Nuevo Agremiado 2026)`,
-        businessType: regData.businessType,
-        registrationDate: "Octubre 2026",
-        expiryDate: "Diciembre 2026",
-        status: "Activo (Pago Móvil en Verificación)",
-        monthlyDues: `$${tierInfo.monthlyUsd}.00`,
-        lastPaymentDate: "Hoy",
-        certificateCode: `${newCode}-PROV`,
-        stats: {
-          profileViewsMonth: 0,
-          reservationsMonth: 0,
-          chamberRating: "En Proceso de Verificación"
-        }
-      });
-
-      // Crear ficha limpia exclusiva para este nuevo agremiado
-      const newBlankProfile = createBlankBusinessProfile({
-        id: newCode,
-        restaurantName: regData.restaurantName,
-        ownerName: regData.ownerName,
-        category: regData.category,
-        memberCategory: tierInfo.name,
-        phone: regData.phone,
-        email: regData.email,
-        location: `${currentMunicipioObj.name} - ${regData.cityTown || regData.town || 'Mérida'}`,
-        instagram: regData.instagram
-      });
-      setBusinessProfile(newBlankProfile);
-      try {
-        localStorage.setItem(`cgem_biz_profile_${newCode}`, JSON.stringify(newBlankProfile));
-      } catch (e) {}
-
-      setIsSubmittingReg(false);
-      setRegStep(4);
     }
   };
 
@@ -1886,7 +1919,7 @@ export function AffiliateDashboard({
             mensaje: contactMessage,
             fecha: new Date().toISOString()
           }
-        ]).catch(() => {});
+        ]).then(() => {}, () => {});
       }
     } catch (err) {
       console.warn('Direct board message notice:', err);
@@ -2412,14 +2445,16 @@ export function AffiliateDashboard({
 
                 <div className="p-3 rounded-xl bg-white border border-[#C85A32]/30 flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] text-[#7A7168] block">Monto a Transferir (Tasa BCV: {bcvRate})</span>
+                    <span className="text-[10px] text-[#7A7168] block">
+                      Monto a Transferir ({bcvRate ? `Tasa BCV: Bs. ${bcvRate.toFixed(2)}` : 'Tasa BCV referencial'})
+                    </span>
                     <span className="font-mono font-black text-base text-[#C85A32]">
-                      Bs. {(currentTier.inscriptionUsd * bcvRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      Bs. {(currentTier.inscriptionUsd * (bcvRate || 874.73)).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                   <button
                     type="button"
-                    onClick={() => mobileCopy((currentTier.inscriptionUsd * bcvRate).toFixed(2))}
+                    onClick={() => mobileCopy((currentTier.inscriptionUsd * (bcvRate || 874.73)).toFixed(2))}
                     className="px-3 py-1.5 rounded-full bg-[#FAF3EB] text-[#C85A32] text-[11px] font-bold"
                   >
                     Copiar Bs
@@ -3001,7 +3036,7 @@ export function AffiliateDashboard({
             </h3>
 
             <p className="text-xs sm:text-sm text-slate-600 mt-2 max-w-lg mx-auto">
-              El establecimiento <strong>{regData.restaurantName}</strong> ha sido registrado satisfactoriamente en el municipio <strong>{currentMunicipioObj.name}</strong>. Se ha generado su expediente y se ha emitido el <strong>Correo Oficial de Bienvenida</strong>.
+              El establecimiento <strong>{regData.restaurantName}</strong> ha sido registrado satisfactoriamente en el municipio <strong>{currentMunicipioObj?.name || 'Libertador'}</strong>. Se ha generado su expediente y se ha emitido el <strong>Correo Oficial de Bienvenida</strong>.
             </p>
 
             <div className="my-6 p-4 rounded-2xl bg-slate-50 border border-slate-200 max-w-sm mx-auto">
