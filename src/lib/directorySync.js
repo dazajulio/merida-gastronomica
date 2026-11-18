@@ -289,7 +289,7 @@ export async function fetchLiveRestaurants() {
     }
   });
 
-  // Paso B: Cargar base inicial RESTAURANTS_DATA (Kaffia)
+  // Paso B: Cargar base inicial RESTAURANTS_DATA y fusionar fotos/datos en vivo desde Supabase
   RESTAURANTS_DATA.forEach(r => {
     const normName = normalizeEstablishmentName(r.name);
     const code = (r.certificateNumber || '').toLowerCase().trim();
@@ -300,6 +300,61 @@ export async function fetchLiveRestaurants() {
     }
 
     let finalObj = { ...r };
+
+    // Fusionar actualizaciones reales desde Supabase (fotos, portada, destacado, contacto)
+    const liveMatch = directoryMembers.find(m => {
+      const mCode = (m.codigo_afiliado || '').toLowerCase().trim();
+      const mName = normalizeEstablishmentName(m.nombre_establecimiento);
+      return (code && mCode === code) || mName === normName;
+    });
+
+    if (liveMatch) {
+      let liveGallery = [];
+      if (Array.isArray(liveMatch.fotos_galeria) && liveMatch.fotos_galeria.length > 0) {
+        liveGallery = liveMatch.fotos_galeria;
+      } else if (typeof liveMatch.fotos_galeria === 'string') {
+        try {
+          const parsed = JSON.parse(liveMatch.fotos_galeria);
+          if (Array.isArray(parsed)) liveGallery = parsed;
+        } catch (e) {
+          if (liveMatch.fotos_galeria.startsWith('http') || liveMatch.fotos_galeria.startsWith('data:')) {
+            liveGallery = [liveMatch.fotos_galeria];
+          }
+        }
+      }
+
+      if (liveMatch.foto_portada) {
+        finalObj.coverImage = liveMatch.foto_portada;
+        finalObj.foto_portada = liveMatch.foto_portada;
+      }
+      if (liveGallery.length > 0) {
+        finalObj.gallery = liveGallery;
+        finalObj.fotos_galeria = liveGallery;
+        if (!liveMatch.foto_portada) {
+          finalObj.coverImage = liveGallery[0];
+        }
+      }
+      if (typeof liveMatch.destacado_portada === 'boolean') {
+        finalObj.featured = liveMatch.destacado_portada;
+      }
+    }
+
+    // Fusionar ficha local específica de este código (ej. editada en Portal Afiliado / Modo Agremiado)
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const rawCode = liveMatch?.codigo_afiliado || r.certificateNumber;
+        if (rawCode) {
+          const specificSaved = localStorage.getItem(`cgem_biz_profile_${rawCode}`);
+          if (specificSaved) {
+            const parsedSpecific = JSON.parse(specificSaved);
+            if (parsedSpecific && typeof parsedSpecific === 'object') {
+              finalObj = { ...finalObj, ...parsedSpecific, id: finalObj.id };
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
     if (localBizProfile && (localBizProfile.id === r.id || normalizeEstablishmentName(localBizProfile.name) === normName)) {
       finalObj = { ...finalObj, ...localBizProfile };
     }
