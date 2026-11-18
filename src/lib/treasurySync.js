@@ -132,10 +132,90 @@ export const generateReceiptNumber = (existingPayments = []) => {
   return `REC-${currentYear}-${padNum}`;
 };
 
+const DISCARDED_VAULT_ID = 'board_meta::discarded_payments';
+const LOCAL_DISCARDED_KEY = 'cgem_discarded_payment_ids';
+
+function getLocalDiscardedPaymentIds() {
+  if (typeof localStorage === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(LOCAL_DISCARDED_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch (e) {
+    return new Set();
+  }
+}
+
+async function fetchDiscardedPaymentIds() {
+  const merged = getLocalDiscardedPaymentIds();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('eventos_oficiales')
+        .select('price_tiers')
+        .eq('id', DISCARDED_VAULT_ID)
+        .maybeSingle();
+
+      if (!error && data && Array.isArray(data.price_tiers) && Array.isArray(data.price_tiers[0])) {
+        data.price_tiers[0].forEach(id => {
+          if (id) merged.add(id);
+        });
+        if (typeof localStorage !== 'undefined') {
+          try {
+            localStorage.setItem(LOCAL_DISCARDED_KEY, JSON.stringify(Array.from(merged)));
+          } catch (e) {}
+        }
+      }
+    } catch (e) {
+      console.warn('Notice fetching discarded payments:', e);
+    }
+  }
+  return merged;
+}
+
+async function persistDiscardedPaymentId(paymentId) {
+  const merged = await fetchDiscardedPaymentIds();
+  merged.add(paymentId);
+  const idList = Array.from(merged);
+
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem(LOCAL_DISCARDED_KEY, JSON.stringify(idList));
+    } catch (e) {}
+  }
+
+  if (supabase) {
+    try {
+      await supabase
+        .from('eventos_oficiales')
+        .upsert({
+          id: DISCARDED_VAULT_ID,
+          title: 'CGEM Pagos Descartados de Tesorería',
+          date: '2026-01-01',
+          month: '1',
+          location: 'Mérida Cloud',
+          category: '__CGEM_BOARD_META__',
+          badge: 'Tesorería CGEM',
+          access_type: 'private',
+          price_tiers: [idList],
+          updated_at: new Date().toISOString(),
+        });
+    } catch (e) {
+      console.warn('Notice persisting discarded payment:', e);
+    }
+  }
+}
+
 // Obtener pagos desde Supabase o localStorage con auto-sincronización de registros reales
 export async function fetchLivePayments() {
   try {
-    let baseList = [...INITIAL_PAYMENTS].filter(p => p.codigo_afiliado !== 'CGM-2026-383');
+    const discardedIds = await fetchDiscardedPaymentIds();
+    const filterActive = (list) =>
+      (Array.isArray(list) ? list : []).filter(
+        p => p && p.codigo_afiliado !== 'CGM-2026-383' && !discardedIds.has(p.id) && p.estado !== 'descartado'
+      );
+
+    let baseList = filterActive(INITIAL_PAYMENTS);
 
     // 1. Intentar cargar desde Supabase directorio_agremiados & pagos_tesoreria
     if (supabase) {
@@ -146,7 +226,7 @@ export async function fetchLivePayments() {
           .order('fecha_pago', { ascending: false });
 
         if (!pagosErr && Array.isArray(pagosData) && pagosData.length > 0) {
-          const cleanPagos = pagosData.filter(p => p.codigo_afiliado !== 'CGM-2026-383');
+          const cleanPagos = filterActive(pagosData);
           localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(cleanPagos));
           return cleanPagos;
         }
@@ -158,7 +238,7 @@ export async function fetchLivePayments() {
 
         if (!dirErr && Array.isArray(dirData) && dirData.length > 0) {
           const cleanDir = dirData.filter(m => m.codigo_afiliado !== 'CGM-2026-383');
-          const mapped = cleanDir.map((m, idx) => parsePaymentFromMember(m, idx + 1));
+          const mapped = filterActive(cleanDir.map((m, idx) => parsePaymentFromMember(m, idx + 1)));
           localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(mapped));
           return mapped;
         }
@@ -172,8 +252,7 @@ export async function fetchLivePayments() {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const cleanSaved = parsed.filter(p => p.codigo_afiliado !== 'CGM-2026-383');
-        return cleanSaved;
+        return filterActive(parsed);
       }
     }
 
@@ -347,6 +426,8 @@ export async function rejectPaymentRecord(paymentId, motivo = '', conciliatorNam
 // Eliminar / descartar un registro de pago (duplicados, intentos fallidos, etc.)
 export async function deletePaymentRecord(paymentId) {
   if (!paymentId) return false;
+
+  await persistDiscardedPaymentId(paymentId);
 
   try {
     const saved = localStorage.getItem('cgem_pagos_tesoreria');

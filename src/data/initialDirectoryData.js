@@ -504,8 +504,14 @@ export const INITIAL_DIRECTORY_DATA = [
     observaciones: "Directora Operativa de la Cámara Gastronómica del Estado Mérida. Experiencias de cata, sommelier y cultura del vino y gastronomía.",
     created_at: "2026-11-13 21:49:45+00",
     updated_at: "2026-11-13 21:49:45+00",
-    foto_portada: "/images/Director Operativo Marisabel Prieto Pérez.png",
-    fotos_galeria: ["/images/Director Operativo Marisabel Prieto Pérez.png"],
+    foto_portada: "/images/afiliados/cata-con-mari-logo.jpg",
+    fotos_galeria: [
+      "/images/afiliados/cata-con-mari-logo.jpg",
+      "/images/afiliados/cata-con-mari-1.jpg",
+      "/images/afiliados/cata-con-mari-2.jpg",
+      "/images/afiliados/cata-con-mari-3.jpg",
+      "/images/afiliados/cata-con-mari-4.jpg"
+    ],
     destacado_portada: true,
     visible_en_guia: true
   },

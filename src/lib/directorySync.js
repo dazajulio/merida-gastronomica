@@ -252,10 +252,16 @@ export async function fetchLiveRestaurants() {
       if (!seed) return m;
 
       const hasGallery = Array.isArray(m.fotos_galeria) && m.fotos_galeria.length > 0;
+      const isOutdatedMarisabelPhoto =
+        m.foto_portada === '/images/Director Operativo Marisabel Prieto Pérez.png' &&
+        seed.foto_portada &&
+        seed.foto_portada !== m.foto_portada;
       return {
         ...m,
-        foto_portada: m.foto_portada || seed.foto_portada || null,
-        fotos_galeria: hasGallery ? m.fotos_galeria : (Array.isArray(seed.fotos_galeria) ? seed.fotos_galeria : [])
+        foto_portada: isOutdatedMarisabelPhoto ? seed.foto_portada : (m.foto_portada || seed.foto_portada || null),
+        fotos_galeria: isOutdatedMarisabelPhoto
+          ? (Array.isArray(seed.fotos_galeria) ? seed.fotos_galeria : [])
+          : (hasGallery ? m.fotos_galeria : (Array.isArray(seed.fotos_galeria) ? seed.fotos_galeria : []))
       };
     });
   }
