@@ -71,6 +71,7 @@ import { sendAffiliateWelcomeEmail, sendCourseRegistrationEmail } from '../lib/e
 import { optimizeImage, uploadAffiliateImageToStorage, uploadPaymentProofToStorage, formatBytes } from '../lib/imageOptimizer';
 import { submitPaymentRecord } from '../lib/treasurySync';
 import { fetchLiveEvents } from '../lib/eventsCoursesSync';
+import { fetchAffiliateBranches, saveAffiliateBranches } from '../lib/branchesSync';
 import { PasswordManagementModal } from './PasswordManagementModal';
 import { getStoredPasswordForIdentifier, saveUserCredentialsToSupabase } from '../lib/authCredentialsSync';
 import mapboxgl from 'mapbox-gl';
@@ -755,8 +756,39 @@ export function AffiliateDashboard({
     payerPhone: '',
     referenceNumber: '',
     amountPaidBs: 'Calculando...',
-    generatedAffiliateCode: ''
+    generatedAffiliateCode: '',
+    branches: []
   });
+
+  const handleAddRegBranch = () => {
+    setRegData(prev => ({
+      ...prev,
+      branches: [
+        ...(prev.branches || []),
+        {
+          id: `suc-${Date.now()}`,
+          name: '',
+          municipio: prev.municipio || 'libertador',
+          address: '',
+          phone: ''
+        }
+      ]
+    }));
+  };
+
+  const handleUpdateRegBranch = (branchId, field, value) => {
+    setRegData(prev => ({
+      ...prev,
+      branches: (prev.branches || []).map(b => (b.id === branchId ? { ...b, [field]: value } : b))
+    }));
+  };
+
+  const handleRemoveRegBranch = (branchId) => {
+    setRegData(prev => ({
+      ...prev,
+      branches: (prev.branches || []).filter(b => b.id !== branchId)
+    }));
+  };
 
   // Dynamic Recalculation of BCV amount
   useEffect(() => {
@@ -855,6 +887,8 @@ export function AffiliateDashboard({
   const [businessProfile, setBusinessProfile] = useState(() => {
     return createBlankBusinessProfile(AFFILIATES_DATA.currentUser);
   });
+  const [activeBranchId, setActiveBranchId] = useState('main');
+  const branchFileInputRef = useRef(null);
 
   const isSectionVisible = (key) => {
     if (key === 'identidad') return true;
@@ -887,6 +921,19 @@ export function AffiliateDashboard({
 
     if (!loadedFromLocal) {
       setBusinessProfile(createBlankBusinessProfile({ ...(activeUser.rawMember || {}), ...activeUser }));
+    }
+
+    setActiveBranchId('main');
+
+    if (activeUser.id) {
+      fetchAffiliateBranches(activeUser.id).then(cloudBranches => {
+        if (Array.isArray(cloudBranches) && cloudBranches.length > 0) {
+          setBusinessProfile(prev => ({
+            ...prev,
+            branches: cloudBranches
+          }));
+        }
+      });
     }
 
     // Sincronización en segundo plano con Supabase para recuperar fotos reales
@@ -1144,6 +1191,155 @@ export function AffiliateDashboard({
     });
   };
 
+  // =========================================================================
+  // GESTIÓN INDEPENDIENTE DE SUCURSALES POR AGREMIADO
+  // =========================================================================
+  const persistBranchesNow = (updatedProfile) => {
+    const userKey = `cgem_biz_profile_${activeUser?.id || activeUser?.email || 'default'}`;
+    try {
+      localStorage.setItem(userKey, JSON.stringify(updatedProfile));
+    } catch (e) {}
+    if (activeUser?.id) {
+      saveAffiliateBranches(activeUser.id, updatedProfile.branches || []).catch(() => {});
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('cgm_business_updated', { detail: updatedProfile }));
+    }
+  };
+
+  const handleAddDashboardBranch = () => {
+    const nextIdx = (businessProfile.branches?.length || 0) + 2;
+    const newBranch = {
+      id: `suc-${Date.now()}`,
+      name: `${businessProfile.name || 'Mi Marca'} — Sucursal ${nextIdx}`,
+      municipio: 'Libertador (Mérida Ciudad)',
+      location: '',
+      phone: businessProfile.phone || '',
+      whatsapp: businessProfile.whatsapp || businessProfile.phone || '',
+      openingHours: businessProfile.openingHours || 'Lunes a Domingo: 08:00 AM - 09:00 PM',
+      instagram: businessProfile.instagram || '',
+      description: '',
+      coverImage: '',
+      gallery: []
+    };
+    setBusinessProfile(prev => {
+      const updated = {
+        ...prev,
+        branches: [...(prev.branches || []), newBranch]
+      };
+      persistBranchesNow(updated);
+      return updated;
+    });
+    setActiveBranchId(newBranch.id);
+  };
+
+  const handleUpdateBranchField = (branchId, field, value) => {
+    setBusinessProfile(prev => ({
+      ...prev,
+      branches: (prev.branches || []).map(b => (b.id === branchId ? { ...b, [field]: value } : b))
+    }));
+  };
+
+  const handleRemoveDashboardBranch = (branchId) => {
+    if (!window.confirm('¿Deseas eliminar esta sucursal y sus fotos independientes?')) return;
+    setBusinessProfile(prev => {
+      const updated = {
+        ...prev,
+        branches: (prev.branches || []).filter(b => b.id !== branchId)
+      };
+      persistBranchesNow(updated);
+      return updated;
+    });
+    setActiveBranchId('main');
+  };
+
+  const handleBranchPhotoUpload = async (branchId, e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const targetBranch = (businessProfile.branches || []).find(b => b.id === branchId);
+    if (!targetBranch) return;
+    const currentGallery = targetBranch.gallery || [];
+    const remainingSlots = 5 - currentGallery.length;
+    if (remainingSlots <= 0) {
+      alert('Has alcanzado el límite de 5 fotografías para esta sucursal.');
+      return;
+    }
+
+    const filesToProcess = files.slice(0, remainingSlots);
+    setIsOptimizingPhotos(true);
+    try {
+      const processedPhotos = [];
+      for (let i = 0; i < filesToProcess.length; i++) {
+        const optResult = await optimizeImage(filesToProcess[i], {
+          maxWidth: 1280,
+          maxHeight: 960,
+          quality: 0.80,
+          preferredFormat: 'image/webp'
+        });
+        const uploadRes = await uploadAffiliateImageToStorage(
+          optResult.blob,
+          `${activeUser?.id || 'CGM'}-${branchId}`,
+          currentGallery.length + i,
+          optResult.dataUrl
+        );
+        processedPhotos.push(uploadRes.url || optResult.dataUrl);
+      }
+
+      const newGallery = [...currentGallery, ...processedPhotos].slice(0, 5);
+      const newCover = targetBranch.coverImage || newGallery[0] || '';
+
+      setBusinessProfile(prev => {
+        const updated = {
+          ...prev,
+          branches: (prev.branches || []).map(b =>
+            b.id === branchId ? { ...b, gallery: newGallery, coverImage: newCover } : b
+          )
+        };
+        persistBranchesNow(updated);
+        return updated;
+      });
+    } catch (err) {
+      alert('Error procesando imágenes de la sucursal: ' + (err.message || 'Error desconocido'));
+    } finally {
+      setIsOptimizingPhotos(false);
+      if (branchFileInputRef.current) branchFileInputRef.current.value = '';
+    }
+  };
+
+  const handleBranchRemovePhoto = (branchId, indexToRemove) => {
+    setBusinessProfile(prev => {
+      const updated = {
+        ...prev,
+        branches: (prev.branches || []).map(b => {
+          if (b.id !== branchId) return b;
+          const newGallery = (b.gallery || []).filter((_, idx) => idx !== indexToRemove);
+          const newCover = b.coverImage === (b.gallery || [])[indexToRemove] ? (newGallery[0] || '') : b.coverImage;
+          return { ...b, gallery: newGallery, coverImage: newCover };
+        })
+      };
+      persistBranchesNow(updated);
+      return updated;
+    });
+  };
+
+  const handleBranchSetCoverPhoto = (branchId, index) => {
+    setBusinessProfile(prev => {
+      const updated = {
+        ...prev,
+        branches: (prev.branches || []).map(b => {
+          if (b.id !== branchId) return b;
+          const selected = (b.gallery || [])[index];
+          if (!selected) return b;
+          const reordered = [selected, ...(b.gallery || []).filter((_, idx) => idx !== index)];
+          return { ...b, gallery: reordered, coverImage: selected };
+        })
+      };
+      persistBranchesNow(updated);
+      return updated;
+    });
+  };
+
   const handleSaveBusinessProfile = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setIsSavingBusiness(true);
@@ -1170,7 +1366,12 @@ export function AffiliateDashboard({
         }
       }
 
-      // 2. Guardar en localStorage de forma segura
+      // 2. Guardar sucursales independientes en Supabase + LocalStorage
+      if (activeUser?.id && Array.isArray(businessProfile.branches)) {
+        await saveAffiliateBranches(activeUser.id, businessProfile.branches);
+      }
+
+      // 3. Guardar en localStorage de forma segura
       try {
         localStorage.setItem(userKey, JSON.stringify(businessProfile));
         localStorage.setItem('cgem_my_business_profile', JSON.stringify(businessProfile));
@@ -1866,6 +2067,25 @@ export function AffiliateDashboard({
           }
         });
 
+        const initializedBranches = (regData.branches || [])
+          .filter(b => b.name?.trim() || b.address?.trim())
+          .map((b, idx) => {
+            const branchMun = MUNICIPIOS_MERIDA.find(m => m.id === b.municipio)?.name || municipioName;
+            return {
+              id: b.id || `suc-${Date.now()}-${idx}`,
+              name: b.name?.trim() || `${regData.restaurantName} — Sucursal ${idx + 2}`,
+              municipio: branchMun,
+              location: b.address?.trim() || '',
+              phone: b.phone?.trim() || regData.phone || '',
+              whatsapp: b.phone?.trim() || regData.phone || '',
+              openingHours: 'Lunes a Domingo: 08:00 AM - 09:00 PM',
+              instagram: regData.instagram || '',
+              description: '',
+              coverImage: '',
+              gallery: []
+            };
+          });
+
         // Crear ficha limpia exclusiva para este nuevo agremiado
         const newBlankProfile = createBlankBusinessProfile({
           id: newCode,
@@ -1878,7 +2098,11 @@ export function AffiliateDashboard({
           location: `${municipioName} - ${regData.cityTown || regData.town || 'Mérida'}`,
           instagram: regData.instagram
         });
+        newBlankProfile.branches = initializedBranches;
         setBusinessProfile(newBlankProfile);
+        if (initializedBranches.length > 0) {
+          saveAffiliateBranches(newCode, initializedBranches).catch(() => {});
+        }
         try {
           localStorage.setItem(`cgem_biz_profile_${newCode}`, JSON.stringify(newBlankProfile));
         } catch (e) {}
@@ -2337,6 +2561,73 @@ export function AffiliateDashboard({
                 </select>
               </div>
 
+              {/* Sucursales adicionales en registro móvil */}
+              <div className="p-3.5 rounded-2xl bg-[#FAF7F2] border border-[#EAE3D5] space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <span className="text-xs font-bold text-[#1E1C1A] block">¿Tienes más de una sede?</span>
+                    <span className="text-[11px] text-[#7A7168]">Agrega tus sucursales ahora o luego en tu panel</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddRegBranch}
+                    className="px-3 py-1.5 rounded-full bg-white border border-[#C85A32]/40 text-[#C85A32] text-[11px] font-bold flex items-center gap-1 shadow-2xs shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Agregar Sucursal</span>
+                  </button>
+                </div>
+
+                {(regData.branches || []).map((branch, idx) => (
+                  <div key={branch.id} className="p-3 rounded-2xl bg-white border border-[#EAE3D5] space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#C85A32]">
+                        Sucursal #{idx + 2}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRegBranch(branch.id)}
+                        className="text-[11px] font-bold text-rose-600 flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Quitar</span>
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Nombre de la sucursal (Ej. Sede Centro)"
+                      value={branch.name}
+                      onChange={(e) => handleUpdateRegBranch(branch.id, 'name', e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-[#EAE3D5] bg-[#FAF7F2] text-xs text-[#1E1C1A]"
+                    />
+                    <select
+                      value={branch.municipio}
+                      onChange={(e) => handleUpdateRegBranch(branch.id, 'municipio', e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-[#EAE3D5] bg-[#FAF7F2] text-xs text-[#1E1C1A]"
+                    >
+                      {MUNICIPIOS_MERIDA.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Dirección de la sucursal"
+                      value={branch.address}
+                      onChange={(e) => handleUpdateRegBranch(branch.id, 'address', e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-[#EAE3D5] bg-[#FAF7F2] text-xs text-[#1E1C1A]"
+                    />
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      placeholder="Teléfono de esta sucursal (opcional)"
+                      value={branch.phone}
+                      onChange={(e) => handleUpdateRegBranch(branch.id, 'phone', e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-[#EAE3D5] bg-[#FAF7F2] text-xs text-[#1E1C1A]"
+                    />
+                  </div>
+                ))}
+              </div>
+
               <button
                 type="submit"
                 className="w-full py-4 rounded-full bg-[#C85A32] hover:bg-[#B04B26] text-white font-sans font-bold text-sm flex items-center justify-center gap-2 shadow-md active:scale-[0.99] transition-all"
@@ -2775,6 +3066,76 @@ export function AffiliateDashboard({
                     onChange={(e) => setRegData({ ...regData, address: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-none focus:border-amber-500 bg-white"
                   />
+                </div>
+
+                {/* Sucursales adicionales en registro escritorio */}
+                <div className="pt-3 border-t border-amber-200/70 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">Sucursales de la Marca (Opcional)</span>
+                      <span className="text-[11px] text-slate-600">Si tienes más de una sede, agrégala aquí para personalizarla por separado en tu panel.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddRegBranch}
+                      className="px-3.5 py-2 rounded-xl bg-white hover:bg-amber-50 text-amber-800 border border-amber-300 text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Agregar Sucursal</span>
+                    </button>
+                  </div>
+
+                  {(regData.branches || []).map((branch, idx) => (
+                    <div key={branch.id} className="p-3.5 rounded-xl bg-white border border-amber-200 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
+                          Sucursal #{idx + 2}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRegBranch(branch.id)}
+                          className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Eliminar</span>
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        <input
+                          type="text"
+                          placeholder="Nombre de la sucursal (Ej. Sucursal Alto Prado)"
+                          value={branch.name}
+                          onChange={(e) => handleUpdateRegBranch(branch.id, 'name', e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                        />
+                        <select
+                          value={branch.municipio}
+                          onChange={(e) => handleUpdateRegBranch(branch.id, 'municipio', e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                        >
+                          {MUNICIPIOS_MERIDA.map((m) => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                        <input
+                          type="text"
+                          placeholder="Dirección exacta de esta sucursal"
+                          value={branch.address}
+                          onChange={(e) => handleUpdateRegBranch(branch.id, 'address', e.target.value)}
+                          className="md:col-span-2 w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Teléfono (opcional)"
+                          value={branch.phone}
+                          onChange={(e) => handleUpdateRegBranch(branch.id, 'phone', e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -4000,6 +4361,245 @@ export function AffiliateDashboard({
             </div>
           )}
 
+          {/* Selector de Sede Principal y Sucursales */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h4 className="font-serif font-bold text-base text-slate-900">
+                  Sedes y Sucursales de tu Marca
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  Cada sucursal cuenta con sus propias fotos, dirección, horarios y datos independientes.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddDashboardBranch}
+                className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5 text-amber-700" />
+                <span>Agregar Sucursal</span>
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveBranchId('main')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                  activeBranchId === 'main'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                    : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Sede Principal: {businessProfile.name || 'Principal'}</span>
+              </button>
+
+              {(businessProfile.branches || []).map((branch, idx) => (
+                <button
+                  key={branch.id}
+                  type="button"
+                  onClick={() => setActiveBranchId(branch.id)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                    activeBranchId === branch.id
+                      ? 'bg-[#C85A32] text-white border-[#C85A32] shadow-sm'
+                      : 'bg-white hover:bg-amber-50 text-slate-700 border-slate-200'
+                  }`}
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>{branch.name || `Sucursal ${idx + 2}`}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Editor Independiente cuando hay una Sucursal seleccionada */}
+          {activeBranchId !== 'main' && (() => {
+            const activeBranch = (businessProfile.branches || []).find(b => b.id === activeBranchId);
+            if (!activeBranch) return null;
+            const branchGallery = activeBranch.gallery || [];
+            return (
+              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6 animate-fadeIn">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#C85A32] block">
+                      Editor Independiente de Sucursal
+                    </span>
+                    <h4 className="font-serif text-xl font-bold text-slate-900">
+                      {activeBranch.name || 'Sucursal'}
+                    </h4>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveDashboardBranch(activeBranch.id)}
+                      className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1.5"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Eliminar Sucursal</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveBusinessProfile}
+                      disabled={isSavingBusiness}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>{isSavingBusiness ? 'Guardando...' : 'Guardar Sucursal'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Nombre de la Sucursal *</label>
+                    <input
+                      type="text"
+                      value={activeBranch.name || ''}
+                      onChange={(e) => handleUpdateBranchField(activeBranch.id, 'name', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                      placeholder="Ej. Sucursal Alto Prado"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Municipio / Zona</label>
+                    <input
+                      type="text"
+                      value={activeBranch.municipio || ''}
+                      onChange={(e) => handleUpdateBranchField(activeBranch.id, 'municipio', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                      placeholder="Ej. Libertador (Mérida Ciudad)"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Dirección Exacta de la Sucursal *</label>
+                    <input
+                      type="text"
+                      value={activeBranch.location || ''}
+                      onChange={(e) => handleUpdateBranchField(activeBranch.id, 'location', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                      placeholder="Av. / Calle / Centro Comercial / Referencia"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Teléfono / WhatsApp</label>
+                    <input
+                      type="text"
+                      value={activeBranch.phone || ''}
+                      onChange={(e) => handleUpdateBranchField(activeBranch.id, 'phone', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                      placeholder="0414-0000000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Horarios de Atención</label>
+                    <input
+                      type="text"
+                      value={activeBranch.openingHours || ''}
+                      onChange={(e) => handleUpdateBranchField(activeBranch.id, 'openingHours', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                      placeholder="Lunes a Domingo: 08:00 AM - 09:00 PM"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Instagram de la Sucursal</label>
+                    <input
+                      type="text"
+                      value={activeBranch.instagram || ''}
+                      onChange={(e) => handleUpdateBranchField(activeBranch.id, 'instagram', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                      placeholder="@tumarca.sucursal"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Descripción / Particularidades de esta Sede</label>
+                    <textarea
+                      rows={3}
+                      value={activeBranch.description || ''}
+                      onChange={(e) => handleUpdateBranchField(activeBranch.id, 'description', e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                      placeholder="Describe el ambiente, terraza, estacionamiento o especialidad de esta sucursal..."
+                    />
+                  </div>
+                </div>
+
+                {/* Galería Fotográfica Independiente de la Sucursal */}
+                <div className="pt-4 border-t border-slate-100 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                        Fotografías de esta Sucursal ({branchGallery.length}/5)
+                      </h5>
+                      <p className="text-[11px] text-slate-500">
+                        Estas fotos pertenecen únicamente a esta sucursal.
+                      </p>
+                    </div>
+                    <input
+                      ref={branchFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => handleBranchPhotoUpload(activeBranch.id, e)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => branchFileInputRef.current?.click()}
+                      disabled={isOptimizingPhotos || branchGallery.length >= 5}
+                      className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <UploadCloud className="w-4 h-4 text-amber-400" />
+                      <span>{isOptimizingPhotos ? 'Optimizando...' : 'Subir Fotos de Sucursal'}</span>
+                    </button>
+                  </div>
+
+                  {branchGallery.length === 0 ? (
+                    <div className="p-6 rounded-2xl border-2 border-dashed border-slate-200 text-center text-xs text-slate-500">
+                      Aún no has cargado fotos para esta sucursal.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                      {branchGallery.map((imgUrl, idx) => {
+                        const isCover = activeBranch.coverImage === imgUrl || (idx === 0 && !activeBranch.coverImage);
+                        return (
+                          <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 group">
+                            <img src={imgUrl} alt={`${activeBranch.name} ${idx + 1}`} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 p-2">
+                              {!isCover && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleBranchSetCoverPhoto(activeBranch.id, idx)}
+                                  className="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 text-[10px] font-bold"
+                                >
+                                  Portada
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleBranchRemovePhoto(activeBranch.id, idx)}
+                                className="px-2.5 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-bold"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                            {isCover && (
+                              <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[9px] font-black uppercase">
+                                Portada
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {activeBranchId === 'main' && (
+          <>
           {/* Selector Manual de Secciones + Ubicación Automática en la Web */}
           {(() => {
             const activeVis = businessProfile.visibleSections || {
@@ -4678,6 +5278,8 @@ export function AffiliateDashboard({
                 </div>
               </div>
             </div>
+          )}
+          </>
           )}
 
         </div>

@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { RESTAURANTS_DATA } from '../data/restaurantsData';
 import { INITIAL_DIRECTORY_DATA } from '../data/initialDirectoryData';
+import { getLocalBranches } from './branchesSync';
 
 // Imágenes por defecto de alta calidad según la categoría del negocio
 const DEFAULT_CATEGORY_IMAGES = {
@@ -192,17 +193,32 @@ export function normalizeEstablishmentName(name) {
  */
 export async function fetchLiveRestaurants() {
   let directoryMembers = [];
+  const cloudBranchesMap = new Map();
 
   // 1. Intentar desde Supabase
   if (supabase) {
     try {
-      const { data, error } = await supabase
-        .from('directorio_agremiados')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const [{ data, error }, { data: branchRows }] = await Promise.all([
+        supabase
+          .from('directorio_agremiados')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('eventos_oficiales')
+          .select('id, price_tiers')
+          .like('id', 'board_biz_branches::%')
+      ]);
 
       if (!error && data && data.length > 0) {
         directoryMembers = data;
+      }
+      if (Array.isArray(branchRows)) {
+        branchRows.forEach(row => {
+          const codeKey = String(row.id || '').replace('board_biz_branches::', '').trim().toLowerCase();
+          if (codeKey && Array.isArray(row.price_tiers) && Array.isArray(row.price_tiers[0])) {
+            cloudBranchesMap.set(codeKey, row.price_tiers[0]);
+          }
+        });
       }
     } catch (e) {
       console.warn('Error fetching supabase directory:', e);
@@ -405,5 +421,9 @@ export async function fetchLiveRestaurants() {
     if (code) processedCodes.add(code);
   });
 
-  return resultList;
+  return resultList.map(item => {
+    const codeKey = String(item.certificateNumber || item.codigo_afiliado || '').trim().toLowerCase();
+    const branches = (codeKey && cloudBranchesMap.get(codeKey)) || getLocalBranches(item.certificateNumber || item.codigo_afiliado) || item.branches || [];
+    return branches.length > 0 ? { ...item, branches } : item;
+  });
 }

@@ -29,6 +29,16 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
   const [showShareBar, setShowShareBar] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [selectedBranchId, setSelectedBranchId] = useState('main');
+
+  useEffect(() => {
+    setSelectedBranchId('main');
+  }, [restaurant?.id]);
+
+  const activeBranchObj = React.useMemo(() => {
+    if (!restaurant || selectedBranchId === 'main' || !Array.isArray(restaurant.branches)) return null;
+    return restaurant.branches.find(b => b.id === selectedBranchId) || null;
+  }, [restaurant, selectedBranchId]);
 
   // Normalizar lista de fotos para galería estilo Airbnb
   const allImages = React.useMemo(() => {
@@ -42,15 +52,20 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
       }
     };
 
-    if (restaurant.coverImage) add(restaurant.coverImage);
-    if (restaurant.foto_portada) add(restaurant.foto_portada);
-    if (Array.isArray(restaurant.gallery)) restaurant.gallery.forEach(add);
-    if (Array.isArray(restaurant.fotos_galeria)) restaurant.fotos_galeria.forEach(add);
+    if (activeBranchObj && (activeBranchObj.coverImage || (activeBranchObj.gallery && activeBranchObj.gallery.length > 0))) {
+      if (activeBranchObj.coverImage) add(activeBranchObj.coverImage);
+      if (Array.isArray(activeBranchObj.gallery)) activeBranchObj.gallery.forEach(add);
+    } else {
+      if (restaurant.coverImage) add(restaurant.coverImage);
+      if (restaurant.foto_portada) add(restaurant.foto_portada);
+      if (Array.isArray(restaurant.gallery)) restaurant.gallery.forEach(add);
+      if (Array.isArray(restaurant.fotos_galeria)) restaurant.fotos_galeria.forEach(add);
+    }
 
     return list.length > 0 
       ? list 
       : ['https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80'];
-  }, [restaurant]);
+  }, [restaurant, activeBranchObj]);
 
   // Manejo de teclado para cerrar modal o navegar en Lightbox
   useEffect(() => {
@@ -114,7 +129,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
     setLightboxOpen(true);
   };
 
-  const rawPhone = restaurant.phone || restaurant.whatsapp || '';
+  const rawPhone = activeBranchObj?.phone || activeBranchObj?.whatsapp || restaurant.phone || restaurant.whatsapp || '';
   const cleanPhone = rawPhone.replace(/[^0-9+]/g, '');
   const cleanWaNumber = cleanPhone.replace(/[^0-9]/g, '');
 
@@ -259,6 +274,40 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
             </div>
           )}
 
+          {/* Selector de Sedes / Sucursales si el agremiado tiene más de una */}
+          {Array.isArray(restaurant.branches) && restaurant.branches.length > 0 && (
+            <div className="px-5 sm:px-8 py-3 bg-[#FAF7F2] border-b border-[#EAE3D5] flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#7A7168] mr-1">
+                Sedes:
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedBranchId('main')}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                  selectedBranchId === 'main'
+                    ? 'bg-[#1E1C1A] text-white shadow-xs'
+                    : 'bg-white text-[#5C554E] border border-[#EAE3D5] hover:border-[#C85A32]'
+                }`}
+              >
+                Sede Principal
+              </button>
+              {restaurant.branches.map((branch, idx) => (
+                <button
+                  key={branch.id || idx}
+                  type="button"
+                  onClick={() => setSelectedBranchId(branch.id)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                    selectedBranchId === branch.id
+                      ? 'bg-[#C85A32] text-white shadow-xs'
+                      : 'bg-white text-[#5C554E] border border-[#EAE3D5] hover:border-[#C85A32]'
+                  }`}
+                >
+                  {branch.name || `Sucursal ${idx + 2}`}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Subtitle / Metadata Row (Airbnb style: Rating, Category, Location) */}
           <div className="px-5 sm:px-8 pt-4 pb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 border-b border-slate-100">
             <div className="flex items-center gap-1 font-bold text-slate-900">
@@ -273,7 +322,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
             <span>•</span>
             <div className="flex items-center gap-1 text-slate-600">
               <MapPin className="w-3.5 h-3.5 text-amber-600" />
-              <span className="line-clamp-1">{restaurant.location}</span>
+              <span className="line-clamp-1">{activeBranchObj?.location || restaurant.location}</span>
             </div>
           </div>
 
@@ -528,7 +577,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
                     Filosofía y Propuesta Gastronómica
                   </h3>
                   <p className="text-sm text-slate-600 leading-relaxed text-justify">
-                    {restaurant.description}
+                    {activeBranchObj?.description || restaurant.description}
                   </p>
                 </div>
 
@@ -695,7 +744,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
                       <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                       <div>
                         <span className="font-bold text-slate-800 block">Horario de Atención</span>
-                        <span>{restaurant.openingHours || 'Consultar por canales directos'}</span>
+                        <span>{activeBranchObj?.openingHours || restaurant.openingHours || 'Consultar por canales directos'}</span>
                       </div>
                     </div>
 
@@ -703,7 +752,7 @@ export function RestaurantModal({ restaurant, onClose, onViewOnMap }) {
                       <MapPin className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                       <div>
                         <span className="font-bold text-slate-800 block">Dirección</span>
-                        <span className="line-clamp-2">{restaurant.location}</span>
+                        <span className="line-clamp-2">{activeBranchObj?.location || restaurant.location}</span>
                         {onViewOnMap && (
                           <button
                             onClick={() => {
