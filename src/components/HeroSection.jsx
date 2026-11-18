@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Sparkles, ChevronLeft, ChevronRight, Calendar, Mountain } from 'lucide-react';
+import { ArrowRight, Sparkles, ChevronLeft, ChevronRight, Calendar, Mountain, GraduationCap, Phone, MapPin, CheckCircle2 } from 'lucide-react';
 
 export function HeroSection({ setActiveTab, restaurantCount = 25 }) {
   const slides = [
@@ -21,6 +21,27 @@ export function HeroSection({ setActiveTab, restaurantCount = 25 }) {
         { value: restaurantCount > 0 ? `${restaurantCount}+` : '25+', label: 'Establecimientos Oficiales' },
         { value: '4', label: 'Circuitos Gastronómicos' },
         { value: '100%', label: 'Identidad Merideña' },
+      ],
+    },
+    {
+      id: 'iutcm-convenio-hero',
+      layout: 'academic-banner', // Diseño 4 (Distinto): Azul académico institucional + acento dorado + foto campus
+      eyebrow: 'Convenio Institucional • CGEM × IUTCM',
+      titlePrefix: 'Acredita tu',
+      titleItalic: 'Experiencia',
+      titleSuffix: 'Gastronómica',
+      description:
+        'Estudio de acreditación de saberes sin costo y tarifas preferenciales en licenciaturas de Turismo y Gastronomía para agremiados, empleados y familiares.',
+      image: '/images/iutcm-estudiantes.jpg',
+      imageAlt: 'Convenio Académico CGEM e IUTCM en Mérida',
+      logoOverlay: '/images/iutcm-logo.png',
+      phone: '+58 424-7837583',
+      phoneHref: 'tel:+584247837583',
+      address: 'Sede: Av. Urdaneta, Mérida',
+      highlights: [
+        'Acreditación de saberes gratis',
+        '4 menciones en Turismo y Gastronomía',
+        'Dueños, empleados y familiares',
       ],
     },
     {
@@ -98,8 +119,101 @@ export function HeroSection({ setActiveTab, restaurantCount = 25 }) {
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
         {slides.map((slide) => {
-          const PrimaryIcon = slide.primaryCta.icon || ArrowRight;
-          const SecondaryIcon = slide.secondaryCta.icon || Sparkles;
+          const PrimaryIcon = slide.primaryCta?.icon || ArrowRight;
+          const SecondaryIcon = slide.secondaryCta?.icon || Sparkles;
+
+          /* ================================================================
+             LAYOUT 4 (CONVENIO IUTCM): Azul académico + acento dorado + logo
+             ================================================================ */
+          if (slide.layout === 'academic-banner') {
+            return (
+              <div
+                key={slide.id}
+                className="w-full shrink-0 relative min-h-[66vh] sm:min-h-[70vh] flex items-center pt-24 pb-14 sm:pt-28 sm:pb-14 bg-[#0B2239] text-white overflow-hidden"
+              >
+                {/* Subtle Academic Pattern */}
+                <div className="absolute inset-0 pointer-events-none opacity-25 bg-[radial-gradient(circle_at_top_right,#F4B41A_0%,transparent_45%)]" />
+
+                <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 items-center gap-8">
+                    {/* Left: Brief & Punctual Convenio Info */}
+                    <div className="lg:col-span-7 space-y-5">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#F4B41A] text-[#0B2239] text-[11px] font-extrabold uppercase tracking-wider">
+                          <GraduationCap className="w-3.5 h-3.5" />
+                          <span>{slide.eyebrow}</span>
+                        </span>
+                      </div>
+
+                      <h1 className="font-playfair text-3xl sm:text-5xl lg:text-[3.4rem] font-bold text-white leading-[1.08] tracking-tight">
+                        {slide.titlePrefix}{' '}
+                        <span className="italic font-normal text-[#F4B41A]">
+                          {slide.titleItalic}
+                        </span>{' '}
+                        {slide.titleSuffix}
+                      </h1>
+
+                      <p className="font-sans text-sm sm:text-base text-slate-200 max-w-xl leading-relaxed">
+                        {slide.description}
+                      </p>
+
+                      {/* 3 Brief Highlights */}
+                      <div className="flex flex-wrap gap-2">
+                        {(slide.highlights || []).map((hl, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs font-semibold text-white"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#F4B41A] shrink-0" />
+                            <span>{hl}</span>
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Direct Contact Info (No CTA redirect) */}
+                      <div className="pt-1 flex flex-wrap items-center gap-3">
+                        <a
+                          href={slide.phoneHref}
+                          className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-[#F4B41A] hover:bg-[#e5a60e] text-[#0B2239] font-sans font-extrabold text-sm shadow-md transition-all active:scale-[0.98]"
+                        >
+                          <Phone className="w-4 h-4" />
+                          <span>{slide.phone}</span>
+                        </a>
+
+                        <div className="inline-flex items-center gap-2 px-4 py-3 rounded-full bg-white/10 border border-white/20 text-white font-sans font-semibold text-xs sm:text-sm">
+                          <MapPin className="w-4 h-4 text-[#F4B41A] shrink-0" />
+                          <span>{slide.address}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: IUTCM Logo Pill + Campus Photo */}
+                    <div className="hidden lg:flex lg:col-span-5 flex-col items-end gap-4">
+                      <div className="relative w-full max-w-md rounded-3xl overflow-hidden border-2 border-[#F4B41A]/50 shadow-2xl bg-white">
+                        <img
+                          src={slide.image}
+                          alt={slide.imageAlt}
+                          className="w-full h-64 sm:h-72 object-cover object-center"
+                        />
+                        {slide.logoOverlay && (
+                          <div className="p-3.5 bg-white flex items-center justify-between border-t border-slate-100">
+                            <img
+                              src={slide.logoOverlay}
+                              alt="IUTCM Logo"
+                              className="h-10 w-auto object-contain"
+                            />
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-[#0B2239] bg-amber-100 px-3 py-1 rounded-full">
+                              Beneficio Agremiado
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          }
 
           /* ================================================================
              LAYOUT 1 (INTOCABLE): Degradado cálido fundido sobre foto full-bleed
