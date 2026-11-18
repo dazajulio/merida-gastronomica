@@ -86,7 +86,7 @@ import { EVENTS_DATA } from '../data/eventsData';
 import { TreasuryManagementModule } from './TreasuryManagementModule';
 import { OfficialCommunicationsModule } from './OfficialCommunicationsModule';
 import { sendBoardAttendanceEmail, sendAffiliateWelcomeEmail } from '../lib/emailService';
-import { reconcilePaymentRecord, updatePaymentBillingDetails } from '../lib/treasurySync';
+import { reconcilePaymentRecord, updatePaymentBillingDetails, fetchLivePayments, isMemberSolventForCurrentMonth } from '../lib/treasurySync';
 import { supabase } from '../lib/supabaseClient';
 import { optimizeImage, formatBytes } from '../lib/imageOptimizer';
 import { 
@@ -570,6 +570,7 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
   });
 
   const [isLoadingDirectory, setIsLoadingDirectory] = useState(false);
+  const [livePaymentsForStats, setLivePaymentsForStats] = useState([]);
   const [directorySearch, setDirectorySearch] = useState('');
   const [directoryCategoryFilter, setDirectoryCategoryFilter] = useState('all');
   const [directoryStatusFilter, setDirectoryStatusFilter] = useState('all');
@@ -656,7 +657,10 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
     if (canAccessDirectory) {
       fetchDirectoryFromSupabase();
     }
-  }, [canAccessDirectory]);
+    fetchLivePayments().then(p => {
+      if (Array.isArray(p)) setLivePaymentsForStats(p);
+    });
+  }, [canAccessDirectory, viewMode]);
 
   // Calendar View Filters & Navigation
   const [selectedYear, setSelectedYear] = useState('all');
@@ -2899,10 +2903,10 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
     return matchSearch && matchCategory && matchStatus;
   });
 
-  // Calculate Quick Directory Stats
+  // Calculate Quick Directory Stats (cruzado en tiempo real con pagos del mes)
   const countTotalAgremiados = directoryMembers.length;
-  const countSolventes = directoryMembers.filter(m => (m.estado_solvencia || '').toLowerCase().includes('solvente') || (m.estado_solvencia || '').toLowerCase().includes('activo')).length;
-  const countEnRevision = directoryMembers.filter(m => (m.estado_solvencia || '').toLowerCase().includes('revisión') || (m.estado_solvencia || '').toLowerCase().includes('pendiente')).length;
+  const countSolventes = directoryMembers.filter(m => isMemberSolventForCurrentMonth(m, livePaymentsForStats)).length;
+  const countEnRevision = countTotalAgremiados - countSolventes;
   const totalMonthlyIncomeUSD = directoryMembers.reduce((acc, m) => acc + (parseFloat(m.monto_cuota_mensual) || 0), 0);
   const countGrandes = directoryMembers.filter(m => (m.categoria_negocio || '').toLowerCase().includes('grande')).length;
   const countPymes = directoryMembers.filter(m => !(m.categoria_negocio || '').toLowerCase().includes('grande')).length;

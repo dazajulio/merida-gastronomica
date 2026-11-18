@@ -48,7 +48,8 @@ import {
   deleteExpenseRecord, 
   exportTreasuryCSV,
   generateReceiptNumber,
-  parsePaymentFromMember
+  parsePaymentFromMember,
+  isMemberSolventForCurrentMonth
 } from '../lib/treasurySync';
 import { supabase } from '../lib/supabaseClient';
 import { sendPaymentReceiptEmail } from '../lib/emailService';
@@ -261,14 +262,14 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
   const totalExpensesUSD = useMemo(() => expenses.reduce((sum, e) => sum + (parseFloat(e.monto_usd) || 0), 0), [expenses]);
   const totalExpensesBS = useMemo(() => expenses.reduce((sum, e) => sum + (parseFloat(e.monto_bs) || 0), 0), [expenses]);
 
-  // Solvencias
+  // Solvencias (cruzadas con pagos reales del mes en curso)
   const solventMembersCount = useMemo(() => {
-    return directoryMembers.filter(m => (m.estado_solvencia || '').toLowerCase().includes('solvente')).length;
-  }, [directoryMembers]);
+    return directoryMembers.filter(m => isMemberSolventForCurrentMonth(m, payments)).length;
+  }, [directoryMembers, payments]);
 
   const pendingMembersCount = useMemo(() => {
-    return directoryMembers.filter(m => !(m.estado_solvencia || '').toLowerCase().includes('solvente')).length;
-  }, [directoryMembers]);
+    return directoryMembers.length - solventMembersCount;
+  }, [directoryMembers.length, solventMembersCount]);
 
   // Filtered Payments
   const filteredPayments = useMemo(() => {

@@ -118,6 +118,68 @@ export function parsePaymentFromMember(member, index = 1) {
   };
 }
 
+const SPANISH_MONTHS = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+];
+
+export function isMemberSolventForCurrentMonth(member, payments = []) {
+  if (!member) return false;
+  const statusLower = (member.estado_solvencia || '').toLowerCase();
+  const isMarkedPending =
+    statusLower.includes('trámite') ||
+    statusLower.includes('tramite') ||
+    statusLower.includes('revisión') ||
+    statusLower.includes('revision') ||
+    statusLower.includes('pendiente') ||
+    statusLower.includes('verificación') ||
+    statusLower.includes('verificacion') ||
+    statusLower.includes('insolvente');
+
+  const now = new Date();
+  const currentMonthIdx = now.getMonth();
+  const currentYear = now.getFullYear();
+  const currentMonthName = SPANISH_MONTHS[currentMonthIdx];
+
+  const memberPayments = (Array.isArray(payments) ? payments : []).filter(p =>
+    (p.codigo_afiliado && member.codigo_afiliado && p.codigo_afiliado.toLowerCase().trim() === member.codigo_afiliado.toLowerCase().trim()) ||
+    (p.email && member.email && p.email.toLowerCase().trim() === member.email.toLowerCase().trim())
+  );
+
+  const hasCurrentMonthReconciled = memberPayments.some(p => {
+    if ((p.estado || '').toLowerCase() !== 'conciliado') return false;
+    const periodText = `${p.periodo_mes || ''} ${p.concepto || ''}`.toLowerCase();
+    if (periodText.includes(currentMonthName)) return true;
+    if (p.fecha_pago) {
+      const pd = new Date(p.fecha_pago);
+      if (!isNaN(pd.getTime()) && pd.getMonth() === currentMonthIdx && pd.getFullYear() === currentYear) {
+        return true;
+      }
+    }
+    return false;
+  });
+
+  if (hasCurrentMonthReconciled) return true;
+  if (isMarkedPending) return false;
+  if (memberPayments.some(p => (p.estado || '').toLowerCase() === 'pendiente')) return false;
+
+  if (member.fecha_vencimiento) {
+    const exp = new Date(member.fecha_vencimiento);
+    if (!isNaN(exp.getTime()) && exp >= now && statusLower.includes('solvente')) {
+      return true;
+    }
+  }
+
+  const monthlyFee = parseFloat(member.monto_cuota_mensual);
+  const isExemptConvenio =
+    (!isNaN(monthlyFee) && monthlyFee === 0) ||
+    member.is_alianza_estrategica ||
+    member.modalidad_ingreso === 'exoneracion';
+  if (isExemptConvenio && statusLower.includes('solvente')) return true;
+
+  return false;
+}
+
 // Lista Real Base de Pagos (Construida estrictamente con los 12 agremiados reales)
 export const INITIAL_PAYMENTS = INITIAL_DIRECTORY_DATA.map((member, idx) => parsePaymentFromMember(member, idx + 1));
 
