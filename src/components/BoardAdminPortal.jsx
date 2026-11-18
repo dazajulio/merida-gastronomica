@@ -4341,23 +4341,23 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
                       </div>
 
                       {/* Financial & Actions Column */}
-                      <div className="flex flex-row lg:flex-col items-center lg:items-end justify-between w-full lg:w-auto gap-3 pt-3 lg:pt-0 lg:border-l lg:border-slate-100 lg:pl-6 shrink-0 font-sans">
+                      <div className="flex flex-col items-stretch lg:items-end justify-between w-full lg:w-[310px] gap-3 pt-3 lg:pt-0 lg:border-l lg:border-slate-100 lg:pl-5 shrink-0 font-sans">
                         
-                        <div className="text-left lg:text-right">
+                        <div className="flex items-center justify-between lg:block text-left lg:text-right w-full">
                           <span className="text-[10px] uppercase font-bold text-slate-400 block">Cuota Mensual</span>
                           <span className="font-serif font-black text-lg text-slate-900">${member.monto_cuota_mensual || 10} USD</span>
                         </div>
 
-                        {/* Action buttons */}
-                        <div className="flex flex-wrap items-center gap-1.5">
+                        {/* Action buttons - 2-column compact grid */}
+                        <div className="grid grid-cols-2 gap-1.5 w-full">
                           {/* Botón 1-clic Validar y Aprobar Pago */}
                           {!isSolvente && (
                             <button
                               onClick={() => handleQuickApproveMember(member)}
-                              className="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all active:scale-95 shrink-0"
+                              className="col-span-2 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95"
                               title="Aprobar pago y activar como Miembro Solvente"
                             >
-                              <CheckCircle2 className="w-4 h-4" />
+                              <CheckCircle2 className="w-4 h-4 shrink-0" />
                               <span>Validar Pago y Activar</span>
                             </button>
                           )}
@@ -4365,21 +4365,21 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
                           {/* Botón 1-clic Destacar en Portada (⭐) */}
                           <button
                             onClick={() => handleToggleMemberFeatured(member)}
-                            className={`p-2.5 rounded-xl transition-all text-xs font-bold flex items-center gap-1.5 shrink-0 ${
+                            className={`py-2 px-2.5 rounded-xl transition-all text-[11px] font-bold flex items-center justify-center gap-1.5 ${
                               isFeatured
                                 ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 font-black shadow-xs'
                                 : 'bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-200'
                             }`}
                             title={isFeatured ? "Quitar de la selección de joyas destacadas de la portada" : "Fijar como destacado en el carrusel de la portada principal"}
                           >
-                            <Star className={`w-3.5 h-3.5 ${isFeatured ? 'fill-slate-950 text-slate-950' : 'text-amber-600'}`} />
-                            <span className="hidden sm:inline">{isFeatured ? 'Destacado' : 'Destacar'}</span>
+                            <Star className={`w-3.5 h-3.5 shrink-0 ${isFeatured ? 'fill-slate-950 text-slate-950' : 'text-amber-600'}`} />
+                            <span className="truncate">{isFeatured ? 'Destacado' : 'Destacar'}</span>
                           </button>
 
                           {/* Botón 1-clic Conmutar Visibilidad Web (Ocultar / Publicar) */}
                           <button
                             onClick={() => handleToggleMemberVisibility(member)}
-                            className={`p-2.5 rounded-xl transition-all text-xs font-bold flex items-center gap-1.5 shrink-0 ${
+                            className={`py-2 px-2.5 rounded-xl transition-all text-[11px] font-bold flex items-center justify-center gap-1.5 ${
                               isVisibleOnWeb
                                 ? 'bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-200'
                                 : 'bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 shadow-xs'
@@ -4388,15 +4388,35 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
                           >
                             {isVisibleOnWeb ? (
                               <>
-                                <EyeOff className="w-3.5 h-3.5 text-amber-600" />
-                                <span className="hidden sm:inline">Ocultar de Web</span>
+                                <EyeOff className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                <span className="truncate">Ocultar de Web</span>
                               </>
                             ) : (
                               <>
-                                <Eye className="w-3.5 h-3.5 text-teal-600" />
-                                <span>Publicar en Web</span>
+                                <Eye className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                                <span className="truncate">Publicar en Web</span>
                               </>
                             )}
+                          </button>
+
+                          {isPresident && onImpersonateAffiliate && (
+                            <button
+                              onClick={() => onImpersonateAffiliate(member)}
+                              className="py-2 px-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition-colors text-[11px] font-bold flex items-center justify-center gap-1.5"
+                              title="Entrar como agremiado para editar fotos, secciones, visibilidad y ficha completa"
+                            >
+                              <UserCheck className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                              <span className="truncate">Modo Agremiado</span>
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => openEditMemberModal(member)}
+                            className="py-2 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors text-[11px] font-bold flex items-center justify-center gap-1.5"
+                            title="Editar ficha del agremiado"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                            <span className="truncate">Editar</span>
                           </button>
 
                           {/* WhatsApp 1-clic */}
@@ -4409,39 +4429,21 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
                               )}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors"
+                              className="py-2 px-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors text-[11px] font-bold flex items-center justify-center gap-1.5"
                               title="Enviar WhatsApp institucional"
                             >
-                              <MessageCircle className="w-4 h-4" />
+                              <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                              <span>WhatsApp</span>
                             </a>
                           )}
 
-                          {isPresident && onImpersonateAffiliate && (
-                            <button
-                              onClick={() => onImpersonateAffiliate(member)}
-                              className="p-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition-colors text-xs font-bold flex items-center gap-1.5"
-                              title="Entrar como agremiado para editar fotos, secciones, visibilidad y ficha completa"
-                            >
-                              <UserCheck className="w-3.5 h-3.5 text-amber-700" />
-                              <span className="hidden sm:inline">Modo Agremiado</span>
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() => openEditMemberModal(member)}
-                            className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors text-xs font-bold flex items-center gap-1"
-                            title="Editar ficha del agremiado"
-                          >
-                            <Edit3 className="w-3.5 h-3.5 text-amber-700" />
-                            <span className="hidden sm:inline">Editar</span>
-                          </button>
-
                           <button
                             onClick={() => handleDeleteMember(member.id, member.nombre_establecimiento, member.codigo_afiliado)}
-                            className="p-2.5 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-700 transition-colors"
+                            className={`py-2 px-2.5 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-700 transition-colors text-[11px] font-bold flex items-center justify-center gap-1.5 ${!member.telefono ? 'col-span-2' : ''}`}
                             title="Eliminar agremiado"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                            <span>Eliminar</span>
                           </button>
                         </div>
 
