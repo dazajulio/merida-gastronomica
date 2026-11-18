@@ -1100,7 +1100,7 @@ export function AffiliateDashboard({
           foto_portada: newCover,
           fotos_galeria: newGallery,
           updated_at: new Date().toISOString()
-        }).eq('codigo_afiliado', activeUser.id).catch(() => {});
+        }).eq('codigo_afiliado', activeUser.id).then(() => {}, () => {});
       }
 
       if (typeof window !== 'undefined') {
@@ -1134,7 +1134,7 @@ export function AffiliateDashboard({
           foto_portada: selected,
           fotos_galeria: reordered,
           updated_at: new Date().toISOString()
-        }).eq('codigo_afiliado', activeUser.id).catch(() => {});
+        }).eq('codigo_afiliado', activeUser.id).then(() => {}, () => {});
       }
 
       if (typeof window !== 'undefined') {
