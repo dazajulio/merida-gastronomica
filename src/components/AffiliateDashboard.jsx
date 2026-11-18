@@ -801,6 +801,34 @@ export function AffiliateDashboard({
 
   const [copiedBankData, setCopiedBankData] = useState(false);
   const [isSubmittingReg, setIsSubmittingReg] = useState(false);
+  const [regPaymentProofOptimized, setRegPaymentProofOptimized] = useState(null);
+  const [isOptimizingRegProof, setIsOptimizingRegProof] = useState(false);
+  const regProofFileInputRef = useRef(null);
+
+  const handleRegProofUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsOptimizingRegProof(true);
+    try {
+      const optResult = await optimizeImage(file, {
+        maxWidth: 1200,
+        maxHeight: 1600,
+        quality: 0.80,
+        preferredFormat: 'image/webp'
+      });
+      setRegPaymentProofOptimized({
+        blob: optResult.blob,
+        dataUrl: optResult.dataUrl,
+        name: file.name,
+        sizeFormatted: optResult.compressedSizeFormatted
+      });
+    } catch (err) {
+      alert('No se pudo procesar la imagen del comprobante. Intenta con otra foto.');
+    } finally {
+      setIsOptimizingRegProof(false);
+      if (regProofFileInputRef.current) regProofFileInputRef.current.value = '';
+    }
+  };
   const [showVideoModal, setShowVideoModal] = useState(autoOpenVideo || false);
   const videoRef = useRef(null);
 
@@ -1993,8 +2021,23 @@ export function AffiliateDashboard({
           console.warn('Supabase registration sync notice:', err);
         }
 
+        // Subir comprobante opcional si fue adjuntado en el Paso 3
+        let regProofUrl = '';
+        if (regPaymentProofOptimized?.blob) {
+          try {
+            const uploadRes = await uploadPaymentProofToStorage(
+              regPaymentProofOptimized.blob,
+              newCode,
+              regPaymentProofOptimized.dataUrl
+            );
+            regProofUrl = uploadRes?.url || regPaymentProofOptimized.dataUrl || '';
+          } catch (proofErr) {
+            console.warn('Aviso subiendo comprobante de registro:', proofErr);
+          }
+        }
+
         // Registrar pago en Tesorería para validación inmediata
-        submitPaymentRecord({
+        await submitPaymentRecord({
           codigo_afiliado: newCode,
           nombre_establecimiento: regData.restaurantName,
           representante_legal: regData.ownerName,
@@ -2013,6 +2056,7 @@ export function AffiliateDashboard({
           banco_receptor: 'Banco Provincial (0108)',
           referencia: regData.referenceNumber,
           telefono_pagador: regData.payerPhone || regData.phone,
+          comprobante_url: regProofUrl || null,
           estado: 'pendiente',
           observaciones: 'Registro Web Público - Paso 3'
         }).catch(() => {});
@@ -2409,6 +2453,13 @@ export function AffiliateDashboard({
 
     return (
       <section className="py-6 md:py-12 max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 relative bg-[#FAF7F2] md:bg-transparent min-h-screen md:min-h-0">
+        <input
+          ref={regProofFileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleRegProofUpload}
+        />
 
         {/* ============================================================
             VERSIÓN MÓVIL DEDICADA (/afiliacion/registro en Celulares)
@@ -2765,6 +2816,39 @@ export function AffiliateDashboard({
                   onChange={(e) => setRegData({ ...regData, referenceNumber: e.target.value })}
                   className="w-full px-4 py-3.5 rounded-2xl border border-[#EAE3D5] bg-[#FAF7F2] text-sm font-mono font-bold text-[#1E1C1A] focus:outline-none focus:border-[#C85A32]"
                 />
+              </div>
+
+              {/* Comprobante de Pago (Opcional) - Móvil */}
+              <div className="p-3.5 rounded-2xl bg-[#FAF7F2] border border-dashed border-[#D8CBB8] space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-[#1E1C1A]">
+                    Comprobante de Pago <span className="text-[#7A7168] font-normal">(Opcional)</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => regProofFileInputRef.current?.click()}
+                    disabled={isOptimizingRegProof}
+                    className="px-3 py-1.5 rounded-full bg-white border border-[#C85A32]/40 text-[#C85A32] text-[11px] font-bold flex items-center gap-1"
+                  >
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    <span>{isOptimizingRegProof ? 'Cargando...' : (regPaymentProofOptimized ? 'Cambiar Foto' : 'Adjuntar Capture')}</span>
+                  </button>
+                </div>
+                {regPaymentProofOptimized && (
+                  <div className="flex items-center justify-between gap-2 bg-white p-2 rounded-xl border border-[#EAE3D5]">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <img src={regPaymentProofOptimized.dataUrl} alt="Comprobante" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                      <span className="text-[11px] font-medium text-[#1E1C1A] truncate">{regPaymentProofOptimized.name}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setRegPaymentProofOptimized(null)}
+                      className="text-[11px] font-bold text-rose-600 px-2 py-1"
+                    >
+                      Quitar
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2 pt-2">
@@ -3359,6 +3443,48 @@ export function AffiliateDashboard({
                 />
               </div>
 
+              {/* Comprobante de Pago (Opcional) - Escritorio */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-dashed border-slate-300 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">
+                      Adjuntar Comprobante / Capture de Pago <span className="text-slate-500 font-normal">(Opcional)</span>
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      Si lo deseas, sube una imagen del capture para agilizar la validación en Tesorería.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => regProofFileInputRef.current?.click()}
+                    disabled={isOptimizingRegProof}
+                    className="px-3.5 py-2 rounded-xl bg-white hover:bg-amber-50 text-amber-800 border border-amber-300 text-xs font-bold flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <UploadCloud className="w-4 h-4" />
+                    <span>{isOptimizingRegProof ? 'Procesando...' : (regPaymentProofOptimized ? 'Cambiar Imagen' : 'Adjuntar Imagen (Opcional)')}</span>
+                  </button>
+                </div>
+
+                {regPaymentProofOptimized && (
+                  <div className="flex items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <img src={regPaymentProofOptimized.dataUrl} alt="Comprobante de pago" className="w-12 h-12 rounded-lg object-cover border border-slate-200 shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-slate-800 block truncate">{regPaymentProofOptimized.name}</span>
+                        <span className="text-[10px] text-emerald-700 font-semibold">Comprobante listo ({regPaymentProofOptimized.sizeFormatted})</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setRegPaymentProofOptimized(null)}
+                      className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold shrink-0"
+                    >
+                      Quitar
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div className="pt-4 flex items-center justify-between">
                 <button
                   type="button"
@@ -3877,12 +4003,15 @@ export function AffiliateDashboard({
                     type="button"
                     onClick={() => {
                       setIsUserMenuOpen(false);
-                      setActiveUser(null);
                       try {
                         localStorage.removeItem('cgem_active_session');
                         localStorage.removeItem('cgem_active_affiliate');
                       } catch (e) {}
-                      updateViewMode('login');
+                      if (onNavigate) {
+                        onNavigate('home');
+                      } else if (typeof window !== 'undefined') {
+                        window.location.href = '/';
+                      }
                     }}
                     className="w-full px-4 py-2.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition-colors"
                   >

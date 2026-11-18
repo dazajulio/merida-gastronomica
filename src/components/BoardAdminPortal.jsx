@@ -1058,12 +1058,19 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
     }
   };
 
-  // Handle Logout
+  // Handle Logout -> redirigir siempre al inicio
   const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('cgem_board_user');
+    try {
+      localStorage.removeItem('cgem_board_user');
+    } catch (e) {}
     setEmailInput('');
     setPasswordInput('');
+    setCurrentUser(null);
+    if (onNavigate) {
+      onNavigate('home');
+    } else if (typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
   };
 
   // Conjunto de IDs cumplidos/archivados para aislamiento y seguridad absoluta

@@ -356,19 +356,60 @@ export async function fetchLiveExpenses() {
 
 // Guardar nuevo reporte de pago
 export async function submitPaymentRecord(paymentData) {
+  const validUuid =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : undefined;
+
+  const isUuid = (val) =>
+    typeof val === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+  const nowIso = new Date().toISOString();
+  const safeId = isUuid(paymentData.id) ? paymentData.id : validUuid;
+
+  const supabasePayload = {
+    ...(safeId ? { id: safeId } : {}),
+    numero_recibo: paymentData.numero_recibo || generateReceiptNumber(),
+    codigo_afiliado: paymentData.codigo_afiliado || '',
+    nombre_establecimiento: paymentData.nombre_establecimiento || 'Establecimiento Afiliado',
+    representante_legal: paymentData.representante_legal || '',
+    rif_cedula: paymentData.rif_cedula || '',
+    telefono: paymentData.telefono || '',
+    email: paymentData.email || '',
+    concepto: paymentData.concepto || 'Cuota Mensual',
+    periodo_mes: paymentData.periodo_mes || '',
+    metodo_pago: paymentData.metodo_pago || 'pago_movil',
+    banco_emisor: paymentData.banco_emisor || 'Banco Provincial',
+    banco_receptor: paymentData.banco_receptor || 'Banco Provincial (0108)',
+    referencia: paymentData.referencia || '',
+    telefono_pagador: paymentData.telefono_pagador || '',
+    monto_bs: Number(paymentData.monto_bs) || 0,
+    tasa_bcv: Number(paymentData.tasa_bcv) || 0,
+    monto_usd: Number(paymentData.monto_usd) || 0,
+    estado: paymentData.estado || 'pendiente',
+    fecha_pago: paymentData.fecha_pago || nowIso,
+    fecha_conciliacion: paymentData.fecha_conciliacion || null,
+    conciliado_por: paymentData.conciliado_por || null,
+    comprobante_url: paymentData.comprobante_url || null,
+    observaciones: paymentData.observaciones || '',
+    motivo_rechazo: paymentData.motivo_rechazo || null,
+    created_at: nowIso,
+    updated_at: nowIso,
+  };
+
   const newRecord = {
     ...paymentData,
-    id: paymentData.id || `pago-${Date.now()}`,
-    numero_recibo: paymentData.numero_recibo || generateReceiptNumber(),
-    created_at: new Date().toISOString(),
-    fecha_pago: paymentData.fecha_pago || new Date().toISOString(),
-    estado: paymentData.estado || 'pendiente'
+    ...supabasePayload,
+    id: safeId || `pago-${Date.now()}`,
   };
 
   try {
     const saved = localStorage.getItem('cgem_pagos_tesoreria');
     const list = saved ? JSON.parse(saved) : [...INITIAL_PAYMENTS];
-    const existsIndex = list.findIndex(p => p.id === newRecord.id || (p.referencia && p.referencia === newRecord.referencia));
+    const existsIndex = list.findIndex(
+      p => p.id === newRecord.id || (p.referencia && newRecord.referencia && p.referencia === newRecord.referencia && p.codigo_afiliado === newRecord.codigo_afiliado)
+    );
     let updatedList;
     if (existsIndex >= 0) {
       list[existsIndex] = { ...list[existsIndex], ...newRecord };
@@ -383,10 +424,15 @@ export async function submitPaymentRecord(paymentData) {
     try {
       const { data, error } = await supabase
         .from('pagos_tesoreria')
-        .insert([newRecord])
+        .insert([supabasePayload])
         .select();
 
-      if (!error && data && data.length > 0) {
+      if (error) {
+        console.warn('Supabase insert payment error:', error.message, error.details);
+      } else if (data && data.length > 0) {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('cgem_payments_updated'));
+        }
         return data[0];
       }
     } catch (err) {
