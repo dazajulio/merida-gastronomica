@@ -658,7 +658,8 @@ export function AffiliateDashboard({
   onNavigate, 
   onViewModeChange,
   initialActiveTab = 'overview',
-  initialActiveUser = null
+  initialActiveUser = null,
+  onExitImpersonation = null
 }) {
   const [viewMode, setViewMode] = useState(() => {
     if (initialViewMode === 'register') return 'register';
@@ -885,7 +886,7 @@ export function AffiliateDashboard({
     } catch (e) {}
 
     if (!loadedFromLocal) {
-      setBusinessProfile(createBlankBusinessProfile(activeUser));
+      setBusinessProfile(createBlankBusinessProfile({ ...(activeUser.rawMember || {}), ...activeUser }));
     }
 
     // Sincronización en segundo plano con Supabase para recuperar fotos reales
@@ -3335,6 +3336,25 @@ export function AffiliateDashboard({
 
       {/* 2. LIGHT MAIN WORKSPACE */}
       <main className="flex-1 min-w-0 flex flex-col bg-[#f8fafc] min-h-screen">
+        {activeUser?.isPresidentImpersonation && (
+          <div className="bg-[#1E1C1A] text-white px-4 sm:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/30">
+            <div className="flex items-center gap-2 text-xs sm:text-sm font-medium">
+              <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>
+                <strong className="text-amber-400">Modo Presidencia:</strong> Editando cuenta de{' '}
+                <strong>{activeUser.restaurantName}</strong> ({activeUser.id}) sin clave de acceso
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => (onExitImpersonation ? onExitImpersonation() : onNavigate?.('admin'))}
+              className="px-3.5 py-1.5 rounded-full bg-[#C85A32] hover:bg-[#b54d28] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Volver a /admin</span>
+            </button>
+          </div>
+        )}
         
         {/* Sticky Top Header Bar (Matching Admin SaaS) */}
         <header className="sticky top-0 z-30 bg-[#f8fafc]/90 backdrop-blur-md border-b border-slate-200/60 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">

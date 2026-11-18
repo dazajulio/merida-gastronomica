@@ -675,6 +675,11 @@ export function App() {
               initialActiveUser={affiliateDirectUser}
               onNavigate={(tab) => navigateTo(tab)}
               onViewModeChange={(mode) => setAffiliateViewMode(mode)}
+              onExitImpersonation={() => {
+                setAffiliateDirectUser(null);
+                setAffiliateViewMode('login');
+                navigateTo('admin');
+              }}
             />
           </div>
         )}
@@ -685,6 +690,39 @@ export function App() {
             <BoardAdminPortal 
               t={t} 
               onNavigate={(tab) => navigateTo(tab)}
+              onImpersonateAffiliate={(member) => {
+                const code = member.codigo_afiliado || member.id || 'CGM-MEMBER';
+                const cuota = parseFloat(member.monto_cuota_mensual) || 10;
+                const userPayload = {
+                  id: code,
+                  restaurantName: member.nombre_establecimiento || 'Establecimiento Agremiado',
+                  ownerName: member.representante_legal || member.nombre_establecimiento || 'Representante',
+                  memberCategory: member.categoria_negocio || 'Empresas Gastronómicas',
+                  businessType: member.categoria_negocio || 'empresas',
+                  registrationDate: member.fecha_registro
+                    ? new Date(member.fecha_registro).toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' })
+                    : '01 de Enero de 2026',
+                  expiryDate: '31 de Diciembre de 2026',
+                  status: member.estado_solvencia || 'Activo (Solvente)',
+                  monthlyDues: `$${cuota.toFixed(2)}`,
+                  lastPaymentDate: 'Reciente',
+                  certificateCode: `CGM-CERT-2026-${String(code).replace('CGM-', '')}`,
+                  email: member.email || '',
+                  isPresidentImpersonation: true,
+                  rawMember: member,
+                  stats: {
+                    profileViewsMonth: 1240,
+                    reservationsMonth: 38,
+                    chamberRating: '5.0 / 5.0 (Auditoría de Calidad en Curso)'
+                  }
+                };
+                setAffiliateDirectUser(userPayload);
+                setAffiliateInitialTab('my_business');
+                setAffiliateViewMode('dashboard');
+                setActiveTab('affiliates');
+                window.history.pushState(null, '', '/afiliacion');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
             />
           </div>
         )}

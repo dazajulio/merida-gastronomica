@@ -392,7 +392,7 @@ function AdminGpsMapCalibrator({ lat, lng, onCoordsChange, establishmentName }) 
   );
 }
 
-export function BoardAdminPortal({ t, onNavigate }) {
+export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
   // Authentication State
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -4414,6 +4414,17 @@ export function BoardAdminPortal({ t, onNavigate }) {
                             >
                               <MessageCircle className="w-4 h-4" />
                             </a>
+                          )}
+
+                          {isPresident && onImpersonateAffiliate && (
+                            <button
+                              onClick={() => onImpersonateAffiliate(member)}
+                              className="p-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition-colors text-xs font-bold flex items-center gap-1.5"
+                              title="Entrar como agremiado para editar fotos, secciones, visibilidad y ficha completa"
+                            >
+                              <UserCheck className="w-3.5 h-3.5 text-amber-700" />
+                              <span className="hidden sm:inline">Modo Agremiado</span>
+                            </button>
                           )}
 
                           <button
