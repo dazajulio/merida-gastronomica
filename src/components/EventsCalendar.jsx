@@ -126,7 +126,7 @@ export function EventsCalendar({ t }) {
   const isFreeOpenEvent = (event) => {
     if (!event) return false;
     if (event.hideRsvpButton) return true;
-    if (event.accessType === 'free') return true;
+    if (event.accessType === 'free' || event.accessType === 'third_party') return true;
     if (Array.isArray(event.priceTiers) && event.priceTiers.length > 0) {
       return event.priceTiers.every((tier) => tier.isFree || Number(tier.priceUSD) === 0);
     }

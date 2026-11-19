@@ -1765,6 +1765,14 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
         priceTiers: [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: '' }],
         ticketPrice: 'Entrada Totalmente Libre / Gratuita'
       }));
+    } else if (selectedType === 'third_party') {
+      setPublicEventFormData(prev => ({
+        ...prev,
+        accessType: 'third_party',
+        priceTiers: [],
+        ticketPrice: 'Evento Pago • Coordinar con la empresa',
+        isPagoMovilEnabled: false
+      }));
     } else if (selectedType === 'paid') {
       // In PAID strict modality: EVERYONE pays. No free tiers allowed.
       const currentTiers = Array.isArray(publicEventFormData.priceTiers) ? publicEventFormData.priceTiers : [];
@@ -1934,6 +1942,9 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
     if (currentAccessType === 'free') {
       generatedTicketText = 'Entrada Totalmente Libre / Gratuita';
       tiers = [{ id: 'tier-free', name: 'Entrada Libre', priceUSD: 0, isFree: true, note: '' }];
+    } else if (currentAccessType === 'third_party') {
+      generatedTicketText = publicEventFormData.ticketPrice?.trim() || 'Evento Pago • Coordinar con la empresa';
+      tiers = [];
     } else if (currentAccessType === 'paid') {
       // Guarantee all tiers are paid
       tiers = tiers.map(t => ({
@@ -7671,8 +7682,8 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
                     </div>
                   </div>
 
-                  {/* 3 Mutually Exclusive Tabs */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {/* 4 Mutually Exclusive Tabs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                     <button
                       type="button"
                       onClick={() => handleSelectAccessType('free')}
@@ -7732,6 +7743,26 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
                         Miembros Solventes Gratis + Público General Pago.
                       </span>
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectAccessType('third_party')}
+                      className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1 ${
+                        publicEventFormData.accessType === 'third_party'
+                          ? 'bg-slate-900 text-white border-slate-950 shadow-md ring-2 ring-slate-400/40'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-xs">🏢 4. Pago Tercero</span>
+                        {publicEventFormData.accessType === 'third_party' && (
+                          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                        )}
+                      </div>
+                      <span className={`text-[10px] leading-tight ${publicEventFormData.accessType === 'third_party' ? 'text-slate-300' : 'text-slate-500'}`}>
+                        Evento pago cobrado directo por la empresa organizadora.
+                      </span>
+                    </button>
                   </div>
                 </div>
 
@@ -7743,6 +7774,30 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
                       <p className="text-[11px] font-normal text-emerald-800">
                         El evento no requerirá pago móvil ni cobro de boletos para ningún asistente.
                       </p>
+                    </div>
+                  </div>
+                ) : publicEventFormData.accessType === 'third_party' ? (
+                  <div className="p-4 rounded-xl bg-slate-100 border border-slate-300 text-slate-900 text-xs space-y-2.5">
+                    <div className="flex items-start gap-2.5">
+                      <Building2 className="w-5 h-5 text-[#C85A32] shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-extrabold">Evento Pago de Tercero (Sin cobro de la Cámara)</p>
+                        <p className="text-[11px] text-slate-600">
+                          No se mostrarán tarifas ni Pago Móvil de la Cámara. El visitante verá que es un evento pago a coordinar directamente con la empresa organizadora.
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Nota de acceso visible en la tarjeta (Opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={publicEventFormData.ticketPrice || ''}
+                        onChange={(e) => setPublicEventFormData({ ...publicEventFormData, ticketPrice: e.target.value })}
+                        placeholder="Evento Pago • Coordinar con la empresa"
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900"
+                      />
                     </div>
                   </div>
                 ) : (
