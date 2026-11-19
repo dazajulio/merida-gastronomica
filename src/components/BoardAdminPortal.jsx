@@ -85,6 +85,7 @@ import { INITIAL_DIRECTORY_DATA } from '../data/initialDirectoryData';
 import { EVENTS_DATA } from '../data/eventsData';
 import { TreasuryManagementModule } from './TreasuryManagementModule';
 import { OfficialCommunicationsModule } from './OfficialCommunicationsModule';
+import { LaGuiaAdminTab } from './LaGuiaAdminTab';
 import { sendBoardAttendanceEmail, sendAffiliateWelcomeEmail } from '../lib/emailService';
 import { reconcilePaymentRecord, updatePaymentBillingDetails, fetchLivePayments, isMemberSolventForCurrentMonth } from '../lib/treasurySync';
 import { supabase } from '../lib/supabaseClient';
@@ -3078,6 +3079,13 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
           visible: canAccessDirectory,
         },
         {
+          id: 'la_guia',
+          label: 'La Guía',
+          icon: Compass,
+          badge: 'Portada',
+          visible: isPresident,
+        },
+        {
           id: 'treasury',
           label: 'Tesorería & Finanzas',
           icon: CircleDollarSign,
@@ -5578,6 +5586,13 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
               })}
             </div>
           </div>
+        )}
+
+        {/* =========================================================================
+            VIEW MODE: LA GUÍA (GESTIÓN EN TIEMPO REAL DE SECCIONES Y PRESTADORES)
+            ========================================================================= */}
+        {viewMode === 'la_guia' && isPresident && (
+          <LaGuiaAdminTab />
         )}
 
         {/* =========================================================================

@@ -23,6 +23,7 @@ import { ElValleSpotlightSection } from './components/ElValleSpotlightSection';
 import { AlliesMarqueeStrip } from './components/AlliesMarqueeStrip';
 import { ElValleTouristPage } from './components/ElValleTouristPage';
 import { NewsMediaSection } from './components/NewsMediaSection';
+import { TouristGuideGridSection } from './components/TouristGuideGridSection';
 import { INITIAL_DIRECTORY_DATA } from './data/initialDirectoryData';
 
 import { RESTAURANTS_DATA } from './data/restaurantsData';
@@ -356,79 +357,8 @@ export function App() {
               restaurantCount={restaurants.length}
             />
 
-            {/* Ecosystem Quick Cards: "De la Cordillera a tu Mesa" (Inspired by From Ideas to Impact) */}
-            <section className="py-16 bg-[#FAF7F2] border-b border-[#EAE3D5]">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mb-10">
-                  <div className="lg:col-span-5">
-                    <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#C85A32] block mb-1.5">
-                      Qué Ofrecemos
-                    </span>
-                    <h2 className="font-playfair text-3xl sm:text-4xl font-bold text-[#1E1C1A] leading-tight">
-                      De las Ideas al <span className="italic font-normal text-[#C85A32]">Paladar</span>
-                    </h2>
-                    <p className="text-xs sm:text-sm text-[#5C554E] mt-3 leading-relaxed font-sans max-w-md">
-                      Conectamos a comensales y turistas con los establecimientos más auténticos de Mérida, impulsando la calidad y el producto de origen.
-                    </p>
-                  </div>
-
-                  <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[
-                      {
-                        id: 'prestadores',
-                        title: 'Guía Oficial',
-                        desc: 'Prestadores de servicios gastronómicos y turísticos en Mérida.',
-                        icon: UtensilsCrossed,
-                      },
-                      {
-                        id: 'events',
-                        title: 'Eventos & Festivales',
-                        desc: 'Ferias, catas, congresos y festividades más prestigiosas de Mérida.',
-                        icon: Calendar,
-                      },
-                      {
-                        id: 'cultural',
-                        title: 'Distrito Cultural',
-                        desc: 'Entre callejones y casonas coloniales, el corazón de Mérida late con fuerza propia.',
-                        icon: Palette,
-                      },
-                      {
-                        id: 'terroir',
-                        title: 'Rutas Mérida',
-                        desc: 'Mérida es un territorio de contrastes únicos: desde el frío de los páramos agrícolas hasta el cacao fino del Sur del Lago.',
-                        icon: Compass,
-                      },
-                    ].map((card) => {
-                      const IconComp = card.icon;
-                      return (
-                        <button
-                          key={card.id}
-                          type="button"
-                          onClick={() => navigateTo(card.id)}
-                          className="text-left p-5 rounded-3xl bg-white border border-[#EAE3D5] hover:border-[#C85A32]/60 hover:shadow-md transition-all group flex flex-col justify-between"
-                        >
-                          <div>
-                            <div className="w-10 h-10 rounded-2xl bg-[#FAF3EB] text-[#C85A32] flex items-center justify-center mb-3.5 group-hover:scale-105 transition-transform">
-                              <IconComp className="w-5 h-5" />
-                            </div>
-                            <h3 className="font-playfair font-bold text-base text-[#1E1C1A] group-hover:text-[#C85A32] transition-colors">
-                              {card.title}
-                            </h3>
-                            <p className="text-[11px] text-[#7A7168] mt-1 leading-relaxed">
-                              {card.desc}
-                            </p>
-                          </div>
-                          <span className="mt-4 inline-flex items-center gap-1 text-[11px] font-bold text-[#C85A32]">
-                            <span>Explorar</span>
-                            <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </section>
+            {/* Guía del Visitante: 8 categorías turísticas con acceso directo y gestión desde Presidencia */}
+            <TouristGuideGridSection onNavigate={(tab) => navigateTo(tab)} />
 
             {/* Cinta de Aliados Oficiales (Desplazamiento lento de izquierda a derecha) */}
             <AlliesMarqueeStrip />

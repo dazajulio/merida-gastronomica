@@ -91,6 +91,38 @@ export function EventsCalendar({ t }) {
     return selectedMonth === 'all' || event.month === selectedMonth;
   });
 
+  const getCalendarStickerParts = (event) => {
+    const monthNames = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+    const rawMonth = String(event?.month || '').trim();
+    let monthAbbr = '';
+    const numMonth = parseInt(rawMonth, 10);
+    if (!isNaN(numMonth) && numMonth >= 1 && numMonth <= 12) {
+      monthAbbr = monthNames[numMonth - 1];
+    } else if (rawMonth) {
+      monthAbbr = rawMonth.slice(0, 3).toUpperCase();
+    }
+
+    const rawDate = String(event?.date || '').trim();
+    let dayLabel = '';
+    const isoMatch = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      if (!monthAbbr) monthAbbr = monthNames[Math.max(0, Math.min(11, parseInt(isoMatch[2], 10) - 1))];
+      dayLabel = String(parseInt(isoMatch[3], 10));
+    } else {
+      const ordMatch = rawDate.match(/\b(\d{1,2})(?:er|do|to|°|º)?\b/i);
+      if (ordMatch) {
+        dayLabel = ordMatch[0].toUpperCase();
+      } else {
+        dayLabel = '2026';
+      }
+    }
+
+    return {
+      monthAbbr: monthAbbr || 'EVT',
+      dayLabel: dayLabel || '•',
+    };
+  };
+
   const isFreeOpenEvent = (event) => {
     if (!event) return false;
     if (event.hideRsvpButton) return true;
@@ -253,134 +285,120 @@ export function EventsCalendar({ t }) {
             </span>
           </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
-          {filteredEvents.map((event) => (
-            <div 
-              key={event.id}
-              className="group rounded-3xl bg-white border border-slate-200 overflow-hidden hover:border-amber-400 hover:shadow-card-hover transition-all duration-300 flex flex-col justify-between"
+      ) : (() => {
+        const renderCompactEventCard = (event, keyVal) => {
+          const { monthAbbr, dayLabel } = getCalendarStickerParts(event);
+          return (
+            <div
+              key={keyVal}
+              className="group w-[220px] sm:w-[235px] shrink-0 rounded-2xl bg-white border border-[#EAE3D5] overflow-hidden hover:border-[#C85A32]/60 hover:shadow-lg transition-all duration-300 flex flex-col justify-between"
             >
-              {/* Event Image / 9:16 Flyer Poster */}
-              <div className="relative w-full h-64 sm:h-72 overflow-hidden bg-slate-900 flex items-center justify-center">
-                <img 
-                  src={event.image} 
-                  alt={event.title} 
+              {/* Compact Event Image */}
+              <div className="relative w-full h-40 sm:h-44 overflow-hidden bg-slate-900">
+                <img
+                  src={event.image}
+                  alt={event.title}
+                  loading="lazy"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-95"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-black/30 pointer-events-none" />
-                
-                {/* Badges */}
-                <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500 text-slate-950 shadow-sm font-sans">
-                    {event.month}
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white/95 text-slate-900 shadow-sm font-sans">
-                    {event.badge || 'Oficial CGM'}
-                  </span>
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/15 to-black/25 pointer-events-none" />
+
+                {/* Calendar Sticker (Esquina Superior Derecha) */}
+                <div className="absolute top-2.5 right-2.5 w-11 rounded-xl overflow-hidden shadow-md border border-white/80 bg-white text-center pointer-events-none">
+                  <div className="bg-[#C85A32] text-white text-[9px] font-black uppercase tracking-wider py-0.5 leading-tight">
+                    {monthAbbr}
+                  </div>
+                  <div className="text-[#1E1C1A] font-playfair font-black text-base leading-tight py-1">
+                    {dayLabel}
+                  </div>
                 </div>
 
-                <div className="absolute bottom-3 left-3 flex items-center gap-2">
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-600 text-white shadow-sm font-sans">
+                {/* Category Pill Bottom-Left */}
+                <div className="absolute bottom-2.5 left-2.5 right-11 pointer-events-none">
+                  <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-600/95 text-white shadow-sm font-sans truncate max-w-full">
                     {event.category}
                   </span>
                 </div>
 
-                {/* Lightbox Zoom Button for Flyer */}
+                {/* Lightbox Zoom Button */}
                 <button
                   type="button"
                   onClick={() => setFlyerPreviewEvent(event)}
                   title="Ver flyer completo en alta resolución"
-                  className="absolute bottom-3 right-3 p-2 rounded-xl bg-black/60 hover:bg-black/90 text-white border border-white/20 backdrop-blur-xs transition-all shadow-md active:scale-95"
+                  className="absolute bottom-2.5 right-2.5 p-1.5 rounded-lg bg-black/60 hover:bg-black/90 text-white border border-white/20 backdrop-blur-xs transition-all shadow-md active:scale-95"
                 >
-                  <Maximize2 className="w-4 h-4" />
+                  <Maximize2 className="w-3.5 h-3.5" />
                 </button>
               </div>
 
-              {/* Event Content */}
-              <div className="p-6 flex-1 flex flex-col justify-between space-y-4 font-sans">
-                <div>
-                  <div className="flex items-center gap-2 text-xs text-amber-800 font-bold mb-1">
-                    <Clock className="w-3.5 h-3.5 text-amber-600" />
-                    <span>{event.date}</span>
+              {/* Compact Event Content (Mantiene Título y Descripción) */}
+              <div className="p-3.5 flex-1 flex flex-col justify-between space-y-2.5 font-sans">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1 text-[10px] text-amber-800 font-bold truncate">
+                    <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                    <span className="truncate">{event.date}</span>
                   </div>
 
-                  <h3 className="font-serif text-xl font-bold text-slate-900 group-hover:text-amber-700 transition-colors leading-snug">
+                  <h3 className="font-serif text-sm sm:text-[15px] font-bold text-slate-900 group-hover:text-[#C85A32] transition-colors leading-snug line-clamp-2">
                     {event.title}
                   </h3>
 
-                  <div className="flex items-center gap-1.5 text-xs text-slate-600 mt-2">
-                    <MapPin className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                    <span>{event.location}</span>
+                  <div className="flex items-center gap-1 text-[11px] text-slate-500 truncate">
+                    <MapPin className="w-3 h-3 text-sky-600 shrink-0" />
+                    <span className="truncate">{event.location}</span>
                   </div>
 
-                  <p className="text-xs text-slate-600 mt-3 line-clamp-3 leading-relaxed">
+                  <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">
                     {event.description}
                   </p>
-
-                  {/* Multi-Tier Pricing Preview Pills */}
-                  {Array.isArray(event.priceTiers) && event.priceTiers.length > 0 ? (
-                    <div className="mt-4 pt-3 border-t border-slate-100">
-                      <div className="flex items-center gap-1 text-[10px] font-bold uppercase text-slate-500 mb-2">
-                        <Tag className="w-3 h-3 text-amber-600" />
-                        <span>Tarifas disponibles:</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {event.priceTiers.map((tier, idx) => (
-                          <span 
-                            key={tier.id || idx}
-                            className={`px-2 py-0.5 rounded-lg text-[11px] font-bold border ${
-                              tier.isFree 
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                                : 'bg-amber-50 text-amber-900 border-amber-200'
-                            }`}
-                          >
-                            {tier.name}: {tier.isFree ? 'Gratis' : `$${tier.priceUSD} USD`}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    /* Legacy Highlights */
-                    Array.isArray(event.highlights) && event.highlights.length > 0 && (
-                      <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5">
-                        <span className="text-[10px] uppercase font-bold text-slate-500">Destacados:</span>
-                        {event.highlights.slice(0, 2).map((hl, idx) => (
-                          <div key={idx} className="text-xs text-slate-700 flex items-center gap-1.5">
-                            <Sparkles className="w-3 h-3 text-amber-600 shrink-0" />
-                            <span className="truncate">{hl}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  )}
                 </div>
 
-                {/* Card Footer */}
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <span className="text-[10px] font-semibold text-slate-500 block">Acceso:</span>
-                    <span className="text-xs font-bold text-emerald-700 truncate block">
-                      {event.ticketPrice || (event.accessType === 'free' ? 'Entrada Libre' : 'Entrada con Tarifa')}
-                    </span>
-                  </div>
+                {/* Compact Card Footer */}
+                <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-emerald-700 truncate">
+                    {event.ticketPrice || (event.accessType === 'free' ? 'Entrada Libre' : 'Con Tarifa')}
+                  </span>
 
                   {!isFreeOpenEvent(event) && (
                     <button
                       onClick={() => handleOpenRsvp(event)}
-                      className="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all active:scale-95 shrink-0"
+                      className="py-1.5 px-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-xs transition-all active:scale-95 shrink-0"
                     >
-                      <Ticket className="w-3.5 h-3.5 text-slate-950" />
+                      <Ticket className="w-3 h-3 text-slate-950" />
                       <span>Inscribirse</span>
                     </button>
                   )}
                 </div>
-
               </div>
-
             </div>
-          ))}
-        </div>
-      )}
+          );
+        };
+
+        // Si hay pocos eventos, repetir en el bloque base para llenar siempre 6-8 tarjetas visibles en carrusel continuo
+        const minCardsPerHalf = 6;
+        const repeatCount = Math.max(1, Math.ceil(minCardsPerHalf / filteredEvents.length));
+        const baseTrack = [];
+        for (let i = 0; i < repeatCount; i++) {
+          baseTrack.push(...filteredEvents);
+        }
+
+        return selectedMonth === 'all' ? (
+          <div className="relative w-full overflow-hidden py-2">
+            {/* Soft horizontal edge fades */}
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-8 sm:w-16 bg-gradient-to-r from-[#FAF7F2] to-transparent z-10" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-8 sm:w-16 bg-gradient-to-l from-[#FAF7F2] to-transparent z-10" />
+
+            <div className="flex w-max items-stretch gap-4 animate-marquee-ltr">
+              {baseTrack.map((ev, idx) => renderCompactEventCard(ev, `ev-a-${ev.id}-${idx}`))}
+              {baseTrack.map((ev, idx) => renderCompactEventCard(ev, `ev-b-${ev.id}-${idx}`))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-stretch justify-center gap-4">
+            {filteredEvents.map((ev, idx) => renderCompactEventCard(ev, `ev-f-${ev.id}-${idx}`))}
+          </div>
+        );
+      })()}
 
       {/* =========================================================================
           MODAL: RSVP / OFFICIAL PUBLIC REGISTRATION WITH TIER SELECTOR
