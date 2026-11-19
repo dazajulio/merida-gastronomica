@@ -3,8 +3,9 @@ import {
   Sparkles, 
   Mountain, 
   Coffee, 
-  Droplets, 
-  Sprout, 
+  Compass, 
+  Building2,
+  Sun,
   ArrowRight,
   ShieldCheck
 } from 'lucide-react';
@@ -14,10 +15,11 @@ export function TerroirSection({ t, setActiveTab, onQuickSearch }) {
   const [selectedTerroir, setSelectedTerroir] = useState(TERROIR_DATA[0]);
 
   const terroirIcons = {
-    'cacao-porcelana': Sparkles,
-    'cafe-altura': Coffee,
-    'paramo-despensa': Sprout,
-    'termales-palmarito': Droplets
+    'eje-metropolitano': Building2,
+    'eje-paramo': Mountain,
+    'eje-mocoties': Coffee,
+    'eje-panamericano': Sun,
+    'eje-pueblos-sur': Compass,
   };
 
   return (
@@ -25,20 +27,20 @@ export function TerroirSection({ t, setActiveTab, onQuickSearch }) {
       
       {/* Header */}
       <div className="text-center max-w-3xl mx-auto mb-10">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold mb-3 shadow-sm">
-          <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-          <span>Denominaciones de Origen & Patrimonio</span>
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#FAF3EB] border border-[#EAE3D5] text-[#C85A32] text-xs font-bold mb-3 shadow-xs">
+          <Compass className="w-3.5 h-3.5 text-[#C85A32]" />
+          <span>5 Ejes Turísticos &amp; Pueblos Emblemáticos</span>
         </div>
-        <h2 className="font-serif text-3xl sm:text-5xl font-bold text-slate-900 tracking-tight">
-          Rutas & Sabores de Origen
+        <h2 className="font-playfair text-3xl sm:text-5xl font-bold text-[#1E1C1A] tracking-tight">
+          Rutas <span className="italic font-normal text-[#C85A32]">Mérida</span>
         </h2>
-        <p className="mt-3 text-slate-600 text-sm sm:text-base">
-          Mérida es un territorio de contrastes únicos: desde el frío de los páramos agrícolas hasta el cacao fino del Sur del Lago.
+        <p className="mt-3 text-[#5C554E] text-sm sm:text-base">
+          Recorre los cinco ejes turísticos y gastronómicos del Estado Mérida: desde los pueblos emblemáticos del Páramo y los Pueblos del Sur hasta la costa lacustre de Palmarito.
         </p>
       </div>
 
-      {/* Terroir Navigation Pills */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
+      {/* 5 Ejes Turísticos Navigation Pills */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-10">
         {TERROIR_DATA.map((item) => {
           const Icon = terroirIcons[item.id] || Sparkles;
           const isSelected = selectedTerroir.id === item.id;
