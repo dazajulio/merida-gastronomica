@@ -29,4 +29,27 @@ export const EVENTS_DATA = [
     image: '/images/eventos/noche-atoles-hero.jpg',
     imageAspect: '16:9',
   },
+  {
+    id: 'andes-business-merida-2026',
+    title: 'Andes Business Mérida 2026',
+    date: '4, 5 y 6 de Diciembre de 2026',
+    month: 'Diciembre',
+    location: 'Hotel La Pedregosa, Mérida',
+    category: 'Encuentro Empresarial & Turístico',
+    badge: 'Stands & Ruedas de Negocios B2B',
+    accessType: 'third_party',
+    ticketPrice: 'Pago Tercero • Coordinar con la empresa',
+    thirdPartyNote:
+      'Evento organizado por terceros. Espacios para marcas y stands limitados. Coordinar inscripción y disponibilidad directamente con Andes Business Eventos (+58 414-7187233 / +58 426-8316561).',
+    description:
+      'Punto de encuentro donde el sector empresarial y turístico de Venezuela se reúne para generar negocios reales. Stands de exhibición en Salón Barquisimeto, rueda de negocios y conferencias magistrales con Luis Vicente León y Richard Ujueta en Salón Tibisay.',
+    highlights: [
+      'Stands y Exhibición de marcas en Salón Barquisimeto',
+      'Rueda de Negocios y alianzas estratégicas B2B',
+      'Conferencias estelares en Salón Tibisay: Luis Vicente León (5 Dic) y Richard Ujueta (6 Dic)',
+      'Contacto directo para marcas y stands: +58 414-7187233 / +58 426-8316561 / @andesbusinesseventos',
+    ],
+    image: '/images/eventos/andes-business-flyer-main.jpg',
+    imageAspect: '3:4',
+  },
 ];

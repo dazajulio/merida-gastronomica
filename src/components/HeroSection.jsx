@@ -1,7 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Sparkles, ChevronLeft, ChevronRight, Calendar, Mountain, GraduationCap, Phone, MapPin, CheckCircle2 } from 'lucide-react';
+import {
+  ArrowRight,
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  Mountain,
+  GraduationCap,
+  Phone,
+  MapPin,
+  CheckCircle2,
+  MessageCircle,
+  Instagram,
+  Award,
+  Maximize2,
+  X,
+} from 'lucide-react';
 
 export function HeroSection({ setActiveTab, restaurantCount = 25 }) {
+  const [activeFlyerIndex, setActiveFlyerIndex] = useState(0);
+  const [selectedFlyer, setSelectedFlyer] = useState(null);
+
   const slides = [
     {
       id: 'legacy-hero',
@@ -83,6 +102,45 @@ export function HeroSection({ setActiveTab, restaurantCount = 25 }) {
         { value: '58+', label: 'Variedades de Atoles' },
         { value: '3er FDS', label: 'Diciembre • 4:00 p.m.' },
         { value: 'Patrimonio', label: 'Cultural del Estado Mérida' },
+      ],
+    },
+    {
+      id: 'andes-business-hero',
+      layout: 'summit-showcase', // Diseño 5 (Distinto): Verde bosque andino + oro metalizado + tarjeta ejecutiva
+      eyebrow: 'Encuentro Empresarial & Turístico • 4, 5 y 6 Dic 2026',
+      titlePrefix: 'Andes Business',
+      titleItalic: 'Mérida 2026',
+      titleSuffix: 'Negocios Reales',
+      tagline: 'Conectamos empresas, turismo y oportunidades',
+      description:
+        'El punto de encuentro donde el sector empresarial y turístico de Venezuela se reúne para generar negocios reales. Durante tres días en el Hotel La Pedregosa, unimos marcas, emprendedores e inversionistas en un espacio estratégico de alto impacto.',
+      venue: 'Hotel La Pedregosa, Mérida',
+      dates: '4, 5 y 6 de Diciembre 2026',
+      whatsappUrl:
+        'https://wa.me/584147187233?text=Hola,%20deseo%20más%20información%20y%20disponibilidad%20de%20stands%20para%20Andes%20Business%20Mérida%202026',
+      instagramUrl: 'https://www.instagram.com/andesbusinesseventos/',
+      instagramHandle: '@andesbusinesseventos',
+      phones: ['+58 414-7187233', '+58 426-8316561'],
+      image: '/images/eventos/andes-business-flyer-main.jpg',
+      imageAlt: 'Andes Business Mérida 2026 en Hotel La Pedregosa',
+      flyers: [
+        { title: 'Afiche Oficial', src: '/images/eventos/andes-business-flyer-main.jpg' },
+        { title: '¿Qué es Andes Business?', src: '/images/eventos/andes-business-flyer-info.jpg' },
+        { title: 'Conferencias & Precios', src: '/images/eventos/andes-business-flyer-speakers.jpg' },
+      ],
+      speakers: [
+        { name: 'Luis Vicente León', title: 'Presidente Datanálisis', date: '5 Dic' },
+        { name: 'Richard Ujueta', title: 'Presidente Cavecom-e', date: '6 Dic' },
+      ],
+      highlights: [
+        'Stands en Salón Barquisimeto',
+        'Rueda de Negocios & Alianzas B2B',
+        'Conferencias en Salón Tibisay',
+      ],
+      metrics: [
+        { value: '3 Días', label: 'Conexiones & Oportunidades' },
+        { value: 'Hotel', label: 'La Pedregosa • Mérida' },
+        { value: 'B2B', label: 'Alianzas & Inversión' },
       ],
     },
   ];
@@ -416,6 +474,219 @@ export function HeroSection({ setActiveTab, restaurantCount = 25 }) {
           }
 
           /* ================================================================
+             LAYOUT 5 (ANDES BUSINESS MÉRIDA 2026): Verde Bosque Andino + Oro Metalizado + Tarjeta Ejecutiva
+             ================================================================ */
+          if (slide.layout === 'summit-showcase') {
+            return (
+              <div
+                key={slide.id}
+                className="w-full shrink-0 relative min-h-[66vh] sm:min-h-[70vh] flex items-center pt-24 pb-14 sm:pt-28 sm:pb-14 bg-gradient-to-br from-[#051713] via-[#0A2922] to-[#041410] text-white overflow-hidden"
+              >
+                {/* Background decorative luxury accents */}
+                <div className="absolute inset-0 pointer-events-none opacity-30 bg-[radial-gradient(circle_at_top_right,#D4AF37_0%,transparent_50%)]" />
+                <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_bottom_left,#10B981_0%,transparent_45%)]" />
+
+                {/* Subtle technical / networking grid watermark */}
+                <div
+                  className="absolute inset-0 pointer-events-none opacity-[0.04]"
+                  style={{
+                    backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
+                    backgroundSize: '48px 48px',
+                  }}
+                />
+
+                <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 items-center gap-8 lg:gap-10">
+                    {/* Left Column: High-Impact Executive Presentation */}
+                    <div className="lg:col-span-7 space-y-4 text-left">
+                      {/* Eyebrow Badge */}
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/40 text-[#F5D061] text-[11px] font-extrabold uppercase tracking-wider backdrop-blur-xs">
+                          <Calendar className="w-3.5 h-3.5 text-[#F5D061]" />
+                          <span>{slide.eyebrow}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-[10px] font-bold text-emerald-300 uppercase tracking-wide">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          Stands Limitados
+                        </span>
+                      </div>
+
+                      {/* Title */}
+                      <h1 className="font-playfair text-3xl sm:text-5xl lg:text-[3.35rem] font-bold text-white leading-[1.08] tracking-tight">
+                        {slide.titlePrefix}{' '}
+                        <span className="italic font-normal text-[#F5D061] drop-shadow-sm">
+                          {slide.titleItalic}
+                        </span>
+                        <span className="block text-base sm:text-xl lg:text-2xl font-sans font-medium text-emerald-100/90 mt-1.5 tracking-normal">
+                          {slide.tagline}
+                        </span>
+                      </h1>
+
+                      {/* Description */}
+                      <p className="font-sans text-xs sm:text-sm text-slate-200 leading-relaxed max-w-xl">
+                        {slide.description}
+                      </p>
+
+                      {/* Key Highlights / Pillars */}
+                      <div className="flex flex-wrap gap-2 pt-0.5">
+                        {(slide.highlights || []).map((hl, hIdx) => (
+                          <span
+                            key={hIdx}
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-[11px] sm:text-xs font-semibold text-slate-100"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#F5D061] shrink-0" />
+                            <span>{hl}</span>
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Featured Keynote Speakers Pill */}
+                      {slide.speakers && (
+                        <div className="p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xs max-w-xl">
+                          <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-[#F5D061] mb-2">
+                            <span className="flex items-center gap-1.5">
+                              <Award className="w-3.5 h-3.5" />
+                              Conferencias Magistrales (Salón Tibisay)
+                            </span>
+                            <span className="text-slate-300 font-normal">60$ c/u</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            {slide.speakers.map((spk, sIdx) => (
+                              <div
+                                key={sIdx}
+                                className="flex items-center gap-2 bg-black/25 p-2 rounded-xl border border-white/5"
+                              >
+                                <div className="w-7 h-7 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/50 flex items-center justify-center font-bold text-[#F5D061] text-[11px] shrink-0">
+                                  {spk.date.split(' ')[0]}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-bold text-white truncate">{spk.name}</p>
+                                  <p className="text-[10px] text-slate-300 truncate">
+                                    {spk.title} • {spk.date}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Direct CTA Buttons (Stand Booking & Info) */}
+                      <div className="flex flex-wrap items-center gap-3 pt-1">
+                        <a
+                          href={slide.whatsappUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-5 py-3 rounded-full bg-gradient-to-r from-[#D4AF37] via-[#E5BF47] to-[#C99C2E] hover:brightness-110 text-[#07211B] font-sans font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-[#D4AF37]/25 transition-all active:scale-[0.98]"
+                        >
+                          <MessageCircle className="w-4 h-4 fill-[#07211B]/20" />
+                          <span>Reservar Stand (WhatsApp)</span>
+                        </a>
+
+                        <a
+                          href={slide.instagramUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 font-sans font-semibold text-xs sm:text-sm flex items-center gap-2 shadow-xs transition-all active:scale-[0.98]"
+                        >
+                          <Instagram className="w-4 h-4 text-[#F5D061]" />
+                          <span>{slide.instagramHandle}</span>
+                        </a>
+
+                        {/* Direct Phone Numbers */}
+                        <div className="flex items-center gap-2 text-xs text-slate-300 px-3 py-2 rounded-full bg-white/5 border border-white/10">
+                          <Phone className="w-3.5 h-3.5 text-[#F5D061] shrink-0" />
+                          <span>{slide.phones.join(' • ')}</span>
+                        </div>
+
+                        {/* Mobile-only View Flyer Button */}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFlyer(0)}
+                          className="lg:hidden px-4 py-2.5 rounded-full bg-white/10 border border-[#D4AF37]/40 text-[#F5D061] text-xs font-bold flex items-center gap-1.5"
+                        >
+                          <Maximize2 className="w-3.5 h-3.5" />
+                          <span>Ver Afiche Oficial</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Executive Showcase Card & Flyer Previews */}
+                    <div className="hidden lg:flex lg:col-span-5 flex-col items-center">
+                      <div className="relative w-full max-w-sm rounded-[2rem] overflow-hidden border-2 border-[#D4AF37]/50 shadow-2xl bg-[#07211B] group">
+                        {/* Main Flyer Display */}
+                        <div
+                          className="relative aspect-[3/4] overflow-hidden bg-slate-900 cursor-pointer"
+                          onClick={() => setSelectedFlyer(activeFlyerIndex)}
+                        >
+                          <img
+                            src={slide.flyers[activeFlyerIndex].src}
+                            alt={slide.flyers[activeFlyerIndex].title}
+                            className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/30 pointer-events-none" />
+
+                          {/* Top Floating Badge */}
+                          <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
+                            <span className="px-3 py-1 rounded-full bg-[#0A2E27]/90 backdrop-blur-md border border-[#D4AF37]/50 text-[10px] font-extrabold uppercase text-[#F5D061] tracking-wider flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-[#F5D061]" />
+                              Hotel La Pedregosa
+                            </span>
+                            <span className="p-1.5 rounded-full bg-black/60 backdrop-blur-md text-white/90">
+                              <Maximize2 className="w-3.5 h-3.5" />
+                            </span>
+                          </div>
+
+                          {/* Bottom Floating Banner */}
+                          <div className="absolute bottom-3 inset-x-3 p-2.5 rounded-xl bg-black/75 backdrop-blur-md border border-white/10 text-center">
+                            <p className="text-[11px] font-bold text-[#F5D061] tracking-wide">
+                              {slide.flyers[activeFlyerIndex].title}
+                            </p>
+                            <p className="text-[10px] text-slate-300">
+                              4 • 5 • 6 de Diciembre 2026 • Mérida
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Interactive Flyer Selector Tabs */}
+                        <div className="p-2.5 bg-[#061B16] border-t border-[#D4AF37]/30 flex items-center justify-between gap-1.5">
+                          {slide.flyers.map((fl, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setActiveFlyerIndex(idx)}
+                              className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all text-center truncate ${
+                                activeFlyerIndex === idx
+                                  ? 'bg-[#D4AF37] text-[#07211B] shadow-xs'
+                                  : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'
+                              }`}
+                            >
+                              {idx === 0 ? 'Afiche' : idx === 1 ? 'Concepto' : 'Speakers'}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedFlyer(activeFlyerIndex)}
+                            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-[#F5D061] transition-colors"
+                            title="Ampliar afiche"
+                          >
+                            <Maximize2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Small Caption */}
+                      <p className="mt-2 text-[11px] text-slate-400 text-center flex items-center gap-1">
+                        <span>Haz clic sobre el afiche para ampliar en alta resolución</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          /* ================================================================
              LAYOUT 3 (NOCHE DE LOS ATOLES): Split Editorial + Marco Fotográfico Nítido
              ================================================================ */
           return (
@@ -546,6 +817,88 @@ export function HeroSection({ setActiveTab, restaurantCount = 25 }) {
           </button>
         </div>
       </div>
+
+      {/* Lightbox Modal for Andes Business Flyers */}
+      {selectedFlyer !== null && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5"
+          onClick={() => setSelectedFlyer(null)}
+        >
+          <div
+            className="relative max-w-xl w-full max-h-[92vh] bg-[#0A2621] border border-[#D4AF37]/50 rounded-3xl p-4 sm:p-6 shadow-2xl flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setSelectedFlyer(null)}
+              className="absolute top-3.5 right-3.5 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              aria-label="Cerrar vista previa"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center mb-3">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#F5D061] px-2.5 py-0.5 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/40">
+                Andes Business Mérida 2026
+              </span>
+              <h3 className="font-playfair text-lg sm:text-xl font-bold text-white mt-1">
+                Hotel La Pedregosa • 4, 5 y 6 Dic
+              </h3>
+            </div>
+
+            <div className="w-full flex-1 overflow-auto rounded-2xl border border-white/10 flex justify-center bg-black/50 p-1">
+              <img
+                src={
+                  slides.find((s) => s.id === 'andes-business-hero')?.flyers[selectedFlyer]?.src ||
+                  '/images/eventos/andes-business-flyer-main.jpg'
+                }
+                alt="Afiche oficial Andes Business Mérida 2026"
+                className="max-h-[64vh] w-auto object-contain rounded-xl shadow-lg"
+              />
+            </div>
+
+            {/* Flyer Selector Tabs in Modal */}
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-3.5">
+              {slides
+                .find((s) => s.id === 'andes-business-hero')
+                ?.flyers.map((fl, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setSelectedFlyer(idx)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                      selectedFlyer === idx
+                        ? 'bg-[#D4AF37] text-[#07211B] shadow-md'
+                        : 'bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white'
+                    }`}
+                  >
+                    {fl.title}
+                  </button>
+                ))}
+            </div>
+
+            <div className="mt-3 flex items-center justify-center gap-3 text-[11px] text-slate-300">
+              <a
+                href="https://wa.me/584147187233?text=Hola,%20deseo%20más%20información%20y%20disponibilidad%20de%20stands%20para%20Andes%20Business%20Mérida%202026"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#F5D061] hover:underline font-bold"
+              >
+                Reservar Stands (+58 414-7187233)
+              </a>
+              <span>•</span>
+              <a
+                href="https://www.instagram.com/andesbusinesseventos/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-slate-300 hover:text-white"
+              >
+                @andesbusinesseventos
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
     </section>
   );
