@@ -388,22 +388,36 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
           }
 
           if (supabase) {
-            await supabase
+            let memberQuery = supabase
               .from('directorio_agremiados')
               .update({
                 estado_solvencia: 'Solvente (Activo)',
-                fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-              })
-              .or(`codigo_afiliado.eq.${payment.codigo_afiliado},email.eq.${payment.email}`);
+                fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                updated_at: new Date().toISOString()
+              });
+
+            if (payment.codigo_afiliado) {
+              memberQuery = memberQuery.eq('codigo_afiliado', payment.codigo_afiliado);
+            } else {
+              memberQuery = memberQuery.eq('email', payment.email);
+            }
+            await memberQuery;
           }
         } catch (e) {
           console.warn('Error updating member status:', e);
         }
       }
 
-      // Automatically dispatch email receipt
-      handleSendReceiptDirectly(payment);
       showToast(`✓ Pago conciliado y registrado como Solvente: ${payment.nombre_establecimiento}`);
+      window.dispatchEvent(new CustomEvent('cgm_treasury_updated'));
+      window.dispatchEvent(new CustomEvent('cgm_business_updated'));
+
+      // Automatically dispatch email receipt in background
+      try {
+        handleSendReceiptDirectly(payment);
+      } catch (mailErr) {
+        console.warn('Notice sending receipt in background:', mailErr);
+      }
     } catch (err) {
       alert('Error al conciliar pago: ' + err.message);
     }
@@ -494,27 +508,39 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
           }
 
           if (supabase) {
-            await supabase
+            let memberQuery = supabase
               .from('directorio_agremiados')
               .update({
                 estado_solvencia: 'Solvente (Activo)',
                 monto_inscripcion: finalInscripcionUsd,
-                fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-              })
-              .or(`codigo_afiliado.eq.${payment.codigo_afiliado},email.eq.${payment.email}`);
+                fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                updated_at: new Date().toISOString()
+              });
+
+            if (payment.codigo_afiliado) {
+              memberQuery = memberQuery.eq('codigo_afiliado', payment.codigo_afiliado);
+            } else {
+              memberQuery = memberQuery.eq('email', payment.email);
+            }
+            await memberQuery;
           }
         } catch (e) {
           console.warn('Error updating member status:', e);
         }
       }
 
-      // Automatically dispatch email receipt with updated payment object
-      handleSendReceiptDirectly({ ...payment, ...updatePayload });
       setIsReconcileModalOpen(false);
       setReconcilingPayment(null);
       showToast(`✓ Pago conciliado y registrado como Solvente: ${payment.nombre_establecimiento}`);
       window.dispatchEvent(new CustomEvent('cgm_treasury_updated'));
       window.dispatchEvent(new CustomEvent('cgm_business_updated'));
+
+      // Automatically dispatch email receipt with updated payment object in background
+      try {
+        handleSendReceiptDirectly({ ...payment, ...updatePayload });
+      } catch (mailErr) {
+        console.warn('Notice sending receipt in background:', mailErr);
+      }
     } catch (err) {
       alert('Error al conciliar pago: ' + err.message);
     }

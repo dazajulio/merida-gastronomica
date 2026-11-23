@@ -2525,6 +2525,36 @@ export function BoardAdminPortal({ t, onNavigate, onImpersonateAffiliate }) {
         estado_solvencia: 'Solvente (Activo)'
       }));
 
+      const targetCode = payment.codigo_afiliado || memberFormData.codigo_afiliado;
+      if (targetCode) {
+        try {
+          const localSaved = localStorage.getItem('cgem_directorio_agremiados');
+          if (localSaved) {
+            const list = JSON.parse(localSaved);
+            const updated = list.map(m => m.codigo_afiliado === targetCode ? {
+              ...m,
+              estado_solvencia: 'Solvente (Activo)',
+              fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            } : m);
+            localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updated));
+            setDirectoryMembers(updated);
+          }
+
+          if (supabase) {
+            await supabase
+              .from('directorio_agremiados')
+              .update({
+                estado_solvencia: 'Solvente (Activo)',
+                fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('codigo_afiliado', targetCode);
+          }
+        } catch (dirErr) {
+          console.warn('Error updating directory member solvencia:', dirErr);
+        }
+      }
+
       setTreasurySyncKey(k => k + 1);
       window.dispatchEvent(new CustomEvent('cgm_treasury_updated'));
       setActionSuccessMessage(`✓ ¡Pago validado y conciliado con éxito para ${payment.nombre_establecimiento || memberFormData.nombre_establecimiento}!`);

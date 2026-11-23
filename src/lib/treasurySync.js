@@ -443,6 +443,48 @@ export async function submitPaymentRecord(paymentData) {
   return newRecord;
 }
 
+export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const VALID_PAGOS_COLUMNS = new Set([
+  'id',
+  'numero_recibo',
+  'codigo_afiliado',
+  'nombre_establecimiento',
+  'representante_legal',
+  'rif_cedula',
+  'telefono',
+  'email',
+  'concepto',
+  'periodo_mes',
+  'metodo_pago',
+  'banco_emisor',
+  'banco_receptor',
+  'referencia',
+  'telefono_pagador',
+  'monto_bs',
+  'tasa_bcv',
+  'monto_usd',
+  'estado',
+  'fecha_pago',
+  'fecha_conciliacion',
+  'conciliado_por',
+  'comprobante_url',
+  'observaciones',
+  'motivo_rechazo',
+  'created_at',
+  'updated_at'
+]);
+
+export function sanitizePagosPayload(data = {}) {
+  const sanitized = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (VALID_PAGOS_COLUMNS.has(key)) {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
 // Conciliar un pago (Aprobación del Tesorero o Presidente)
 export async function reconcilePaymentRecord(paymentId, conciliatorName = 'Edixon Xavier Reyes Dávila (Tesorero)', extraDetails = {}) {
   const updateData = {
@@ -452,23 +494,46 @@ export async function reconcilePaymentRecord(paymentId, conciliatorName = 'Edixo
     ...extraDetails
   };
 
+  const cleanTarget = String(paymentId || '').replace(/^pago-/, '').trim();
+
   try {
     const saved = localStorage.getItem('cgem_pagos_tesoreria');
     if (saved) {
       const list = JSON.parse(saved);
-      const updated = list.map(p => (p.id === paymentId || p.codigo_afiliado === paymentId) ? { ...p, ...updateData } : p);
+      const updated = list.map(p => 
+        (p.id === paymentId || p.codigo_afiliado === paymentId || p.codigo_afiliado === cleanTarget) 
+          ? { ...p, ...updateData } 
+          : p
+      );
       localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(updated));
     }
   } catch (e) {}
 
   if (supabase) {
     try {
-      await supabase
-        .from('pagos_tesoreria')
-        .update(updateData)
-        .or(`id.eq.${paymentId},codigo_afiliado.eq.${paymentId}`);
+      const sanitized = sanitizePagosPayload(updateData);
+      sanitized.updated_at = new Date().toISOString();
+
+      let query = supabase.from('pagos_tesoreria').update(sanitized);
+      if (UUID_REGEX.test(paymentId)) {
+        query = query.eq('id', paymentId);
+      } else {
+        query = query.eq('codigo_afiliado', cleanTarget);
+      }
+
+      const { data, error } = await query.select();
+      if (error) {
+        console.error('Error conciliando pago en Supabase:', error);
+        throw new Error(`Error en base de datos: ${error.message}`);
+      } else {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('cgem_payments_updated'));
+          window.dispatchEvent(new CustomEvent('cgm_treasury_updated'));
+        }
+      }
     } catch (err) {
       console.warn('Supabase update payment notice:', err);
+      throw err;
     }
   }
 }
@@ -480,21 +545,37 @@ export async function updatePaymentBillingDetails(paymentIdOrCode, details = {})
     updated_at: new Date().toISOString()
   };
 
+  const cleanTarget = String(paymentIdOrCode || '').replace(/^pago-/, '').trim();
+
   try {
     const saved = localStorage.getItem('cgem_pagos_tesoreria');
     if (saved) {
       const list = JSON.parse(saved);
-      const updated = list.map(p => (p.id === paymentIdOrCode || p.codigo_afiliado === paymentIdOrCode) ? { ...p, ...updateData } : p);
+      const updated = list.map(p => 
+        (p.id === paymentIdOrCode || p.codigo_afiliado === paymentIdOrCode || p.codigo_afiliado === cleanTarget) 
+          ? { ...p, ...updateData } 
+          : p
+      );
       localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(updated));
     }
   } catch (e) {}
 
   if (supabase) {
     try {
-      await supabase
-        .from('pagos_tesoreria')
-        .update(updateData)
-        .or(`id.eq.${paymentIdOrCode},codigo_afiliado.eq.${paymentIdOrCode}`);
+      const sanitized = sanitizePagosPayload(updateData);
+      sanitized.updated_at = new Date().toISOString();
+
+      let query = supabase.from('pagos_tesoreria').update(sanitized);
+      if (UUID_REGEX.test(paymentIdOrCode)) {
+        query = query.eq('id', paymentIdOrCode);
+      } else {
+        query = query.eq('codigo_afiliado', cleanTarget);
+      }
+
+      const { error } = await query;
+      if (error) {
+        console.warn('Supabase update payment billing details notice:', error);
+      }
     } catch (err) {
       console.warn('Supabase update payment billing details notice:', err);
     }
@@ -507,24 +588,38 @@ export async function rejectPaymentRecord(paymentId, motivo = '', conciliatorNam
     estado: 'rechazado',
     fecha_conciliacion: new Date().toISOString(),
     conciliado_por: conciliatorName,
-    motivo_rechazo: motivo
+    motivo_rechazo: motivo,
+    updated_at: new Date().toISOString()
   };
+
+  const cleanTarget = String(paymentId || '').replace(/^pago-/, '').trim();
 
   try {
     const saved = localStorage.getItem('cgem_pagos_tesoreria');
     if (saved) {
       const list = JSON.parse(saved);
-      const updated = list.map(p => p.id === paymentId ? { ...p, ...updateData } : p);
+      const updated = list.map(p => 
+        (p.id === paymentId || p.codigo_afiliado === paymentId || p.codigo_afiliado === cleanTarget) 
+          ? { ...p, ...updateData } 
+          : p
+      );
       localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(updated));
     }
   } catch (e) {}
 
   if (supabase) {
     try {
-      await supabase
-        .from('pagos_tesoreria')
-        .update(updateData)
-        .eq('id', paymentId);
+      const sanitized = sanitizePagosPayload(updateData);
+      let query = supabase.from('pagos_tesoreria').update(sanitized);
+      if (UUID_REGEX.test(paymentId)) {
+        query = query.eq('id', paymentId);
+      } else {
+        query = query.eq('codigo_afiliado', cleanTarget);
+      }
+      const { error } = await query;
+      if (error) {
+        console.warn('Supabase reject payment notice:', error);
+      }
     } catch (err) {
       console.warn('Supabase reject payment notice:', err);
     }
@@ -536,22 +631,26 @@ export async function deletePaymentRecord(paymentId) {
   if (!paymentId) return false;
 
   await persistDiscardedPaymentId(paymentId);
+  const cleanTarget = String(paymentId || '').replace(/^pago-/, '').trim();
 
   try {
     const saved = localStorage.getItem('cgem_pagos_tesoreria');
     if (saved) {
       const list = JSON.parse(saved);
-      const updated = list.filter(p => p.id !== paymentId);
+      const updated = list.filter(p => p.id !== paymentId && p.codigo_afiliado !== paymentId && p.codigo_afiliado !== cleanTarget);
       localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(updated));
     }
   } catch (e) {}
 
   if (supabase) {
     try {
-      const { error } = await supabase
-        .from('pagos_tesoreria')
-        .delete()
-        .eq('id', paymentId);
+      let query = supabase.from('pagos_tesoreria').delete();
+      if (UUID_REGEX.test(paymentId)) {
+        query = query.eq('id', paymentId);
+      } else {
+        query = query.eq('codigo_afiliado', cleanTarget);
+      }
+      const { error } = await query;
       if (error) {
         console.warn('Supabase delete payment notice:', error);
       }
