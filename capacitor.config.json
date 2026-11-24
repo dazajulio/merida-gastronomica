@@ -7,7 +7,7 @@
     "cleartext": true
   },
   "android": {
-    "backgroundColor": "#042f2e",
+    "backgroundColor": "#FAF7F2",
     "allowMixedContent": true,
     "captureInput": true,
     "webContentsDebuggingEnabled": false
