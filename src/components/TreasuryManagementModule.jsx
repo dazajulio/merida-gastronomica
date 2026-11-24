@@ -898,8 +898,10 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
 
       // Attempt to send email receipt in background
       try {
-        handleSendReceiptDirectly(savedRecord);
-      } catch (e) {}
+        await handleSendReceiptDirectly(savedRecord);
+      } catch (mailErr) {
+        console.warn('Notice sending receipt email:', mailErr);
+      }
 
     } catch (err) {
       alert('Error al registrar cobro: ' + err.message);
@@ -1885,11 +1887,21 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
             {/* Modal Actions */}
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
+                disabled={isSendingReceiptEmail}
                 onClick={() => handleSendReceiptDirectly(selectedReceipt)}
-                className="py-2.5 px-4 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+                className="py-2.5 px-4 rounded-xl bg-teal-700 hover:bg-teal-800 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
               >
-                <Send className="w-3.5 h-3.5 text-amber-300" />
-                <span>ENVIAR RECIBO POR EMAIL</span>
+                {isSendingReceiptEmail ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-300" />
+                    <span>ENVIANDO...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5 text-amber-300" />
+                    <span>ENVIAR RECIBO POR EMAIL</span>
+                  </>
+                )}
               </button>
 
               <button

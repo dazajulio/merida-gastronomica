@@ -186,12 +186,25 @@ export const INITIAL_PAYMENTS = INITIAL_DIRECTORY_DATA.map((member, idx) => pars
 // Gastos reales: 0 egresos por defecto (sin datos inventados)
 export const INITIAL_EXPENSES = [];
 
-// Generar número correlativo de recibo
+// Generar número correlativo de recibo evitando colisiones
 export const generateReceiptNumber = (existingPayments = []) => {
   const currentYear = new Date().getFullYear();
-  const count = existingPayments.length + 1;
-  const padNum = String(count).padStart(4, '0');
-  return `REC-${currentYear}-${padNum}`;
+  let maxNum = 27; // Baseline post-UFO Candy Store (REC-2026-0027)
+  if (Array.isArray(existingPayments)) {
+    for (const p of existingPayments) {
+      if (p && p.numero_recibo) {
+        const match = String(p.numero_recibo).match(/REC-\d+-(\d+)/);
+        if (match) {
+          const val = parseInt(match[1], 10);
+          if (!isNaN(val) && val > maxNum) {
+            maxNum = val;
+          }
+        }
+      }
+    }
+  }
+  const nextNum = maxNum + 1;
+  return `REC-${currentYear}-${String(nextNum).padStart(4, '0')}`;
 };
 
 const DISCARDED_VAULT_ID = 'board_meta::discarded_payments';
@@ -287,22 +300,33 @@ export async function fetchLivePayments() {
           .select('*')
           .order('fecha_pago', { ascending: false });
 
-        if (!pagosErr && Array.isArray(pagosData) && pagosData.length > 0) {
-          const cleanPagos = filterActive(pagosData);
-          localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(cleanPagos));
-          return cleanPagos;
-        }
-
         const { data: dirData, error: dirErr } = await supabase
           .from('directorio_agremiados')
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (!dirErr && Array.isArray(dirData) && dirData.length > 0) {
-          const cleanDir = dirData.filter(m => m.codigo_afiliado !== 'CGM-2026-383');
-          const mapped = filterActive(cleanDir.map((m, idx) => parsePaymentFromMember(m, idx + 1)));
-          localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(mapped));
-          return mapped;
+        const realPagos = (!pagosErr && Array.isArray(pagosData)) ? filterActive(pagosData) : [];
+        const cleanDir = (!dirErr && Array.isArray(dirData)) ? dirData.filter(m => m.codigo_afiliado !== 'CGM-2026-383') : [];
+
+        // Generar registros de membresía base para aquellos agremiados sin registros en pagos_tesoreria
+        const codesWithPayments = new Set(realPagos.map(p => (p.codigo_afiliado || '').toLowerCase().trim()).filter(Boolean));
+        const emailsWithPayments = new Set(realPagos.map(p => (p.email || '').toLowerCase().trim()).filter(Boolean));
+
+        const baselinePayments = [];
+        cleanDir.forEach((m, idx) => {
+          const code = (m.codigo_afiliado || '').toLowerCase().trim();
+          const email = (m.email || '').toLowerCase().trim();
+          if (!codesWithPayments.has(code) && (!email || !emailsWithPayments.has(email))) {
+            baselinePayments.push(parsePaymentFromMember(m, idx + 1));
+          }
+        });
+
+        const merged = filterActive([...realPagos, ...baselinePayments]);
+        if (merged.length > 0) {
+          try {
+            localStorage.setItem('cgem_pagos_tesoreria', JSON.stringify(merged));
+          } catch (e) {}
+          return merged;
         }
       } catch (err) {
         console.warn('Supabase pagos notice:', err);
@@ -422,21 +446,47 @@ export async function submitPaymentRecord(paymentData) {
 
   if (supabase) {
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('pagos_tesoreria')
         .insert([supabasePayload])
         .select();
 
+      // En caso de colisión con un número de recibo existente, auto-resolver el siguiente correlativo
+      if (error && error.code === '23505' && (error.message?.includes('numero_recibo') || error.message?.includes('pagos_tesoreria_numero_recibo_key'))) {
+        console.warn('Colisión de número de recibo detectada. Auto-incrementando correlativo...');
+        const { data: allPagos } = await supabase
+          .from('pagos_tesoreria')
+          .select('numero_recibo');
+
+        let maxRec = 27;
+        if (allPagos) {
+          for (const ap of allPagos) {
+            const m = String(ap.numero_recibo || '').match(/REC-\d+-(\d+)/);
+            if (m) {
+              const v = parseInt(m[1], 10);
+              if (!isNaN(v) && v > maxRec) maxRec = v;
+            }
+          }
+        }
+        supabasePayload.numero_recibo = `REC-${new Date().getFullYear()}-${String(maxRec + 1).padStart(4, '0')}`;
+        const retry = await supabase.from('pagos_tesoreria').insert([supabasePayload]).select();
+        data = retry.data;
+        error = retry.error;
+      }
+
       if (error) {
-        console.warn('Supabase insert payment error:', error.message, error.details);
+        console.error('Supabase insert payment error:', error.message, error.details);
+        throw new Error(`Error en base de datos al guardar pago: ${error.message}`);
       } else if (data && data.length > 0) {
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new Event('cgem_payments_updated'));
+          window.dispatchEvent(new CustomEvent('cgm_treasury_updated'));
         }
         return data[0];
       }
     } catch (err) {
       console.warn('Supabase insert payment notice:', err);
+      throw err;
     }
   }
 

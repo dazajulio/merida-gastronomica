@@ -542,6 +542,7 @@ export async function sendPaymentReceiptEmail({
 
   return sendEmail({
     to: recipientEmail,
+    cc: ['dazajulio@gmail.com'],
     replyTo: 'tesoreria@meridagastronomica.com',
     subject,
     html: getEmailBaseTemplate(subject, content),
