@@ -40,6 +40,7 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
   // Main navigation items shown on desktop bar
   const mainBarItems = [
     { id: 'home', label: 'Inicio' },
+    { id: 'app', label: '📱 App Móvil' },
     { id: 'guide', label: 'Guía de Restaurantes' },
     { id: 'directorio', label: 'Directorio de Agremiados' },
     { id: 'terroir', label: 'Rutas Mérida' },
@@ -53,6 +54,7 @@ export function Navbar({ activeTab, setActiveTab, lang, setLang, t }) {
       category: "Turismo & Gastronomía",
       items: [
         { id: 'home', label: 'Inicio', desc: 'Portada editorial y bienvenida oficial', icon: Mountain },
+        { id: 'app', label: 'App Móvil Oficial', desc: 'Diseño móvil: búsqueda de antojos, promos y guía del viajero', icon: Sparkles },
         { id: 'guide', label: 'Guía de Restaurantes', desc: 'Restaurantes clasificados por tipo de comida', icon: UtensilsCrossed },
         { id: 'prestadores', label: 'Prestadores de Servicios', desc: 'Guía general de cafés, posadas, marcas y servicios', icon: Building2 },
         { id: 'el_valle_ruta', label: 'Ruta El Valle te Conecta', desc: 'Posadas, bistros y paquetes turísticos de montaña', icon: Mountain },

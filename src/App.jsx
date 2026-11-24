@@ -24,6 +24,7 @@ import { AlliesMarqueeStrip } from './components/AlliesMarqueeStrip';
 import { ElValleTouristPage } from './components/ElValleTouristPage';
 import { NewsMediaSection } from './components/NewsMediaSection';
 import { TouristGuideGridSection } from './components/TouristGuideGridSection';
+import { MobileAppView } from './components/MobileAppView';
 import { INITIAL_DIRECTORY_DATA } from './data/initialDirectoryData';
 
 import { RESTAURANTS_DATA } from './data/restaurantsData';
@@ -48,6 +49,7 @@ import {
 
 // Route Definitions with Canonical URLs and Meta Titles
 const ROUTE_CONFIG = [
+  { tab: 'app', paths: ['/app', '/movil', '/m'], url: '/app', title: 'App Oficial Mérida Gastronómica | El Sabor de los Andes en tu Bolsillo' },
   { tab: 'home', paths: ['/', '/inicio', ''], url: '/', title: 'Mérida Gastronómica | Cámara Gastronómica del Estado Mérida' },
   { tab: 'guide', paths: ['/guia-restaurantes', '/restaurantes'], url: '/guia-restaurantes', title: 'Guía de Restaurantes | Mérida Gastronómica' },
   { tab: 'prestadores', paths: ['/prestadores-servicios', '/guia-oficial', '/guia', '/prestadores'], url: '/prestadores-servicios', title: 'Guía de Prestadores de Servicios en Mérida | Mérida Gastronómica' },
@@ -87,6 +89,23 @@ export function App() {
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
   const [focusRestaurantId, setFocusRestaurantId] = useState(null);
   const [guideSearchTerm, setGuideSearchTerm] = useState('');
+  const [forceDesktopMode, setForceDesktopMode] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const isParam = new URLSearchParams(window.location.search).get('app') === 'true';
+      return window.innerWidth < 768 || isParam;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const isParam = new URLSearchParams(window.location.search).get('app') === 'true';
+      setIsMobileDevice(window.innerWidth < 768 || isParam);
+    };
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Live Synchronized Restaurants State (Includes Supabase Directory Agremiados & Custom Edits)
   const [restaurants, setRestaurants] = useState(() => {
@@ -330,8 +349,8 @@ export function App() {
   return (
     <div className="min-h-screen bg-[#fcfbf9] text-slate-800 flex flex-col font-sans selection:bg-amber-500 selection:text-white">
       
-      {/* Fixed Navigation (Hidden when on private board admin portal or logged-in affiliate dashboard for clean SaaS focus) */}
-      {activeTab !== 'admin' && !(activeTab === 'affiliates' && affiliateViewMode === 'dashboard') && (
+      {/* Fixed Navigation (Hidden when on mobile app view, private board admin portal or logged-in affiliate dashboard) */}
+      {activeTab !== 'admin' && activeTab !== 'app' && !(activeTab === 'home' && isMobileDevice && !forceDesktopMode) && !(activeTab === 'affiliates' && affiliateViewMode === 'dashboard') && (
         <Navbar 
           activeTab={activeTab} 
           setActiveTab={(tab) => navigateTo(tab)}
@@ -343,12 +362,53 @@ export function App() {
 
       {/* Main Content Areas */}
       <main className="flex-1">
+
+        {/* ========================================================= */}
+        {/* 0. RUTA DEDICADA APP MÓVIL OFICIAL (/app)                 */}
+        {/* ========================================================= */}
+        {activeTab === 'app' && (
+          <MobileAppView
+            restaurants={restaurants}
+            onSelectRestaurant={setSelectedRestaurant}
+            onViewOnMap={handleViewOnMap}
+          />
+        )}
         
         {/* ========================================================= */}
         {/* 1. PORTADA PRINCIPAL / HOME LANDING                       */}
         {/* ========================================================= */}
         {activeTab === 'home' && (
+          isMobileDevice && !forceDesktopMode ? (
+            <div>
+              <MobileAppView
+                restaurants={restaurants}
+                onSelectRestaurant={setSelectedRestaurant}
+                onViewOnMap={handleViewOnMap}
+              />
+              <div className="py-6 text-center bg-[#FAF7F2] border-t border-[#EAE3D5] mb-16">
+                <button
+                  type="button"
+                  onClick={() => setForceDesktopMode(true)}
+                  className="text-xs text-slate-500 hover:text-slate-800 underline font-medium"
+                >
+                  Cambiar a versión web de escritorio completa
+                </button>
+              </div>
+            </div>
+          ) : (
           <div className="bg-[#FAF7F2]">
+            {isMobileDevice && forceDesktopMode && (
+              <div className="bg-[#042f2e] text-white py-2 px-4 text-center text-xs flex items-center justify-center gap-2 sticky top-0 z-50 shadow-sm">
+                <span>Estás viendo la versión de escritorio.</span>
+                <button 
+                  type="button" 
+                  onClick={() => setForceDesktopMode(false)}
+                  className="font-bold underline text-amber-300 ml-1"
+                >
+                  Volver a la App Móvil
+                </button>
+              </div>
+            )}
             {/* Hero Landing */}
             <HeroSection 
               t={t} 
@@ -417,7 +477,7 @@ export function App() {
               </div>
             </div>
           </div>
-        )}
+        ))}
 
         {/* ========================================================= */}
         {/* 2. RUTAS DEDICADAS DE LA PLATAFORMA                       */}
