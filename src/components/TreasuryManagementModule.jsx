@@ -35,7 +35,10 @@ import {
   Sparkles,
   ArrowUpRight,
   Lock,
-  Paperclip
+  Paperclip,
+  UploadCloud,
+  RefreshCw,
+  Image as ImageIcon
 } from 'lucide-react';
 import { 
   fetchLivePayments, 
@@ -53,6 +56,11 @@ import {
 } from '../lib/treasurySync';
 import { supabase } from '../lib/supabaseClient';
 import { sendPaymentReceiptEmail } from '../lib/emailService';
+import { 
+  optimizeImage, 
+  uploadPaymentProofToStorage, 
+  formatBytes 
+} from '../lib/imageOptimizer';
 
 export function TreasuryManagementModule({ currentUser, directoryMembers = [], onDirectoryUpdate, treasuryPermissions = null }) {
   // State
@@ -108,21 +116,33 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
     rif_cedula: '',
     telefono: '',
     email: '',
-    concepto: 'Inscripción + 1er Mes de Membresía',
-    periodo_mes: 'Octubre 2026',
-    monto_inscripcion_usd: 20,
+    tipo_cobro: 'cuota_mensual',
+    concepto: 'Cuota Mensual - Noviembre 2026',
+    periodo_mes: 'Noviembre 2026',
+    fecha_pago: new Date().toISOString().split('T')[0],
+    monto_inscripcion_usd: 0,
     monto_cuota_mes_usd: 10,
-    monto_usd: 30,
-    monto_bs: 26241.96,
+    monto_usd: 10,
+    monto_bs: 8747.30,
     tasa_bcv: 874.73,
     metodo_pago: 'pago_movil',
     banco_emisor: 'Banco Provincial',
     banco_receptor: 'Banco Provincial (0108)',
     referencia: '',
     telefono_pagador: '',
+    comprobante_url: '',
+    existing_payment_id: null,
     estado: 'conciliado',
     observaciones: 'Pago verificado y registrado directamente por Tesorería'
   });
+
+  // Proof Image Optimization State (Client-side WebP compression)
+  const [proofFile, setProofFile] = useState(null);
+  const [proofPreview, setProofPreview] = useState(null);
+  const [proofBlob, setProofBlob] = useState(null);
+  const [isOptimizingProof, setIsOptimizingProof] = useState(false);
+  const [proofStats, setProofStats] = useState(null);
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
 
   // Form Data: Expense
   const [expenseFormData, setExpenseFormData] = useState({
@@ -286,30 +306,183 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
     });
   }, [payments, paymentFilter, searchTerm]);
 
-  // Handle Select Member for Manual Payment
-  const handleSelectMemberForManualPayment = (memberCode) => {
-    const found = directoryMembers.find(m => m.codigo_afiliado === memberCode);
-    if (found) {
-      const totalUsd = parseFloat(found.monto_inscripcion) || 30;
-      const inscripcion = totalUsd > 20 ? 20 : 10;
-      const cuota = 10;
-      const tasa = 874.73;
-      setManualFormData(prev => ({
-        ...prev,
-        codigo_afiliado: found.codigo_afiliado,
-        nombre_establecimiento: found.nombre_establecimiento,
-        representante_legal: found.representante_legal || '',
-        rif_cedula: found.rif_cedula || '',
-        telefono: found.telefono || '',
-        email: found.email || '',
-        telefono_pagador: found.telefono || '',
-        monto_inscripcion_usd: inscripcion,
-        monto_cuota_mes_usd: cuota,
-        monto_usd: totalUsd,
-        monto_bs: totalUsd === 30 ? 26241.96 : 17494.64,
-        tasa_bcv: tasa
-      }));
+  // Handle Proof Image Optimization
+  const handleProofImageChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsOptimizingProof(true);
+      const result = await optimizeImage(file, {
+        maxWidth: 1280,
+        maxHeight: 960,
+        quality: 0.80,
+        preferredFormat: 'image/webp'
+      });
+
+      setProofFile(file);
+      setProofBlob(result.blob);
+      setProofPreview(result.dataUrl);
+      setProofStats({
+        originalSize: result.originalSizeFormatted,
+        compressedSize: result.compressedSizeFormatted,
+        ratio: result.compressionRatio,
+        dimensions: `${result.width}x${result.height}px`
+      });
+    } catch (err) {
+      console.error('Error optimizando comprobante:', err);
+      showToast('Error al optimizar imagen: ' + err.message, 'error');
+    } finally {
+      setIsOptimizingProof(false);
     }
+  };
+
+  const handleRemoveProof = () => {
+    setProofFile(null);
+    setProofBlob(null);
+    setProofPreview(null);
+    setProofStats(null);
+    setManualFormData(prev => ({ ...prev, comprobante_url: '' }));
+  };
+
+  // Helper to diagnose affiliate periods (Inscripción, Octubre, Noviembre, Diciembre, Enero, Febrero, etc.)
+  const getAffiliatePeriodSummary = (memberCodeOrEmail) => {
+    if (!memberCodeOrEmail) return [];
+    const member = directoryMembers.find(m => 
+      (m.codigo_afiliado && m.codigo_afiliado.toLowerCase().trim() === String(memberCodeOrEmail).toLowerCase().trim()) || 
+      (m.email && m.email.toLowerCase().trim() === String(memberCodeOrEmail).toLowerCase().trim())
+    );
+    if (!member) return [];
+
+    const memberPayments = payments.filter(p =>
+      (p.codigo_afiliado && member.codigo_afiliado && p.codigo_afiliado.toLowerCase().trim() === member.codigo_afiliado.toLowerCase().trim()) ||
+      (p.email && member.email && p.email.toLowerCase().trim() === member.email.toLowerCase().trim())
+    );
+
+    const fee = parseFloat(member.monto_cuota_mensual) || 10;
+    const insc = parseFloat(member.monto_inscripcion) || 30;
+
+    const standardPeriods = [
+      { key: 'inscripcion', label: 'Inscripción + 1er Mes', type: 'inscripcion', defaultUsd: insc },
+      { key: 'octubre', label: 'Octubre 2026', type: 'cuota_mensual', defaultUsd: fee },
+      { key: 'noviembre', label: 'Noviembre 2026', type: 'cuota_mensual', defaultUsd: fee },
+      { key: 'diciembre', label: 'Diciembre 2026', type: 'cuota_mensual', defaultUsd: fee },
+      { key: 'enero', label: 'Enero 2027', type: 'cuota_mensual', defaultUsd: fee },
+      { key: 'febrero', label: 'Febrero 2027', type: 'cuota_mensual', defaultUsd: fee },
+    ];
+
+    return standardPeriods.map(period => {
+      const matchingPayment = memberPayments.find(p => {
+        const text = `${p.periodo_mes || ''} ${p.concepto || ''}`.toLowerCase();
+        if (period.key === 'inscripcion') {
+          return text.includes('inscripci') || text.includes('1er mes') || text.includes('primer mes');
+        }
+        return text.includes(period.key);
+      });
+
+      let status = 'pendiente';
+      if (matchingPayment) {
+        const est = (matchingPayment.estado || '').toLowerCase();
+        if (est === 'conciliado') status = 'pagado';
+        else if (est === 'pendiente') status = 'en_revision';
+      }
+
+      return {
+        ...period,
+        status,
+        payment: matchingPayment || null
+      };
+    });
+  };
+
+  const selectedMemberSummary = useMemo(() => {
+    return getAffiliatePeriodSummary(manualFormData.codigo_afiliado);
+  }, [manualFormData.codigo_afiliado, payments, directoryMembers]);
+
+  // Handle Select Member for Manual Payment
+  const handleSelectMemberForManualPayment = (memberCode, targetMonth = null) => {
+    const found = directoryMembers.find(m => 
+      (m.codigo_afiliado && m.codigo_afiliado.toLowerCase().trim() === String(memberCode).toLowerCase().trim()) ||
+      (m.email && m.email.toLowerCase().trim() === String(memberCode).toLowerCase().trim())
+    );
+    if (!found) return;
+
+    const cuotaMensual = parseFloat(found.monto_cuota_mensual) || 10;
+    const inscripcion = parseFloat(found.monto_inscripcion) || 30;
+    const tasa = manualFormData.tasa_bcv || 874.73;
+
+    const summary = getAffiliatePeriodSummary(found.codigo_afiliado);
+    
+    // Find target period: either the specified targetMonth, or the first unpaid/pending period
+    let selectedPeriod = null;
+    if (targetMonth) {
+      selectedPeriod = summary.find(s => 
+        s.label.toLowerCase().includes(targetMonth.toLowerCase()) || 
+        s.key.toLowerCase().includes(targetMonth.toLowerCase())
+      );
+    }
+    if (!selectedPeriod) {
+      selectedPeriod = summary.find(s => s.status === 'pendiente' || s.status === 'en_revision') || summary[2] || summary[0];
+    }
+
+    const isMonthFee = selectedPeriod && selectedPeriod.type === 'cuota_mensual';
+    const totalUsd = selectedPeriod ? selectedPeriod.defaultUsd : (isMonthFee ? cuotaMensual : inscripcion);
+    const montoBs = Number((totalUsd * tasa).toFixed(2));
+    const concepto = selectedPeriod 
+      ? (selectedPeriod.type === 'inscripcion' 
+          ? (found.is_alianza_estrategica ? 'Ingreso por Convenio / Alianza Estratégica ($0 Inicial)' : 'Inscripción + 1er Mes de Membresía')
+          : `Cuota Mensual - ${selectedPeriod.label}`)
+      : `Cuota Mensual - Noviembre 2026`;
+
+    setManualFormData(prev => ({
+      ...prev,
+      codigo_afiliado: found.codigo_afiliado,
+      nombre_establecimiento: found.nombre_establecimiento,
+      representante_legal: found.representante_legal || '',
+      rif_cedula: found.rif_cedula || '',
+      telefono: found.telefono || '',
+      email: found.email || '',
+      telefono_pagador: found.telefono || '',
+      tipo_cobro: selectedPeriod?.type || 'cuota_mensual',
+      periodo_mes: selectedPeriod?.label || 'Noviembre 2026',
+      concepto: concepto,
+      monto_inscripcion_usd: selectedPeriod?.type === 'inscripcion' ? (totalUsd > 20 ? 20 : 10) : 0,
+      monto_cuota_mes_usd: isMonthFee ? totalUsd : 10,
+      monto_usd: totalUsd,
+      monto_bs: montoBs,
+      tasa_bcv: tasa,
+      existing_payment_id: selectedPeriod?.payment?.id || null,
+      referencia: selectedPeriod?.payment?.referencia || prev.referencia || '',
+      metodo_pago: selectedPeriod?.payment?.metodo_pago || prev.metodo_pago || 'pago_movil',
+      banco_emisor: selectedPeriod?.payment?.banco_emisor || prev.banco_emisor || 'Banco Provincial',
+      fecha_pago: prev.fecha_pago || new Date().toISOString().split('T')[0]
+    }));
+  };
+
+  const handleSelectPeriodToCredit = (item) => {
+    const found = directoryMembers.find(m => m.codigo_afiliado === manualFormData.codigo_afiliado);
+    const usd = item.defaultUsd || (item.type === 'inscripcion' ? (parseFloat(found?.monto_inscripcion) || 30) : (parseFloat(found?.monto_cuota_mensual) || 10));
+    const tasa = manualFormData.tasa_bcv || 874.73;
+    const bs = Number((usd * tasa).toFixed(2));
+
+    const conceptoText = item.type === 'inscripcion'
+      ? (found?.is_alianza_estrategica ? 'Ingreso por Convenio / Alianza Estratégica ($0 Inicial)' : 'Inscripción + 1er Mes de Membresía')
+      : `Cuota Mensual - ${item.label}`;
+
+    setManualFormData(prev => ({
+      ...prev,
+      tipo_cobro: item.type,
+      periodo_mes: item.label,
+      concepto: conceptoText,
+      monto_usd: usd,
+      monto_cuota_mes_usd: item.type === 'cuota_mensual' ? usd : 10,
+      monto_inscripcion_usd: item.type === 'inscripcion' ? (usd > 20 ? 20 : 10) : 0,
+      monto_bs: bs,
+      referencia: item.payment?.referencia || prev.referencia || '',
+      metodo_pago: item.payment?.metodo_pago || prev.metodo_pago || 'pago_movil',
+      banco_emisor: item.payment?.banco_emisor || prev.banco_emisor || 'Banco Provincial',
+      existing_payment_id: item.payment?.id || null
+    }));
   };
 
   // SEND RECEIPT EMAIL ACTION (EXPLICIT DIRECT BUTTON)
@@ -596,46 +769,142 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
   const handleSubmitManualPayment = async (e) => {
     e.preventDefault();
     try {
+      setIsLoading(true);
       const newRecibo = generateReceiptNumber(payments);
       const conciliator = currentUser?.name ? `${currentUser.name} (Tesorero)` : 'Edixon Xavier Reyes Dávila (Tesorero)';
-      const record = {
-        ...manualFormData,
-        id: `pago-${Date.now()}`,
-        numero_recibo: newRecibo,
-        fecha_pago: new Date().toISOString(),
-        fecha_conciliacion: new Date().toISOString(),
-        conciliado_por: conciliator,
-        estado: 'conciliado'
-      };
 
-      const saved = await submitPaymentRecord(record);
-      setPayments(prev => [saved, ...prev]);
-
-      // Update directory member
-      if (record.codigo_afiliado) {
-        const localSaved = localStorage.getItem('cgem_directorio_agremiados');
-        if (localSaved) {
-          const list = JSON.parse(localSaved);
-          const updated = list.map(m => {
-            if (m.codigo_afiliado === record.codigo_afiliado) {
-              return {
-                ...m,
-                estado_solvencia: 'Solvente (Activo)',
-                fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-              };
-            }
-            return m;
-          });
-          localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updated));
-          if (onDirectoryUpdate) onDirectoryUpdate(updated);
+      // 1. Process image upload if proofBlob is present (Client-side optimized WebP)
+      let finalComprobanteUrl = manualFormData.comprobante_url || '';
+      if (proofBlob) {
+        setIsUploadingProof(true);
+        try {
+          const uploadRes = await uploadPaymentProofToStorage(
+            proofBlob,
+            manualFormData.codigo_afiliado || 'CGM-MANUAL',
+            proofPreview
+          );
+          if (uploadRes && uploadRes.url) {
+            finalComprobanteUrl = uploadRes.url;
+          }
+        } catch (uploadErr) {
+          console.warn('Fallo upload de comprobante, usando dataUrl optimizado:', uploadErr);
+          finalComprobanteUrl = proofPreview || '';
+        } finally {
+          setIsUploadingProof(false);
         }
       }
 
+      // 2. Prepare payment payload
+      const paymentDateIso = manualFormData.fecha_pago 
+        ? new Date(manualFormData.fecha_pago + 'T12:00:00Z').toISOString()
+        : new Date().toISOString();
+
+      const paymentRecord = {
+        numero_recibo: newRecibo,
+        codigo_afiliado: manualFormData.codigo_afiliado || null,
+        nombre_establecimiento: manualFormData.nombre_establecimiento || '',
+        representante_legal: manualFormData.representante_legal || '',
+        rif_cedula: manualFormData.rif_cedula || '',
+        telefono: manualFormData.telefono || '',
+        email: manualFormData.email || '',
+        concepto: manualFormData.concepto || `Cuota Mensual - ${manualFormData.periodo_mes || 'Mes Actual'}`,
+        periodo_mes: manualFormData.periodo_mes || 'Noviembre 2026',
+        metodo_pago: manualFormData.metodo_pago || 'pago_movil',
+        banco_emisor: manualFormData.banco_emisor || 'Banco Provincial',
+        banco_receptor: manualFormData.banco_receptor || 'Banco Provincial (0108)',
+        referencia: manualFormData.referencia || 'MANUAL-TESORERIA',
+        telefono_pagador: manualFormData.telefono_pagador || manualFormData.telefono || '',
+        monto_bs: Number(manualFormData.monto_bs) || 0,
+        tasa_bcv: Number(manualFormData.tasa_bcv) || 874.73,
+        monto_usd: Number(manualFormData.monto_usd) || 10,
+        estado: 'conciliado',
+        fecha_pago: paymentDateIso,
+        fecha_conciliacion: new Date().toISOString(),
+        conciliado_por: conciliator,
+        comprobante_url: finalComprobanteUrl,
+        observaciones: manualFormData.observaciones || 'Pago registrado directamente por Tesorería'
+      };
+
+      let savedRecord;
+      if (manualFormData.existing_payment_id) {
+        try {
+          await reconcilePaymentRecord(manualFormData.existing_payment_id, conciliator, paymentRecord);
+          savedRecord = { ...paymentRecord, id: manualFormData.existing_payment_id };
+          setPayments(prev => prev.map(p => p.id === manualFormData.existing_payment_id ? { ...p, ...savedRecord } : p));
+        } catch (recErr) {
+          console.warn('Reconcile existing record failed, submitting new record:', recErr);
+          savedRecord = await submitPaymentRecord(paymentRecord);
+          setPayments(prev => [savedRecord, ...prev]);
+        }
+      } else {
+        savedRecord = await submitPaymentRecord(paymentRecord);
+        setPayments(prev => [savedRecord, ...prev]);
+      }
+
+      // 3. Update directory member status and solvency date
+      if (manualFormData.codigo_afiliado || manualFormData.email) {
+        try {
+          const localSaved = localStorage.getItem('cgem_directorio_agremiados');
+          if (localSaved) {
+            const list = JSON.parse(localSaved);
+            const updated = list.map(m => {
+              if (
+                (manualFormData.codigo_afiliado && m.codigo_afiliado === manualFormData.codigo_afiliado) ||
+                (manualFormData.email && m.email && m.email.toLowerCase() === manualFormData.email.toLowerCase())
+              ) {
+                return {
+                  ...m,
+                  estado_solvencia: 'Solvente (Activo)',
+                  fecha_vencimiento: new Date(Date.now() + 35 * 24 * 60 * 60 * 1000).toISOString(),
+                  updated_at: new Date().toISOString()
+                };
+              }
+              return m;
+            });
+            localStorage.setItem('cgem_directorio_agremiados', JSON.stringify(updated));
+            if (onDirectoryUpdate) onDirectoryUpdate(updated);
+          }
+
+          if (supabase) {
+            let memberQuery = supabase
+              .from('directorio_agremiados')
+              .update({
+                estado_solvencia: 'Solvente (Activo)',
+                fecha_vencimiento: new Date(Date.now() + 35 * 24 * 60 * 60 * 1000).toISOString(),
+                updated_at: new Date().toISOString()
+              });
+
+            if (manualFormData.codigo_afiliado) {
+              memberQuery = memberQuery.eq('codigo_afiliado', manualFormData.codigo_afiliado);
+            } else {
+              memberQuery = memberQuery.eq('email', manualFormData.email);
+            }
+            await memberQuery;
+          }
+        } catch (memberUpdateErr) {
+          console.warn('Error updating directory member solvency:', memberUpdateErr);
+        }
+      }
+
+      // 4. Dispatch events & UI feedback
+      window.dispatchEvent(new CustomEvent('cgm_treasury_updated'));
+      window.dispatchEvent(new CustomEvent('cgm_business_updated'));
+      window.dispatchEvent(new Event('cgem_payments_updated'));
+
+      handleRemoveProof();
       setIsManualModalOpen(false);
-      setSelectedReceipt(saved);
-      handleSendReceiptDirectly(saved);
+      setSelectedReceipt(savedRecord);
+      showToast(`✓ Cobro registrado y acreditado: ${manualFormData.nombre_establecimiento} (${manualFormData.periodo_mes})`);
+
+      // Attempt to send email receipt in background
+      try {
+        handleSendReceiptDirectly(savedRecord);
+      } catch (e) {}
+
     } catch (err) {
-      alert('Error al guardar pago: ' + err.message);
+      alert('Error al registrar cobro: ' + err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -1186,7 +1455,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                   Matriz Mes a Mes de Cuotas Ordinarias &amp; Estatus
                 </h3>
                 <p className="text-xs text-slate-600">
-                  Control administrativo mensual por agremiado (Octubre, Noviembre y Diciembre 2026).
+                  Control administrativo mensual por agremiado (Octubre, Noviembre, Diciembre 2026 y Enero 2027).
                 </p>
               </div>
 
@@ -1211,6 +1480,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                     <th className="py-3.5 px-3 text-center">Octubre 2026</th>
                     <th className="py-3.5 px-3 text-center">Noviembre 2026</th>
                     <th className="py-3.5 px-3 text-center">Diciembre 2026</th>
+                    <th className="py-3.5 px-3 text-center">Enero 2027</th>
                     <th className="py-3.5 px-4 text-center">Estatus Global</th>
                     {!isRestrictedView && (
                       <th className="py-3.5 px-4 text-right">Gestión</th>
@@ -1219,13 +1489,13 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {directoryMembers.map((member) => {
-                    const isSolvent = (member.estado_solvencia || '').toLowerCase().includes('solvente');
+                    const isSolvent = (member.estado_solvencia || '').toLowerCase().includes('solvente') || isMemberSolventForCurrentMonth(member, payments);
                     const memberPayments = payments.filter(p =>
                       (p.codigo_afiliado && member.codigo_afiliado && p.codigo_afiliado.toLowerCase() === member.codigo_afiliado.toLowerCase()) ||
                       (p.email && member.email && p.email.toLowerCase() === member.email.toLowerCase())
                     );
 
-                    const getMonthBadge = (monthKw) => {
+                    const getMonthBadge = (monthKw, periodFullName) => {
                       const found = memberPayments.find(p =>
                         (p.periodo_mes || '').toLowerCase().includes(monthKw) ||
                         (p.concepto || '').toLowerCase().includes(monthKw)
@@ -1234,7 +1504,10 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                         const est = (found.estado || '').toLowerCase();
                         if (est === 'conciliado') {
                           return (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-200">
+                            <span 
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-200"
+                              title={`Cuota acreditada: ${periodFullName}`}
+                            >
                               <Check className="w-3 h-3 text-emerald-600" />
                               Pagado
                             </span>
@@ -1242,17 +1515,36 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                         }
                         if (est === 'pendiente') {
                           return (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleRemoveProof();
+                                handleSelectMemberForManualPayment(member.codigo_afiliado, periodFullName);
+                                setIsManualModalOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 transition-colors cursor-pointer"
+                              title={`Comprobante en revisión para ${periodFullName}. Haga clic para conciliar / acreditar`}
+                            >
                               <Clock className="w-3 h-3 text-amber-600" />
                               En Revisión
-                            </span>
+                            </button>
                           );
                         }
                       }
                       return (
-                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleRemoveProof();
+                            handleSelectMemberForManualPayment(member.codigo_afiliado, periodFullName);
+                            setIsManualModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-900 hover:border-amber-300 border border-transparent transition-all cursor-pointer"
+                          title={`Pendiente para ${periodFullName}. Haga clic para acreditar este mes`}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
                           Pendiente
-                        </span>
+                        </button>
                       );
                     };
 
@@ -1271,9 +1563,10 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                           </td>
                         )}
 
-                        <td className="py-3.5 px-3 text-center">{getMonthBadge('octubre')}</td>
-                        <td className="py-3.5 px-3 text-center">{getMonthBadge('noviembre')}</td>
-                        <td className="py-3.5 px-3 text-center">{getMonthBadge('diciembre')}</td>
+                        <td className="py-3.5 px-3 text-center">{getMonthBadge('octubre', 'Octubre 2026')}</td>
+                        <td className="py-3.5 px-3 text-center">{getMonthBadge('noviembre', 'Noviembre 2026')}</td>
+                        <td className="py-3.5 px-3 text-center">{getMonthBadge('diciembre', 'Diciembre 2026')}</td>
+                        <td className="py-3.5 px-3 text-center">{getMonthBadge('enero', 'Enero 2027')}</td>
 
                         <td className="py-3.5 px-4 text-center">
                           {isSolvent ? (
@@ -1294,6 +1587,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => {
+                                  handleRemoveProof();
                                   handleSelectMemberForManualPayment(member.codigo_afiliado);
                                   setIsManualModalOpen(true);
                                 }}
@@ -1611,14 +1905,17 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
       )}
 
       {/* =========================================================================
-          MODAL 2: REGISTRO DE COBRO MANUAL POR TESORERÍA
+          MODAL 2: REGISTRO DE COBRO MANUAL POR TESORERÍA (CUOTAS & OBLIGACIONES)
           ========================================================================= */}
       {isManualModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 relative my-8">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 relative my-8 max-h-[92vh] overflow-y-auto">
             
             <button
-              onClick={() => setIsManualModalOpen(false)}
+              onClick={() => {
+                handleRemoveProof();
+                setIsManualModalOpen(false);
+              }}
               className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
             >
               <X className="w-5 h-5" />
@@ -1629,33 +1926,159 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                 Tesorería CGEM
               </span>
               <h3 className="font-serif font-black text-xl text-slate-900 mt-2">
-                Registrar Cobro / Pago Manual
+                Registrar Cobro / Pago Manual de Cuota
               </h3>
               <p className="text-xs text-slate-600">
-                Utilice este formulario para asentar pagos directos verificados en el extracto del Banco Provincial.
+                Acreditación directa de cuotas mensuales ordinarias, inscripciones o pagos especiales verificados en extracto bancario.
               </p>
             </div>
 
             <form onSubmit={handleSubmitManualPayment} className="space-y-4 text-xs">
               
-              {/* Select Existing Member */}
+              {/* 1. Selector de Agremiado */}
               <div>
-                <label className="block text-slate-700 font-bold mb-1">Seleccionar Agremiado Registrado</label>
+                <label className="block text-slate-700 font-bold mb-1">
+                  1. Seleccionar Agremiado Registrado *
+                </label>
                 <select
+                  required
                   value={manualFormData.codigo_afiliado}
                   onChange={(e) => handleSelectMemberForManualPayment(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-teal-600"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-amber-500 font-medium"
                 >
-                  <option value="">-- Seleccione un establecimiento --</option>
+                  <option value="">-- Seleccione un establecimiento agremiado --</option>
                   {directoryMembers.map(m => (
                     <option key={m.codigo_afiliado} value={m.codigo_afiliado}>
-                      {m.codigo_afiliado} - {m.nombre_establecimiento} (${m.monto_inscripcion || 30} USD)
+                      {m.codigo_afiliado} - {m.nombre_establecimiento} (Cuota: ${m.monto_cuota_mensual || 10} USD &bull; {m.estado_solvencia || 'En Trámite'})
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* 2. Diagnóstico Visual de Obligaciones & Cuotas del Agremiado */}
+              {manualFormData.codigo_afiliado && selectedMemberSummary.length > 0 && (
+                <div className="bg-slate-50/80 border border-slate-200 rounded-2xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                      <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Diagnóstico de Obligaciones del Agremiado</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      Haga clic en un mes para acreditarlo
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                    {selectedMemberSummary.map((item) => {
+                      const isSelected = manualFormData.periodo_mes === item.label || (item.key === 'inscripcion' && manualFormData.tipo_cobro === 'inscripcion');
+                      return (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => handleSelectPeriodToCredit(item)}
+                          className={`flex flex-col text-left p-2.5 rounded-xl border transition-all text-xs cursor-pointer ${
+                            isSelected 
+                              ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-400/50 shadow-xs' 
+                              : item.status === 'pagado' 
+                                ? 'border-emerald-200 bg-emerald-50/60 opacity-80 hover:opacity-100 hover:border-emerald-300' 
+                                : item.status === 'en_revision'
+                                  ? 'border-amber-200 bg-amber-50/60 hover:bg-amber-100/60 hover:border-amber-400'
+                                  : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1 w-full">
+                            <span className="font-bold text-slate-900 truncate text-[11px]">{item.label}</span>
+                            {item.status === 'pagado' ? (
+                              <span className="inline-flex items-center text-[10px] text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.2 rounded">
+                                <Check className="w-2.5 h-2.5 text-emerald-600 mr-0.5" /> Pagado
+                              </span>
+                            ) : item.status === 'en_revision' ? (
+                              <span className="inline-flex items-center text-[10px] text-amber-700 font-bold bg-amber-100 px-1.5 py-0.2 rounded">
+                                <Clock className="w-2.5 h-2.5 text-amber-600 mr-0.5" /> Revisión
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center text-[10px] text-rose-600 font-bold bg-rose-50 px-1.5 py-0.2 rounded">
+                                Pendiente
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between mt-1 text-[10px] text-slate-500 font-mono">
+                            <span>${item.defaultUsd}.00 USD</span>
+                            <span className="text-[9px] text-amber-800 font-sans font-bold underline">
+                              {isSelected ? 'Seleccionado' : 'Acreditar'}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 3. Datos del Periodo & Concepto */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Tipo de Concepto *</label>
+                  <select
+                    value={manualFormData.tipo_cobro}
+                    onChange={(e) => {
+                      const tipo = e.target.value;
+                      const member = directoryMembers.find(m => m.codigo_afiliado === manualFormData.codigo_afiliado);
+                      const usd = tipo === 'inscripcion' 
+                        ? (parseFloat(member?.monto_inscripcion) || 30) 
+                        : (parseFloat(member?.monto_cuota_mensual) || 10);
+                      const tasa = manualFormData.tasa_bcv || 874.73;
+                      const conc = tipo === 'inscripcion' 
+                        ? 'Inscripción + 1er Mes de Membresía' 
+                        : `Cuota Mensual - ${manualFormData.periodo_mes}`;
+                      setManualFormData(prev => ({
+                        ...prev,
+                        tipo_cobro: tipo,
+                        concepto: conc,
+                        monto_usd: usd,
+                        monto_bs: Number((usd * tasa).toFixed(2))
+                      }));
+                    }}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500 font-medium"
+                  >
+                    <option value="cuota_mensual">Cuota Mensual Ordinaria</option>
+                    <option value="inscripcion">Inscripción + 1er Mes</option>
+                    <option value="cuota_extraordinaria">Cuota Extraordinaria / Evento</option>
+                    <option value="ajuste">Ajuste Contable / Regularización</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Mes / Periodo Correspondiente *</label>
+                  <select
+                    value={manualFormData.periodo_mes}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const tipo = val.toLowerCase().includes('inscripci') ? 'inscripcion' : manualFormData.tipo_cobro;
+                      const conc = tipo === 'inscripcion' ? 'Inscripción + 1er Mes de Membresía' : `Cuota Mensual - ${val}`;
+                      setManualFormData(prev => ({
+                        ...prev,
+                        periodo_mes: val,
+                        tipo_cobro: tipo,
+                        concepto: conc
+                      }));
+                    }}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500 font-semibold"
+                  >
+                    <option value="Noviembre 2026">Noviembre 2026</option>
+                    <option value="Diciembre 2026">Diciembre 2026</option>
+                    <option value="Enero 2027">Enero 2027</option>
+                    <option value="Febrero 2027">Febrero 2027</option>
+                    <option value="Marzo 2027">Marzo 2027</option>
+                    <option value="Octubre 2026">Octubre 2026</option>
+                    <option value="Inscripción + 1er Mes">Inscripción + 1er Mes</option>
+                    <option value="Cuota Extraordinaria">Cuota Extraordinaria</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* 4. Nombre Establecimiento & Representante */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-700 font-bold mb-1">Nombre Establecimiento *</label>
                   <input
@@ -1663,7 +2086,7 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                     required
                     value={manualFormData.nombre_establecimiento}
                     onChange={(e) => setManualFormData({ ...manualFormData, nombre_establecimiento: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-teal-600"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500 font-medium"
                   />
                 </div>
 
@@ -1673,11 +2096,45 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                     type="text"
                     value={manualFormData.representante_legal}
                     onChange={(e) => setManualFormData({ ...manualFormData, representante_legal: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-teal-600"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
                   />
                 </div>
               </div>
 
+              {/* 5. Fecha de Pago & Método */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Fecha del Pago *</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={manualFormData.fecha_pago}
+                    onChange={(e) => setManualFormData({ ...manualFormData, fecha_pago: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500 font-mono font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Método de Pago *</label>
+                  <select
+                    value={manualFormData.metodo_pago}
+                    onChange={(e) => setManualFormData({ ...manualFormData, metodo_pago: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="pago_movil">Pago Móvil Interbancario</option>
+                    <option value="transferencia">Transferencia Bancaria Nacional</option>
+                    <option value="efectivo_usd">Efectivo Divisas (USD)</option>
+                    <option value="zelle">Zelle / Cuenta Internacional</option>
+                    <option value="deposito">Depósito Bancario en Efectivo</option>
+                    <option value="convenio">Convenio Institucional / Exonerado</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* 6. Montos & Tasa */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-slate-700 font-bold mb-1">Total (USD) *</label>
@@ -1688,30 +2145,51 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                     value={manualFormData.monto_usd}
                     onChange={(e) => {
                       const val = parseFloat(e.target.value) || 0;
+                      const tasa = manualFormData.tasa_bcv || 874.73;
                       setManualFormData({
                         ...manualFormData,
                         monto_usd: val,
-                        monto_inscripcion_usd: val > 20 ? 20 : 10,
-                        monto_cuota_mes_usd: 10,
-                        monto_bs: val === 30 ? 26241.96 : 17494.64
+                        monto_bs: Number((val * tasa).toFixed(2))
                       });
                     }}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-teal-600 font-bold"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500 font-bold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 font-bold mb-1">Monto en Bs. (Fijado)</label>
+                  <label className="block text-slate-700 font-bold mb-1">Tasa BCV (Bs/$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={manualFormData.tasa_bcv}
+                    onChange={(e) => {
+                      const tasa = parseFloat(e.target.value) || 0;
+                      setManualFormData({
+                        ...manualFormData,
+                        tasa_bcv: tasa,
+                        monto_bs: Number((manualFormData.monto_usd * tasa).toFixed(2))
+                      });
+                    }}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Monto en Bs.</label>
                   <input
                     type="number"
                     step="0.01"
                     required
                     value={manualFormData.monto_bs}
                     onChange={(e) => setManualFormData({ ...manualFormData, monto_bs: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-teal-600 font-mono font-bold"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500 font-mono font-bold"
                   />
                 </div>
+              </div>
 
+              {/* 7. Datos Bancarios & Referencia */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-slate-700 font-bold mb-1">N° Referencia *</label>
                   <input
@@ -1719,25 +2197,140 @@ export function TreasuryManagementModule({ currentUser, directoryMembers = [], o
                     required
                     value={manualFormData.referencia}
                     onChange={(e) => setManualFormData({ ...manualFormData, referencia: e.target.value })}
-                    placeholder="ej. 12345678"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-teal-600 font-mono"
+                    placeholder="ej. 12345678 o EFECTIVO"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Banco Emisor</label>
+                  <input
+                    type="text"
+                    value={manualFormData.banco_emisor}
+                    onChange={(e) => setManualFormData({ ...manualFormData, banco_emisor: e.target.value })}
+                    placeholder="Banco Provincial, Banesco..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Banco Receptor</label>
+                  <input
+                    type="text"
+                    value={manualFormData.banco_receptor}
+                    onChange={(e) => setManualFormData({ ...manualFormData, banco_receptor: e.target.value })}
+                    placeholder="Banco Provincial (0108)"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              {/* 8. Comprobante de Pago Opcional con Compresión Inteligente */}
+              <div className="space-y-1.5 pt-1">
+                <label className="block text-slate-700 font-bold text-xs flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Paperclip className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Comprobante de Pago (Opcional - Optimización a Peso Mínimo)</span>
+                  </span>
+                  {proofStats && (
+                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Ahorro: {proofStats.ratio} ({proofStats.originalSize} ➔ {proofStats.compressedSize})
+                    </span>
+                  )}
+                </label>
+
+                {proofPreview ? (
+                  <div className="relative p-2.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-3">
+                    <img 
+                      src={proofPreview} 
+                      alt="Comprobante optimizado" 
+                      className="w-16 h-16 object-cover rounded-xl border border-slate-300 shadow-xs"
+                    />
+                    <div className="flex-1 min-w-0 text-xs">
+                      <p className="font-bold text-slate-800 truncate">{proofFile?.name || 'Comprobante'}</p>
+                      <p className="text-[11px] text-slate-500 font-mono">
+                        Formato WebP ligero &bull; {proofStats?.compressedSize || 'Optimizado'}
+                      </p>
+                      <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                        ✓ Listo para acreditar sin sobrecargar almacenamiento
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveProof}
+                      className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition-colors"
+                      title="Quitar comprobante"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 hover:border-amber-500 hover:bg-amber-50/40 rounded-2xl p-3.5 cursor-pointer transition-all group">
+                    <div className="flex items-center gap-2 text-slate-500 group-hover:text-amber-700">
+                      {isOptimizingProof ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin text-amber-600" />
+                          <span className="text-xs font-medium">Optimizando y reduciendo peso...</span>
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud className="w-4 h-4 text-slate-400 group-hover:text-amber-600" />
+                          <span className="text-xs font-medium">
+                            Subir captura o foto del recibo <span className="text-[10px] text-slate-400">(se comprime automáticamente a &lt;50 KB)</span>
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProofImageChange}
+                      disabled={isOptimizingProof}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+
+              {/* 9. Observaciones Internas */}
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Observaciones de Tesorería (Opcional)</label>
+                <input
+                  type="text"
+                  value={manualFormData.observaciones}
+                  onChange={(e) => setManualFormData({ ...manualFormData, observaciones: e.target.value })}
+                  placeholder="ej. Verificado en extracto Banco Provincial lote #..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              {/* Botones de Acción */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setIsManualModalOpen(false)}
+                  onClick={() => {
+                    handleRemoveProof();
+                    setIsManualModalOpen(false);
+                  }}
                   className="py-2.5 px-4 rounded-xl text-slate-600 hover:bg-slate-100 font-bold text-xs transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="py-2.5 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-serif font-bold text-xs uppercase tracking-wider shadow-sm transition-all"
+                  disabled={isLoading || isUploadingProof || isOptimizingProof}
+                  className="py-2.5 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-serif font-bold text-xs uppercase tracking-wider shadow-sm transition-all flex items-center gap-2"
                 >
-                  Registrar & Emitir Recibo
+                  {isUploadingProof ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Subiendo Comprobante...</span>
+                    </>
+                  ) : (
+                    <span>
+                      {manualFormData.existing_payment_id ? '✓ Acreditar & Conciliar Pago' : '✓ Registrar & Acreditar Cuota'}
+                    </span>
+                  )}
                 </button>
               </div>
             </form>
