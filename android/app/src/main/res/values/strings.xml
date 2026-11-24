@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mérida Gastronómica</string>
+    <string name="title_activity_main">Mérida Gastronómica</string>
+    <string name="package_name">com.meridagastronomica.app</string>
+    <string name="custom_url_scheme">com.meridagastronomica.app</string>
+</resources>
