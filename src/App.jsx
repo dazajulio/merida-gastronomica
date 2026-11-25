@@ -26,6 +26,8 @@ import { NewsMediaSection } from './components/NewsMediaSection';
 import { TouristGuideGridSection } from './components/TouristGuideGridSection';
 import { MobileAppView } from './components/MobileAppView';
 import { MobileAppPromoSection } from './components/MobileAppPromoSection';
+import { DeveloperMasterPortal } from './components/DeveloperMasterPortal';
+import { SIMULATION_SESSION_KEY, stopSimulationMode } from './lib/developerSync';
 import { INITIAL_DIRECTORY_DATA } from './data/initialDirectoryData';
 
 import { RESTAURANTS_DATA } from './data/restaurantsData';
@@ -71,6 +73,7 @@ const ROUTE_CONFIG = [
   { tab: 'affiliates_el_valle', paths: ['/el-valle-te-conecta', '/el-valle', '/afiliacion-el-valle', '/elvalleteconecta'], url: '/el-valle-te-conecta', title: 'Afiliación Exclusiva: El Valle te Conecta | Cámara Gastronómica del Estado Mérida' },
   { tab: 'el_valle_ruta', paths: ['/ruta-el-valle', '/el-valle-turismo'], url: '/ruta-el-valle', title: 'El Valle te Conecta — Ruta Turística Certificada | Mérida Gastronómica' },
   { tab: 'admin', paths: ['/admin', '/portal-admin', '/portal-directiva'], url: '/admin', title: 'Portal Privado Junta Directiva & Agenda | Cámara Gastronómica de Mérida' },
+  { tab: 'developer', paths: ['/dev', '/developer', '/master-control', '/desarrollador', '/master'], url: '/dev', title: 'Master Control Técnico | Mérida Gastronómica' },
 ];
 
 export function App() {
@@ -91,6 +94,23 @@ export function App() {
   const [focusRestaurantId, setFocusRestaurantId] = useState(null);
   const [guideSearchTerm, setGuideSearchTerm] = useState('');
   const [forceDesktopMode, setForceDesktopMode] = useState(false);
+  const [simulationSession, setSimulationSession] = useState(() => {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const saved = localStorage.getItem('cgem_simulation_active');
+        if (saved) return JSON.parse(saved);
+      }
+    } catch (e) {}
+    return null;
+  });
+
+  useEffect(() => {
+    const handleSimChange = (e) => {
+      setSimulationSession(e.detail);
+    };
+    window.addEventListener('cgem_simulation_changed', handleSimChange);
+    return () => window.removeEventListener('cgem_simulation_changed', handleSimChange);
+  }, []);
   const [isMobileDevice, setIsMobileDevice] = useState(() => {
     if (typeof window !== 'undefined') {
       const isParam = new URLSearchParams(window.location.search).get('app') === 'true';
@@ -350,8 +370,34 @@ export function App() {
   return (
     <div className="min-h-screen bg-[#fcfbf9] text-slate-800 flex flex-col font-sans selection:bg-amber-500 selection:text-white">
       
-      {/* Fixed Navigation (Hidden when on mobile app view, private board admin portal or logged-in affiliate dashboard) */}
-      {activeTab !== 'admin' && activeTab !== 'app' && !(activeTab === 'home' && isMobileDevice && !forceDesktopMode) && !(activeTab === 'affiliates' && affiliateViewMode === 'dashboard') && (
+      {/* Barra de Modo Simulación Persistente */}
+      {simulationSession && (
+        <div className="sticky top-0 z-50 bg-[#1C1917] text-white py-2 px-4 border-b-2 border-amber-500 shadow-xl flex flex-wrap items-center justify-between gap-2 text-xs animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+            <span className="font-bold text-amber-300">MODO SIMULACIÓN ACTIVO:</span>
+            <span className="text-stone-200">
+              {simulationSession.targetType === 'board' 
+                ? `Directivo: ${simulationSession.targetData?.name} (${simulationSession.targetData?.role})`
+                : `Agremiado: ${simulationSession.targetData?.nombre_establecimiento} (${simulationSession.targetData?.codigo_afiliado})`
+              }
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              stopSimulationMode();
+              setSimulationSession(null);
+              navigateTo('developer');
+            }}
+            className="py-1 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-[11px] shadow-sm cursor-pointer transition-colors"
+          >
+            ← Salir y Volver a Master Control
+          </button>
+        </div>
+      )}
+
+      {/* Fixed Navigation (Hidden when on mobile app view, private board admin portal, developer master portal or logged-in affiliate dashboard) */}
+      {activeTab !== 'admin' && activeTab !== 'developer' && activeTab !== 'app' && !(activeTab === 'home' && isMobileDevice && !forceDesktopMode) && !(activeTab === 'affiliates' && affiliateViewMode === 'dashboard') && (
         <Navbar 
           activeTab={activeTab} 
           setActiveTab={(tab) => navigateTo(tab)}
@@ -721,6 +767,55 @@ export function App() {
           </div>
         )}
 
+        {/* ========================================================= */}
+        {/* 19. MASTER CONTROL TÉCNICO - PORTAL DESARROLLADOR (/dev)   */}
+        {/* ========================================================= */}
+        {activeTab === 'developer' && (
+          <DeveloperMasterPortal
+            onNavigate={(tab) => navigateTo(tab)}
+            onImpersonateAffiliate={(member) => {
+              const code = member.codigo_afiliado || 'CGM-2026-000';
+              const cuota = parseFloat(member.cuota_mensual_fijada) || 25.0;
+              const userPayload = {
+                id: member.id || `member-${code}`,
+                businessName: member.nombre_establecimiento || 'Establecimiento Agremiado',
+                ownerName: member.representante_legal || 'Representante Legal',
+                membershipCode: code,
+                rif: member.rif_cedula || 'J-00000000-0',
+                memberCategory: member.categoria_negocio || 'Empresas Gastronómicas',
+                businessType: member.categoria_negocio || 'empresas',
+                registrationDate: member.fecha_registro
+                  ? new Date(member.fecha_registro).toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' })
+                  : '01 de Enero de 2026',
+                expiryDate: '31 de Diciembre de 2026',
+                status: member.estado_solvencia || 'Activo (Solvente)',
+                monthlyDues: `$${cuota.toFixed(2)}`,
+                lastPaymentDate: 'Reciente',
+                certificateCode: `CGM-CERT-2026-${String(code).replace('CGM-', '')}`,
+                email: member.email || '',
+                isPresidentImpersonation: true,
+                rawMember: member,
+                stats: {
+                  profileViewsMonth: 1240,
+                  reservationsMonth: 38,
+                  chamberRating: '5.0 / 5.0 (Auditoría de Calidad en Curso)'
+                }
+              };
+              setAffiliateDirectUser(userPayload);
+              setAffiliateInitialTab('my_business');
+              setAffiliateViewMode('dashboard');
+              setActiveTab('affiliates');
+              window.history.pushState(null, '', '/afiliacion');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onImpersonateBoardMember={(boardMember) => {
+              setActiveTab('admin');
+              window.history.pushState(null, '', '/admin');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        )}
+
       </main>
 
       {/* Full Restaurant Modal */}
@@ -732,8 +827,8 @@ export function App() {
         />
       )}
 
-      {/* Footer (Hidden when on private board admin portal, logged-in affiliate dashboard or express/el-valle landings) */}
-      {activeTab !== 'admin' && activeTab !== 'affiliates_express' && activeTab !== 'affiliates_el_valle' && !(activeTab === 'affiliates' && affiliateViewMode === 'dashboard') && <Footer setActiveTab={(tab) => navigateTo(tab)} t={t} />}
+      {/* Footer (Hidden when on private board admin portal, developer portal, logged-in affiliate dashboard or express/el-valle landings) */}
+      {activeTab !== 'admin' && activeTab !== 'developer' && activeTab !== 'affiliates_express' && activeTab !== 'affiliates_el_valle' && !(activeTab === 'affiliates' && affiliateViewMode === 'dashboard') && <Footer setActiveTab={(tab) => navigateTo(tab)} t={t} />}
 
     </div>
   );
