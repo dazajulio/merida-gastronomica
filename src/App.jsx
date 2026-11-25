@@ -27,6 +27,7 @@ import { TouristGuideGridSection } from './components/TouristGuideGridSection';
 import { MobileAppView } from './components/MobileAppView';
 import { MobileAppPromoSection } from './components/MobileAppPromoSection';
 import { DeveloperMasterPortal } from './components/DeveloperMasterPortal';
+import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
 import { SIMULATION_SESSION_KEY, stopSimulationMode } from './lib/developerSync';
 import { INITIAL_DIRECTORY_DATA } from './data/initialDirectoryData';
 
@@ -74,6 +75,7 @@ const ROUTE_CONFIG = [
   { tab: 'el_valle_ruta', paths: ['/ruta-el-valle', '/el-valle-turismo'], url: '/ruta-el-valle', title: 'El Valle te Conecta — Ruta Turística Certificada | Mérida Gastronómica' },
   { tab: 'admin', paths: ['/admin', '/portal-admin', '/portal-directiva'], url: '/admin', title: 'Portal Privado Junta Directiva & Agenda | Cámara Gastronómica de Mérida' },
   { tab: 'developer', paths: ['/dev', '/developer', '/master-control', '/desarrollador', '/master'], url: '/dev', title: 'Master Control Técnico | Mérida Gastronómica' },
+  { tab: 'privacy', paths: ['/privacidad', '/politica-de-privacidad', '/privacy'], url: '/privacidad', title: 'Política de Privacidad Oficial | Mérida Gastronómica' },
 ];
 
 export function App() {
@@ -814,6 +816,13 @@ export function App() {
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
           />
+        )}
+
+        {/* ========================================================= */}
+        {/* 20. POLÍTICA DE PRIVACIDAD OFICIAL (/privacidad)          */}
+        {/* ========================================================= */}
+        {activeTab === 'privacy' && (
+          <PrivacyPolicyPage onNavigate={(tab) => navigateTo(tab)} />
         )}
 
       </main>

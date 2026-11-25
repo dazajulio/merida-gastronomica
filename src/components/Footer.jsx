@@ -182,7 +182,16 @@ export function Footer({ setActiveTab }) {
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#7A7168]">
-          <p>© 2026 Cámara Gastronómica del Estado Mérida. Todos los derechos reservados.</p>
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+            <p>© 2026 Cámara Gastronómica del Estado Mérida. Todos los derechos reservados.</p>
+            <span className="hidden sm:inline text-[#DED5C5]">•</span>
+            <button
+              onClick={() => go('privacy')}
+              className="text-[#7A7168] hover:text-[#C85A32] underline transition-colors cursor-pointer"
+            >
+              Política de Privacidad
+            </button>
+          </div>
           
           <div className="flex flex-wrap items-center justify-center sm:justify-end gap-4">
             <span className="font-bold text-[#C85A32] tracking-wider uppercase text-[11px]">Mérida, Venezuela</span>
