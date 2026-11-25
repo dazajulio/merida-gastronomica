@@ -166,7 +166,7 @@ export function MobileAppView({
     : [];
 
   return (
-    <div className="min-h-screen bg-[#FAF7F2] text-[#1E1C1A] pb-24 font-sans select-none antialiased">
+    <div className="min-h-screen bg-[#FAF7F2] text-[#1E1C1A] pb-32 sm:pb-36 font-sans select-none antialiased">
       
       {/* ========================================================================= */}
       {/* 1. TOP APP BAR NATIVO: ELEGANTE, MINIMALISTA Y DIRECTO                     */}
@@ -1070,61 +1070,95 @@ export function MobileAppView({
       )}
 
       {/* ========================================================================= */}
-      {/* 6. BOTTOM NAVIGATION BAR FIJO ESTILO NATIVO                               */}
+      {/* 6. BOTTOM NAVIGATION BAR TÁCTIL ESTILO DOCK NATIVO                        */}
       {/* ========================================================================= */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#EAE3D5] py-2 px-4 shadow-lg pb-safe">
-        <div className="max-w-lg mx-auto flex items-center justify-around">
+      <nav 
+        className="fixed bottom-3 inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-md z-40 bg-[#1C1917]/95 backdrop-blur-xl border border-[#3E3832]/80 shadow-[0_16px_40px_rgba(0,0,0,0.45)] rounded-2xl p-1.5"
+        style={{ bottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+      >
+        <div className="grid grid-cols-4 gap-1.5 w-full">
           
+          {/* TAB 1: INICIO (Naranja Cámara #C85A32) */}
           <button
             type="button"
             onClick={() => setMobileTab('explore')}
-            className={`flex flex-col items-center gap-1 transition-colors ${
-              mobileTab === 'explore' ? 'text-[#C85A32] font-bold' : 'text-[#5C554E]/70 hover:text-[#1E1C1A]'
+            className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all duration-200 active:scale-95 ${
+              mobileTab === 'explore'
+                ? 'bg-[#C85A32] text-white shadow-lg shadow-[#C85A32]/40 font-bold border border-[#E06E45]/40 scale-[1.02]'
+                : 'bg-[#292420] text-[#D4CBBF] hover:text-white hover:bg-[#342E29] border border-white/5'
             }`}
           >
-            <div className={`p-1 rounded-xl transition-all ${mobileTab === 'explore' ? 'bg-[#FAF3EB] text-[#C85A32]' : ''}`}>
-              <Compass className="w-5 h-5" />
+            <div className="relative">
+              <Compass className={`w-5 h-5 ${mobileTab === 'explore' ? 'text-white' : 'text-[#FF8A50]'}`} />
             </div>
-            <span className="text-[10px]">Inicio</span>
+            <span className={`text-[10px] sm:text-[11px] leading-tight mt-0.5 tracking-tight ${
+              mobileTab === 'explore' ? 'font-bold text-white' : 'font-medium text-[#C8BFB2]'
+            }`}>
+              Inicio
+            </span>
           </button>
 
+          {/* TAB 2: RESTAURANTES (Ámbar Gourmet #D97706) */}
           <button
             type="button"
             onClick={() => setMobileTab('restaurants')}
-            className={`flex flex-col items-center gap-1 transition-colors ${
-              mobileTab === 'restaurants' ? 'text-[#C85A32] font-bold' : 'text-[#5C554E]/70 hover:text-[#1E1C1A]'
+            className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all duration-200 active:scale-95 ${
+              mobileTab === 'restaurants'
+                ? 'bg-[#D97706] text-white shadow-lg shadow-[#D97706]/40 font-bold border border-[#F59E0B]/40 scale-[1.02]'
+                : 'bg-[#292420] text-[#D4CBBF] hover:text-white hover:bg-[#342E29] border border-white/5'
             }`}
           >
-            <div className={`p-1 rounded-xl transition-all ${mobileTab === 'restaurants' ? 'bg-[#FAF3EB] text-[#C85A32]' : ''}`}>
-              <Utensils className="w-5 h-5" />
+            <div className="relative">
+              <Utensils className={`w-5 h-5 ${mobileTab === 'restaurants' ? 'text-white' : 'text-[#FBBF24]'}`} />
             </div>
-            <span className="text-[10px]">Restaurantes</span>
+            <span className={`text-[10px] sm:text-[11px] leading-tight mt-0.5 tracking-tight ${
+              mobileTab === 'restaurants' ? 'font-bold text-white' : 'font-medium text-[#C8BFB2]'
+            }`}>
+              Restaurantes
+            </span>
           </button>
 
+          {/* TAB 3: PROMOS (Rojo Coral #DC2626) */}
           <button
             type="button"
             onClick={() => setMobileTab('promos')}
-            className={`flex flex-col items-center gap-1 transition-colors ${
-              mobileTab === 'promos' ? 'text-[#C85A32] font-bold' : 'text-[#5C554E]/70 hover:text-[#1E1C1A]'
+            className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all duration-200 active:scale-95 ${
+              mobileTab === 'promos'
+                ? 'bg-[#DC2626] text-white shadow-lg shadow-[#DC2626]/40 font-bold border border-[#EF4444]/40 scale-[1.02]'
+                : 'bg-[#292420] text-[#D4CBBF] hover:text-white hover:bg-[#342E29] border border-white/5'
             }`}
           >
-            <div className={`p-1 rounded-xl transition-all ${mobileTab === 'promos' ? 'bg-[#FAF3EB] text-[#C85A32]' : ''}`}>
-              <Tag className="w-5 h-5" />
+            <div className="relative">
+              <Tag className={`w-5 h-5 ${mobileTab === 'promos' ? 'text-white' : 'text-[#F87171]'}`} />
+              {mobileTab !== 'promos' && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#EF4444] ring-2 ring-[#292420] animate-pulse" />
+              )}
             </div>
-            <span className="text-[10px]">Promos</span>
+            <span className={`text-[10px] sm:text-[11px] leading-tight mt-0.5 tracking-tight ${
+              mobileTab === 'promos' ? 'font-bold text-white' : 'font-medium text-[#C8BFB2]'
+            }`}>
+              Promos
+            </span>
           </button>
 
+          {/* TAB 4: GUÍA DEL VIAJERO (Verde Páramo #15803D) */}
           <button
             type="button"
             onClick={() => setMobileTab('logistics')}
-            className={`flex flex-col items-center gap-1 transition-colors ${
-              mobileTab === 'logistics' ? 'text-[#C85A32] font-bold' : 'text-[#5C554E]/70 hover:text-[#1E1C1A]'
+            className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all duration-200 active:scale-95 ${
+              mobileTab === 'logistics'
+                ? 'bg-[#15803D] text-white shadow-lg shadow-[#15803D]/40 font-bold border border-[#22C55E]/40 scale-[1.02]'
+                : 'bg-[#292420] text-[#D4CBBF] hover:text-white hover:bg-[#342E29] border border-white/5'
             }`}
           >
-            <div className={`p-1 rounded-xl transition-all ${mobileTab === 'logistics' ? 'bg-[#FAF3EB] text-[#C85A32]' : ''}`}>
-              <Mountain className="w-5 h-5" />
+            <div className="relative">
+              <Mountain className={`w-5 h-5 ${mobileTab === 'logistics' ? 'text-white' : 'text-[#4ADE80]'}`} />
             </div>
-            <span className="text-[10px]">Guía del Viajero</span>
+            <span className={`text-[9.5px] sm:text-[10.5px] leading-tight mt-0.5 tracking-tight text-center truncate max-w-full px-0.5 ${
+              mobileTab === 'logistics' ? 'font-bold text-white' : 'font-medium text-[#C8BFB2]'
+            }`}>
+              Guía del Viajero
+            </span>
           </button>
 
         </div>
