@@ -38,6 +38,10 @@ import {
   getLocalGuideCategories,
   getLocalGuideProviders
 } from '../lib/guideCatalogSync';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { SplashScreen } from '@capacitor/splash-screen';
 
 export function MobileAppView({
   restaurants = [],
@@ -49,6 +53,44 @@ export function MobileAppView({
   const [selectedLogistics, setSelectedLogistics] = useState(null);
   const [activeModalRestaurant, setActiveModalRestaurant] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
+
+  // Configuración Nativa de Android (Status Bar, Splash y Botón Atrás de Hardware)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    // 1. Barra de estado nativa en Naranja Cámara
+    StatusBar.setBackgroundColor({ color: '#C85A32' }).catch(() => {});
+    StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+
+    // 2. Ocultar Splash Screen tras carga
+    SplashScreen.hide().catch(() => {});
+
+    // 3. Manejar botón físico "Atrás" de Android
+    const backHandlerPromise = CapApp.addListener('backButton', () => {
+      if (activeModalRestaurant) {
+        setActiveModalRestaurant(null);
+        return;
+      }
+      if (selectedLogistics) {
+        setSelectedLogistics(null);
+        return;
+      }
+      if (selectedCategory) {
+        setSelectedCategory(null);
+        return;
+      }
+      if (mobileTab !== 'explore') {
+        setMobileTab('explore');
+        return;
+      }
+      // Si está en el Inicio y sin modales, salir de la app de forma controlada
+      CapApp.exitApp();
+    });
+
+    return () => {
+      backHandlerPromise.then(h => h.remove()).catch(() => {});
+    };
+  }, [activeModalRestaurant, selectedLogistics, selectedCategory, mobileTab]);
 
   const guideCategories = useMemo(() => {
     const cats = getLocalGuideCategories();

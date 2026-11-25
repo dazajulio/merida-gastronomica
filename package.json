@@ -13,8 +13,11 @@
   },
   "dependencies": {
     "@capacitor/android": "^8.6.2",
+    "@capacitor/app": "^8.1.2",
     "@capacitor/cli": "^8.6.2",
     "@capacitor/core": "^8.6.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4",
     "@supabase/supabase-js": "^2.117.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.438.0",
