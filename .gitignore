@@ -14,3 +14,6 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+android/jdk21/
+android/*.aab
+*.aab
