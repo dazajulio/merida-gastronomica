@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Search,
   MapPin,
   Phone,
   MessageCircle,
@@ -27,13 +26,18 @@ import {
   CableCar,
   Ticket,
   Bus,
-  Heart
+  Building2
 } from 'lucide-react';
 import {
   CRAVE_FILTERS,
   WEEKLY_PROMOS_DATA,
   TOURIST_LOGISTICS_HUBS
 } from '../data/mobileAppData';
+import {
+  DEFAULT_GUIDE_CATEGORIES,
+  getLocalGuideCategories,
+  getLocalGuideProviders
+} from '../lib/guideCatalogSync';
 
 export function MobileAppView({
   restaurants = [],
@@ -42,9 +46,18 @@ export function MobileAppView({
 }) {
   const [mobileTab, setMobileTab] = useState('explore'); // 'explore' | 'restaurants' | 'promos' | 'logistics'
   const [selectedCrave, setSelectedCrave] = useState('todos');
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedLogistics, setSelectedLogistics] = useState(null);
   const [activeModalRestaurant, setActiveModalRestaurant] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+
+  const guideCategories = useMemo(() => {
+    const cats = getLocalGuideCategories();
+    return Array.isArray(cats) && cats.length > 0 ? cats : DEFAULT_GUIDE_CATEGORIES;
+  }, []);
+
+  const guideProviders = useMemo(() => {
+    return getLocalGuideProviders();
+  }, []);
 
   // Helper de contacto por WhatsApp
   const handleOpenWhatsApp = (phone, text) => {
@@ -112,46 +125,51 @@ export function MobileAppView({
     }
   };
 
-  // Filtrado reactivo de restaurantes
+  // Filtrado de restaurantes por antojo táctil
   const filteredRestaurants = useMemo(() => {
+    if (selectedCrave === 'todos') return restaurants;
+    const craveObj = CRAVE_FILTERS.find(c => c.id === selectedCrave);
+    if (!craveObj || !craveObj.keywords) return restaurants;
     return restaurants.filter((r) => {
-      // 1. Filtro de Búsqueda por Texto
-      if (searchTerm.trim()) {
-        const query = searchTerm.toLowerCase().trim();
-        const inName = (r.name || '').toLowerCase().includes(query);
-        const inCat = (r.category || '').toLowerCase().includes(query);
-        const inLoc = (r.location || '').toLowerCase().includes(query);
-        const inTag = (r.tagline || '').toLowerCase().includes(query);
-        const inDishes = Array.isArray(r.signatureDishes) &&
-          r.signatureDishes.some(d => (d.name || '').toLowerCase().includes(query));
-        if (!inName && !inCat && !inLoc && !inTag && !inDishes) return false;
-      }
-
-      // 2. Filtro por Antojo / Categoría
-      if (selectedCrave !== 'todos') {
-        const craveObj = CRAVE_FILTERS.find(c => c.id === selectedCrave);
-        if (craveObj && craveObj.keywords) {
-          const catStr = `${r.category || ''} ${r.tagline || ''} ${r.description || ''}`.toLowerCase();
-          const matchCrave = craveObj.keywords.some(kw => catStr.includes(kw));
-          if (!matchCrave) return false;
-        }
-      }
-
-      return true;
+      const catStr = `${r.category || ''} ${r.tagline || ''} ${r.description || ''}`.toLowerCase();
+      return craveObj.keywords.some(kw => catStr.includes(kw));
     });
-  }, [restaurants, searchTerm, selectedCrave]);
+  }, [restaurants, selectedCrave]);
 
-  // Encontrar hub de Teleférico y Parques para los Bento Tiles
-  const telefericoHub = TOURIST_LOGISTICS_HUBS.find(h => h.id === 'teleferico');
-  const parquesHub = TOURIST_LOGISTICS_HUBS.find(h => h.id === 'parques');
-  const vuelosHub = TOURIST_LOGISTICS_HUBS.find(h => h.id === 'vuelos');
-  const terminalHub = TOURIST_LOGISTICS_HUBS.find(h => h.id === 'terminal');
+  // Manejar clic en una de las 8 categorías oficiales de Explora Mérida
+  const handleCategoryClick = (cat) => {
+    if (cat.id === 'restaurantes') {
+      setSelectedCrave('todos');
+      setMobileTab('restaurants');
+    } else if (cat.id === 'cafeterias') {
+      setSelectedCrave('cafe');
+      setMobileTab('restaurants');
+    } else if (cat.id === 'parques') {
+      const parquesHub = TOURIST_LOGISTICS_HUBS.find(h => h.id === 'parques');
+      if (parquesHub) setSelectedLogistics(parquesHub);
+      else setSelectedCategory(cat);
+    } else if (cat.id === 'transporte') {
+      const vuelosHub = TOURIST_LOGISTICS_HUBS.find(h => h.id === 'vuelos');
+      if (vuelosHub) setSelectedLogistics(vuelosHub);
+      else setSelectedCategory(cat);
+    } else if (cat.id === 'aventura') {
+      const telefericoHub = TOURIST_LOGISTICS_HUBS.find(h => h.id === 'teleferico');
+      if (telefericoHub) setSelectedLogistics(telefericoHub);
+      else setSelectedCategory(cat);
+    } else {
+      setSelectedCategory(cat);
+    }
+  };
+
+  const selectedCategoryProviders = selectedCategory
+    ? guideProviders.filter(p => p.categoryId === selectedCategory.id)
+    : [];
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] text-[#1E1C1A] pb-24 font-sans select-none antialiased">
       
       {/* ========================================================================= */}
-      {/* 1. TOP APP BAR NATIVO: MINIMALISTA, ELEGANTE Y DIRECTO                    */}
+      {/* 1. TOP APP BAR NATIVO: ELEGANTE, MINIMALISTA Y DIRECTO                     */}
       {/* ========================================================================= */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md px-4 py-3 border-b border-[#EAE3D5] shadow-2xs">
         <div className="flex items-center justify-between gap-3 max-w-lg mx-auto">
@@ -209,219 +227,66 @@ export function MobileAppView({
       <main className="max-w-lg mx-auto px-4 pt-4 space-y-6">
 
         {/* ----------------------------------------------------------------------- */}
-        {/* TAB 1: EXPLORE (PORTADA ESTILO AGODA / GETYOURGUIDE / TRIPADVISOR)      */}
+        {/* TAB 1: EXPLORE (PORTADA OFICIAL CON 8 TARJETAS DE EXPLORA MÉRIDA)       */}
         {/* ----------------------------------------------------------------------- */}
         {mobileTab === 'explore' && (
           <div className="space-y-6 animate-fadeIn">
             
-            {/* HERO HOOK IMPONENTE (Estilo GetYourGuide / Tripadvisor) */}
-            <div className="space-y-1.5 pt-1">
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#C85A32] block">
-                Guía del Visitante
-              </span>
-
-              <h1 className="font-playfair text-3xl sm:text-4xl font-black text-[#1E1C1A] leading-[1.08] tracking-tight">
-                Explora <span className="italic font-normal text-[#C85A32]">Mérida</span>
-              </h1>
-
-              <p className="text-xs sm:text-sm text-[#5C554E] leading-relaxed font-sans max-w-sm">
-                Accede en un solo lugar a los mejores restaurantes, hoteles, posadas, transporte, parques, cafeterías y rutas de aventura del estado.
-              </p>
-
-              <div className="pt-0.5">
-                <span className="font-serif italic text-sm sm:text-base text-[#C85A32] font-semibold inline-block">
-                  Toda Mérida al alcance de un clic &rarr;
+            {/* SECCIÓN 0: EXPLORA MÉRIDA (IDÉNTICO AL DISEÑO DE LA WEB CON LAS 8 TARJETAS) */}
+            <div className="space-y-4">
+              
+              {/* Bloque Editorial */}
+              <div className="space-y-2.5 pt-1">
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#C85A32] block">
+                  Guía del Visitante
                 </span>
-              </div>
-            </div>
 
-            {/* BUSCADOR FLOTANTE DE ALTO IMPACTO (Estilo GetYourGuide "¿A dónde quieres ir?") */}
-            <div className="relative">
-              <div className="relative rounded-2xl bg-white border border-[#EAE3D5] shadow-sm p-3 flex items-center gap-3 focus-within:border-[#C85A32] focus-within:ring-2 focus-within:ring-[#C85A32]/20 transition-all">
-                <div className="w-9 h-9 rounded-xl bg-[#FAF3EB] text-[#C85A32] flex items-center justify-center shrink-0">
-                  <Search className="w-5 h-5" />
+                <h1 className="font-playfair text-3xl sm:text-4xl font-bold text-[#1E1C1A] leading-[1.08] tracking-tight">
+                  Explora <span className="italic font-normal text-[#C85A32]">Mérida</span>
+                </h1>
+
+                <p className="text-xs sm:text-sm text-[#5C554E] leading-relaxed font-sans max-w-sm">
+                  Accede en un solo lugar a los mejores restaurantes, hoteles, posadas, transporte, parques, cafeterías y rutas de aventura del estado.
+                </p>
+
+                <div className="pt-1">
+                  <span className="font-handwritten text-2xl sm:text-[1.7rem] text-[#5C554E] -rotate-2 inline-block leading-tight">
+                    Toda Mérida al alcance de un clic &rarr;
+                  </span>
                 </div>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="¿A dónde quieres ir o qué se te antoja?"
-                  className="w-full bg-transparent text-xs sm:text-sm text-[#1E1C1A] placeholder-[#5C554E]/70 font-medium focus:outline-none pr-3"
-                />
-                {searchTerm && (
+              </div>
+
+              {/* Malla de 8 Tarjetas con Fotos (2 Columnas) Idénticas a la Web */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                {guideCategories.map((cat) => (
                   <button
+                    key={cat.id}
                     type="button"
-                    onClick={() => setSearchTerm('')}
-                    className="p-1 text-slate-400 hover:text-[#1E1C1A] shrink-0"
+                    onClick={() => handleCategoryClick(cat)}
+                    className="group text-left bg-white rounded-3xl p-3 border border-[#EAE3D5] hover:border-[#C85A32]/60 hover:shadow-md transition-all duration-300 flex flex-col justify-between gap-2.5 active:scale-95"
                   >
-                    <X className="w-4 h-4" />
+                    <div className="px-1 pt-0.5 flex items-center justify-between gap-1">
+                      <h3 className="font-playfair font-bold text-xs sm:text-sm text-[#1E1C1A] group-hover:text-[#C85A32] transition-colors leading-snug line-clamp-1">
+                        {cat.title}
+                      </h3>
+                      <ArrowRight className="w-3.5 h-3.5 text-[#C85A32] opacity-70 group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </div>
+
+                    <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-[#EFECE6]">
+                      <img
+                        src={cat.image}
+                        alt={cat.title}
+                        loading="lazy"
+                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      />
+                    </div>
                   </button>
-                )}
+                ))}
               </div>
 
-              {/* Chips de Antojos Rápidos Flotantes */}
-              <div className="overflow-x-auto no-scrollbar flex items-center gap-1.5 pt-2.5 pb-1 -mx-4 px-4">
-                {CRAVE_FILTERS.map((crave) => {
-                  const isActive = selectedCrave === crave.id;
-                  return (
-                    <button
-                      key={crave.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedCrave(crave.id);
-                        if (crave.id !== 'todos') setMobileTab('restaurants');
-                      }}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-all flex items-center gap-1 border ${
-                        isActive
-                          ? 'bg-[#C85A32] text-white border-[#C85A32] shadow-xs'
-                          : 'bg-white text-[#5C554E] border-[#EAE3D5] hover:border-[#C85A32]/50'
-                      }`}
-                    >
-                      <span>{crave.icon}</span>
-                      <span>{crave.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
 
-            {/* MALLA BENTO DE BOTONES TÁCTILES PRINCIPALES (Estilo Agoda Bento UI) */}
-            <div className="space-y-2.5">
-              <div className="grid grid-cols-2 gap-3">
-                
-                {/* TILE 1: RESTAURANTES */}
-                <button
-                  type="button"
-                  onClick={() => setMobileTab('restaurants')}
-                  className="p-4 rounded-3xl bg-gradient-to-br from-[#FFF4EB] to-[#FAF3EB] border border-[#EAE3D5] hover:border-[#C85A32] text-left transition-all shadow-2xs hover:shadow-sm group flex flex-col justify-between min-h-[110px]"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="w-10 h-10 rounded-2xl bg-white shadow-2xs flex items-center justify-center text-xl text-[#C85A32] group-hover:scale-110 transition-transform">
-                      🍴
-                    </div>
-                    <span className="text-[10px] font-bold text-[#C85A32] bg-white px-2 py-0.5 rounded-full border border-[#EAE3D5]">
-                      {restaurants.length}+
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="font-playfair font-bold text-sm text-[#1E1C1A] group-hover:text-[#C85A32] transition-colors leading-tight">
-                      Restaurantes
-                    </h3>
-                    <p className="text-[10px] text-[#5C554E] mt-0.5">
-                      Cocina de autor &amp; tradicional
-                    </p>
-                  </div>
-                </button>
-
-                {/* TILE 2: CAFÉS & DULCES */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedCrave('cafe');
-                    setMobileTab('restaurants');
-                  }}
-                  className="p-4 rounded-3xl bg-gradient-to-br from-[#FFF8EE] to-[#FAF5EB] border border-[#EAE3D5] hover:border-[#C85A32] text-left transition-all shadow-2xs hover:shadow-sm group flex flex-col justify-between min-h-[110px]"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="w-10 h-10 rounded-2xl bg-white shadow-2xs flex items-center justify-center text-xl text-amber-600 group-hover:scale-110 transition-transform">
-                      ☕
-                    </div>
-                    <span className="text-[10px] font-bold text-amber-700 bg-white px-2 py-0.5 rounded-full border border-[#EAE3D5]">
-                      Especialidad
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="font-playfair font-bold text-sm text-[#1E1C1A] group-hover:text-[#C85A32] transition-colors leading-tight">
-                      Cafés &amp; Dulces
-                    </h3>
-                    <p className="text-[10px] text-[#5C554E] mt-0.5">
-                      Cacao, postres y barismo
-                    </p>
-                  </div>
-                </button>
-
-                {/* TILE 3: TELEFÉRICO MUKUMBARÍ */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedLogistics(telefericoHub)}
-                  className="p-4 rounded-3xl bg-gradient-to-br from-[#F0FDF4] to-[#E8F8EE] border border-[#EAE3D5] hover:border-[#C85A32] text-left transition-all shadow-2xs hover:shadow-sm group flex flex-col justify-between min-h-[110px]"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="w-10 h-10 rounded-2xl bg-white shadow-2xs flex items-center justify-center text-xl text-emerald-700 group-hover:scale-110 transition-transform">
-                      🚡
-                    </div>
-                    <span className="text-[10px] font-bold text-emerald-800 bg-white px-2 py-0.5 rounded-full border border-emerald-200">
-                      En Vivo
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="font-playfair font-bold text-sm text-[#1E1C1A] group-hover:text-[#C85A32] transition-colors leading-tight">
-                      Teleférico
-                    </h3>
-                    <p className="text-[10px] text-[#5C554E] mt-0.5">
-                      Horarios, tarifas y alturas
-                    </p>
-                  </div>
-                </button>
-
-                {/* TILE 4: PARQUES & RUTAS */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedLogistics(parquesHub)}
-                  className="p-4 rounded-3xl bg-gradient-to-br from-[#F5F3FF] to-[#EDE9FE] border border-[#EAE3D5] hover:border-[#C85A32] text-left transition-all shadow-2xs hover:shadow-sm group flex flex-col justify-between min-h-[110px]"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="w-10 h-10 rounded-2xl bg-white shadow-2xs flex items-center justify-center text-xl text-purple-700 group-hover:scale-110 transition-transform">
-                      🎡
-                    </div>
-                    <span className="text-[10px] font-bold text-purple-800 bg-white px-2 py-0.5 rounded-full border border-purple-200">
-                      Páramo &amp; Más
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="font-playfair font-bold text-sm text-[#1E1C1A] group-hover:text-[#C85A32] transition-colors leading-tight">
-                      Parques &amp; Rutas
-                    </h3>
-                    <p className="text-[10px] text-[#5C554E] mt-0.5">
-                      Los Aleros, Antier &amp; Sierra
-                    </p>
-                  </div>
-                </button>
-
-              </div>
-
-              {/* Tira Secundaria de Accesos Rápidos (Estilo Agoda: Airport Transfer, Promos, Bus) */}
-              <div className="grid grid-cols-3 gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setSelectedLogistics(vuelosHub)}
-                  className="p-2.5 rounded-2xl bg-white border border-[#EAE3D5] hover:border-[#C85A32] flex items-center justify-center gap-1.5 text-center shadow-2xs"
-                >
-                  <Plane className="w-3.5 h-3.5 text-[#C85A32]" />
-                  <span className="text-[11px] font-bold text-[#1E1C1A]">Vuelos &amp; Taxis</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setMobileTab('promos')}
-                  className="p-2.5 rounded-2xl bg-white border border-[#EAE3D5] hover:border-[#C85A32] flex items-center justify-center gap-1.5 text-center shadow-2xs"
-                >
-                  <Ticket className="w-3.5 h-3.5 text-[#C85A32]" />
-                  <span className="text-[11px] font-bold text-[#1E1C1A]">Promos 2x1</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedLogistics(terminalHub)}
-                  className="p-2.5 rounded-2xl bg-white border border-[#EAE3D5] hover:border-[#C85A32] flex items-center justify-center gap-1.5 text-center shadow-2xs"
-                >
-                  <Bus className="w-3.5 h-3.5 text-[#C85A32]" />
-                  <span className="text-[11px] font-bold text-[#1E1C1A]">Terminal</span>
-                </button>
-              </div>
-            </div>
-
-            {/* RIEL HORIZONTAL 1: PLANES & PROMOS DE LA SEMANA (Estilo Agoda Ticket Card) */}
+            {/* SECCIÓN 1: PLANES & PROMOS DE LA SEMANA */}
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between">
                 <div>
@@ -459,7 +324,6 @@ export function MobileAppView({
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                       
-                      {/* Ticket Badge */}
                       <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-[#C85A32] text-white font-black text-[9px] shadow-sm uppercase tracking-wider flex items-center gap-1">
                         <Tag className="w-2.5 h-2.5" />
                         <span>{promo.badge}</span>
@@ -507,7 +371,7 @@ export function MobileAppView({
               </div>
             </div>
 
-            {/* RIEL HORIZONTAL 2: LOS IMPERDIBLES DE MÉRIDA (Estilo GetYourGuide Monumentos) */}
+            {/* SECCIÓN 2: LOS IMPERDIBLES DE MÉRIDA */}
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between">
                 <div>
@@ -595,7 +459,7 @@ export function MobileAppView({
               </div>
             </div>
 
-            {/* SECCIÓN 3: GUÍA DEL VIAJERO (Estilo GetYourGuide / Tripadvisor) */}
+            {/* SECCIÓN 3: GUÍA DEL VIAJERO */}
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between">
                 <div>
@@ -603,7 +467,7 @@ export function MobileAppView({
                     🏔️ Guía del Viajero
                   </h2>
                   <p className="text-[11px] text-[#5C554E]">
-                    Información oficial del Teleférico Mukumbarí, vuelos, terminales y parques
+                    Teleférico Mukumbarí, vuelos, terminales y parques oficiales
                   </p>
                 </div>
                 <button
@@ -691,7 +555,7 @@ export function MobileAppView({
         )}
 
         {/* ----------------------------------------------------------------------- */}
-        {/* TAB 2: RESTAURANTES (CATÁLOGO COMPLETO CON FILTROS DE ANTOJO)            */}
+        {/* TAB 2: RESTAURANTES (CATÁLOGO COMPLETO CON FILTROS TÁCTILES)             */}
         {/* ----------------------------------------------------------------------- */}
         {mobileTab === 'restaurants' && (
           <div className="space-y-4 animate-fadeIn">
@@ -706,29 +570,6 @@ export function MobileAppView({
               <p className="text-xs text-[#5C554E]">
                 {filteredRestaurants.length} establecimientos avalados por la Cámara
               </p>
-            </div>
-
-            {/* Buscador Rápido en Catálogo */}
-            <div className="relative rounded-2xl bg-white border border-[#EAE3D5] shadow-2xs p-2 flex items-center gap-2 focus-within:border-[#C85A32]">
-              <div className="w-8 h-8 rounded-xl bg-[#FAF3EB] text-[#C85A32] flex items-center justify-center shrink-0">
-                <Search className="w-4 h-4" />
-              </div>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por nombre, especialidad o plato..."
-                className="w-full bg-transparent text-xs text-[#1E1C1A] placeholder-[#5C554E]/70 focus:outline-none pr-3"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="p-1 text-slate-400 hover:text-[#1E1C1A] shrink-0"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
             </div>
 
             {/* Chips de Antojo Rápido */}
@@ -761,17 +602,14 @@ export function MobileAppView({
                   No se encontraron resultados
                 </h3>
                 <p className="text-xs text-[#5C554E] max-w-xs mx-auto">
-                  Prueba cambiando los términos de búsqueda o seleccionando otro antojo.
+                  Prueba cambiando de antojo o seleccionando otra categoría.
                 </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    setSearchTerm('');
-                    setSelectedCrave('todos');
-                  }}
+                  onClick={() => setSelectedCrave('todos')}
                   className="py-2 px-4 rounded-full bg-[#C85A32] text-white font-bold text-xs"
                 >
-                  Restablecer Filtros
+                  Ver Todos los Restaurantes
                 </button>
               </div>
             ) : (
@@ -977,7 +815,99 @@ export function MobileAppView({
       )}
 
       {/* ========================================================================= */}
-      {/* 4. MODAL DE DETALLES DE GUÍA DEL VIAJERO                                  */}
+      {/* 4. MODAL DE CATEGORÍA DE SERVICIOS / GUÍA DEL VISITANTE                    */}
+      {/* ========================================================================= */}
+      {selectedCategory && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-xs animate-fadeIn"
+          onClick={() => setSelectedCategory(null)}
+        >
+          <div
+            className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[85vh] overflow-y-auto border border-[#EAE3D5] shadow-2xl flex flex-col justify-between"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-4 bg-gradient-to-r from-[#C85A32] to-[#B04B26] text-white rounded-t-3xl flex items-center justify-between border-b border-white/20">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200 block">
+                  Guía Oficial • Mérida Gastronómica
+                </span>
+                <h3 className="font-playfair text-xl font-bold text-white">
+                  {selectedCategory.title}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCategory(null)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 space-y-3.5 text-xs text-[#5C554E]">
+              {selectedCategoryProviders.length === 0 ? (
+                <div className="p-6 text-center bg-[#FAF3EB] rounded-2xl border border-[#EAE3D5] space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-white text-[#C85A32] flex items-center justify-center mx-auto shadow-2xs">
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-playfair font-bold text-base text-[#1E1C1A]">
+                      Directorio de {selectedCategory.title}
+                    </h4>
+                    <p className="text-xs text-[#5C554E] mt-1 leading-relaxed">
+                      Consulta los establecimientos homologados y recomendados por la Cámara Gastronómica del Estado Mérida.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory(null);
+                      setMobileTab('restaurants');
+                    }}
+                    className="py-2.5 px-5 rounded-full bg-[#C85A32] text-white font-bold text-xs shadow-xs"
+                  >
+                    Ver Guía de Establecimientos
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {selectedCategoryProviders.map((prov, i) => (
+                    <div key={i} className="p-3 rounded-2xl bg-slate-50 border border-[#EAE3D5] space-y-1">
+                      <div className="font-bold text-[#1E1C1A] text-sm">{prov.name}</div>
+                      <div className="text-[11px] text-[#5C554E]">{prov.description}</div>
+                      {prov.whatsapp && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenWhatsApp(prov.whatsapp, `Hola ${prov.name}, le contacto desde la App Oficial de Mérida Gastronómica.`)}
+                          className="mt-2 py-1.5 px-3 rounded-xl bg-[#25D366] text-white text-[10px] font-bold flex items-center gap-1"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>WhatsApp</span>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 bg-slate-50 border-t border-[#EAE3D5] rounded-b-3xl">
+              <button
+                type="button"
+                onClick={() => setSelectedCategory(null)}
+                className="w-full py-2.5 rounded-xl bg-[#EAE3D5] text-[#1E1C1A] font-bold text-xs"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 5. MODAL DE DETALLES DE GUÍA DEL VIAJERO                                  */}
       {/* ========================================================================= */}
       {selectedLogistics && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
@@ -1140,7 +1070,7 @@ export function MobileAppView({
       )}
 
       {/* ========================================================================= */}
-      {/* 5. BOTTOM NAVIGATION BAR FIJO ESTILO NATIVO                               */}
+      {/* 6. BOTTOM NAVIGATION BAR FIJO ESTILO NATIVO                               */}
       {/* ========================================================================= */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#EAE3D5] py-2 px-4 shadow-lg pb-safe">
         <div className="max-w-lg mx-auto flex items-center justify-around">
@@ -1205,7 +1135,7 @@ export function MobileAppView({
 }
 
 // =============================================================================
-// SUBCOMPONENTE: TARJETA MÓVIL DE RESTAURANTE (ESTILO GETYOURGUIDE)
+// SUBCOMPONENTE: TARJETA MÓVIL DE RESTAURANTE
 // =============================================================================
 function RestaurantMobileCard({
   restaurant,
@@ -1312,7 +1242,7 @@ function RestaurantMobileCard({
               e.stopPropagation();
               onWhatsApp();
             }}
-            className="py-2.5 px-2 rounded-xl bg-[#25D366] hover:bg-[#1ebd5a] text-white font-bold text-[11px] flex items-center justify-center gap-1.5 shadow-2xs active:scale-95 transition-all"
+            className="py-2.5 px-2 rounded-xl bg-[#25D366] hover:bg-[#1ebd5a] text-white font-bold text-[11px] flex items-center justify-center gap-1 shadow-2xs active:scale-95 transition-all"
             title="Contactar o Reservar por WhatsApp"
           >
             <MessageCircle className="w-4 h-4" />
@@ -1326,7 +1256,7 @@ function RestaurantMobileCard({
               e.stopPropagation();
               onGPS();
             }}
-            className="py-2.5 px-2 rounded-xl bg-[#1E1C1A] hover:bg-[#332F2B] text-amber-300 font-bold text-[11px] flex items-center justify-center gap-1.5 shadow-2xs active:scale-95 transition-all"
+            className="py-2.5 px-2 rounded-xl bg-[#1E1C1A] hover:bg-[#332F2B] text-amber-300 font-bold text-[11px] flex items-center justify-center gap-1 shadow-2xs active:scale-95 transition-all"
             title="Abrir ubicación en Google Maps"
           >
             <Navigation className="w-4 h-4 text-amber-400" />

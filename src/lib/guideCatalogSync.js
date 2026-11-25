@@ -9,8 +9,8 @@ const LOCAL_PROVIDERS_KEY = 'cgem_guide_providers_v1';
 export const DEFAULT_GUIDE_CATEGORIES = [
   {
     id: 'restaurantes',
-    title: 'Guía de Restaurantes',
-    image: '/images/merida_hero_gastronomica.jpg',
+    title: 'Guía Restaurantes',
+    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=900&q=80',
     routeTarget: 'guide',
   },
   {
