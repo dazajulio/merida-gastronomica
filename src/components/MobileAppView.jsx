@@ -256,32 +256,63 @@ export function MobileAppView({
                 </div>
               </div>
 
-              {/* Malla de 8 Tarjetas con Fotos (2 Columnas) Idénticas a la Web */}
+              {/* Malla de 8 Tarjetas con Fotos (2 Columnas) Estilo App Móvil con Marco de Contraste */}
               <div className="grid grid-cols-2 gap-3 pt-1">
-                {guideCategories.map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => handleCategoryClick(cat)}
-                    className="group text-left bg-white rounded-3xl p-3 border border-[#EAE3D5] hover:border-[#C85A32]/60 hover:shadow-md transition-all duration-300 flex flex-col justify-between gap-2.5 active:scale-95"
-                  >
-                    <div className="px-1 pt-0.5 flex items-center justify-between gap-1">
-                      <h3 className="font-playfair font-bold text-xs sm:text-sm text-[#1E1C1A] group-hover:text-[#C85A32] transition-colors leading-snug line-clamp-1">
-                        {cat.title}
-                      </h3>
-                      <ArrowRight className="w-3.5 h-3.5 text-[#C85A32] opacity-70 group-hover:translate-x-0.5 transition-all shrink-0" />
-                    </div>
+                {guideCategories.map((cat) => {
+                  const metaMap = {
+                    restaurantes: { tag: 'Gastronomía', icon: '🍽️' },
+                    hoteles: { tag: 'Hospedaje', icon: '🏨' },
+                    posadas: { tag: 'Posadas', icon: '🏡' },
+                    transporte: { tag: 'Rutas & Vuelos', icon: '🚐' },
+                    parques: { tag: 'Naturaleza', icon: '🌲' },
+                    cafeterias: { tag: 'Café & Dulces', icon: '☕' },
+                    pueblos: { tag: 'Tradición', icon: '🏛️' },
+                    aventura: { tag: 'Páramo & Rutas', icon: '🧗' },
+                  };
+                  const meta = metaMap[cat.id] || { tag: 'Explorar', icon: '📍' };
 
-                    <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden bg-[#EFECE6]">
-                      <img
-                        src={cat.image}
-                        alt={cat.title}
-                        loading="lazy"
-                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                      />
-                    </div>
-                  </button>
-                ))}
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => handleCategoryClick(cat)}
+                      className="group text-left bg-gradient-to-b from-white via-[#FFFDF9] to-[#FAF3EB] rounded-[1.75rem] p-2.5 sm:p-3 border-2 border-[#E0D5C3] hover:border-[#C85A32] shadow-[0_6px_20px_rgba(42,38,34,0.08)] hover:shadow-lg transition-all duration-300 flex flex-col justify-between gap-2.5 active:scale-95 cursor-pointer relative overflow-hidden"
+                    >
+                      {/* Cabecera con Micro-etiqueta y Botón Flecha Táctil */}
+                      <div className="px-1 pt-0.5 flex items-center justify-between gap-1">
+                        <div className="min-w-0">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-[#C85A32] flex items-center gap-1 leading-none mb-0.5">
+                            <span>{meta.icon}</span>
+                            <span className="truncate">{meta.tag}</span>
+                          </span>
+                          <h3 className="font-playfair font-bold text-xs sm:text-[13px] text-[#1E1C1A] group-hover:text-[#C85A32] transition-colors leading-snug line-clamp-1">
+                            {cat.title}
+                          </h3>
+                        </div>
+                        <div className="w-6 h-6 rounded-full bg-[#FAF0E6] border border-[#EAE3D5] flex items-center justify-center text-[#C85A32] group-hover:bg-[#C85A32] group-hover:text-white group-hover:border-[#C85A32] transition-all shadow-2xs shrink-0">
+                          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                        </div>
+                      </div>
+
+                      {/* Marco de Foto con Sombra Interna y Realce Visual */}
+                      <div className="p-1 bg-white rounded-2xl border border-[#E8DFC9] shadow-inner">
+                        <div className="relative aspect-[4/3] w-full rounded-[0.9rem] overflow-hidden bg-[#EFECE6]">
+                          <img
+                            src={cat.image}
+                            alt={cat.title}
+                            loading="lazy"
+                            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent pointer-events-none" />
+                          <div className="absolute bottom-1.5 left-2 right-2 flex items-center justify-between text-white text-[9px] font-semibold">
+                            <span className="drop-shadow-sm opacity-95">Ver lugares</span>
+                            <span className="text-amber-300 drop-shadow-sm font-bold">Explorar →</span>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
 
             </div>

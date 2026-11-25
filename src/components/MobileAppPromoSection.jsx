@@ -32,9 +32,9 @@ export function MobileAppPromoSection({ onNavigateToApp }) {
                 <span className="text-amber-200">App Oficial en Google Play Store</span>
               </div>
 
-              <h2 className="font-playfair text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-[1.1] tracking-tight">
-                Lleva el Sabor de los Andes <br className="hidden sm:inline" />
-                <span className="italic font-normal text-amber-300">en tu Bolsillo</span>
+              <h2 className="font-playfair text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-[1.08] tracking-tight">
+                Explora Mérida <br />
+                <span className="font-serif italic font-normal text-amber-300">App móvil</span>
               </h2>
 
               <p className="text-sm sm:text-base text-stone-300 leading-relaxed max-w-xl font-sans">
@@ -107,23 +107,11 @@ export function MobileAppPromoSection({ onNavigateToApp }) {
                   </div>
                 </a>
 
-                {/* Botón Probar Versión Web Móvil */}
-                {onNavigateToApp && (
-                  <button
-                    type="button"
-                    onClick={onNavigateToApp}
-                    className="py-3.5 px-6 rounded-2xl bg-[#C85A32] hover:bg-[#B04B26] text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all active:scale-95"
-                  >
-                    <span>Explorar Versión Web Móvil</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                )}
-
               </div>
 
             </div>
 
-            {/* Columna Derecha: Mockup Visual de Smartphone de Alto Impacto */}
+            {/* Columna Derecha: Mockup Visual de Smartphone de Alto Impacto con la UI Actualizada */}
             <div className="lg:col-span-5 flex justify-center">
               <div className="relative w-64 sm:w-72 rounded-[2.5rem] bg-black p-3 shadow-2xl border-4 border-stone-800">
                 {/* Notch / Dynamic Island */}
@@ -132,7 +120,7 @@ export function MobileAppPromoSection({ onNavigateToApp }) {
                 </div>
 
                 {/* Pantalla del Celular */}
-                <div className="rounded-[2rem] overflow-hidden bg-[#FAF7F2] text-[#1E1C1A] text-left pt-6 pb-4 px-3 space-y-3">
+                <div className="rounded-[2rem] overflow-hidden bg-[#FAF7F2] text-[#1E1C1A] text-left pt-6 pb-2.5 px-3 space-y-2.5 relative">
                   
                   {/* Top Bar inside Mockup */}
                   <div className="flex items-center justify-between border-b border-[#EAE3D5] pb-2">
@@ -143,7 +131,7 @@ export function MobileAppPromoSection({ onNavigateToApp }) {
                       <span className="font-playfair font-bold text-[11px] text-[#1E1C1A]">Mérida Gastronómica</span>
                     </div>
                     <span className="text-[8px] font-bold text-[#C85A32] bg-[#FAF3EB] px-1.5 py-0.5 rounded-full">
-                      App
+                      App Oficial
                     </span>
                   </div>
 
@@ -154,32 +142,44 @@ export function MobileAppPromoSection({ onNavigateToApp }) {
                     <p className="font-serif italic text-[9px] text-[#5C554E]">Toda Mérida al alcance de un clic &rarr;</p>
                   </div>
 
-                  {/* Mockup 4 Mini Tiles */}
+                  {/* Mockup 4 Mini Tiles con Borde de Contraste y Foto Enmarcada */}
                   <div className="grid grid-cols-2 gap-1.5">
-                    <div className="p-1.5 rounded-xl bg-white border border-[#EAE3D5] flex flex-col justify-between">
-                      <span className="text-[9px] font-bold text-[#1E1C1A]">Restaurantes</span>
-                      <div className="aspect-[4/3] w-full rounded-lg overflow-hidden bg-slate-100 mt-1">
+                    <div className="p-1.5 rounded-xl bg-gradient-to-b from-white to-[#FAF5EE] border-2 border-[#E2D8C6] flex flex-col justify-between shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-bold text-[#1E1C1A]">Restaurantes</span>
+                        <span className="text-[7px] text-[#C85A32] font-bold">→</span>
+                      </div>
+                      <div className="aspect-[4/3] w-full rounded-lg overflow-hidden bg-slate-100 mt-1 border border-stone-200">
                         <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=300&q=80" alt="" className="w-full h-full object-cover" />
                       </div>
                     </div>
 
-                    <div className="p-1.5 rounded-xl bg-white border border-[#EAE3D5] flex flex-col justify-between">
-                      <span className="text-[9px] font-bold text-[#1E1C1A]">Hoteles</span>
-                      <div className="aspect-[4/3] w-full rounded-lg overflow-hidden bg-slate-100 mt-1">
+                    <div className="p-1.5 rounded-xl bg-gradient-to-b from-white to-[#FAF5EE] border-2 border-[#E2D8C6] flex flex-col justify-between shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-bold text-[#1E1C1A]">Hoteles</span>
+                        <span className="text-[7px] text-[#C85A32] font-bold">→</span>
+                      </div>
+                      <div className="aspect-[4/3] w-full rounded-lg overflow-hidden bg-slate-100 mt-1 border border-stone-200">
                         <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=300&q=80" alt="" className="w-full h-full object-cover" />
                       </div>
                     </div>
 
-                    <div className="p-1.5 rounded-xl bg-white border border-[#EAE3D5] flex flex-col justify-between">
-                      <span className="text-[9px] font-bold text-[#1E1C1A]">Teleférico</span>
-                      <div className="aspect-[4/3] w-full rounded-lg overflow-hidden bg-slate-100 mt-1">
+                    <div className="p-1.5 rounded-xl bg-gradient-to-b from-white to-[#FAF5EE] border-2 border-[#E2D8C6] flex flex-col justify-between shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-bold text-[#1E1C1A]">Teleférico</span>
+                        <span className="text-[7px] text-[#C85A32] font-bold">→</span>
+                      </div>
+                      <div className="aspect-[4/3] w-full rounded-lg overflow-hidden bg-slate-100 mt-1 border border-stone-200">
                         <img src="/images/merida_hero_gastronomica.jpg" alt="" className="w-full h-full object-cover" />
                       </div>
                     </div>
 
-                    <div className="p-1.5 rounded-xl bg-white border border-[#EAE3D5] flex flex-col justify-between">
-                      <span className="text-[9px] font-bold text-[#1E1C1A]">Cafeterías</span>
-                      <div className="aspect-[4/3] w-full rounded-lg overflow-hidden bg-slate-100 mt-1">
+                    <div className="p-1.5 rounded-xl bg-gradient-to-b from-white to-[#FAF5EE] border-2 border-[#E2D8C6] flex flex-col justify-between shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-bold text-[#1E1C1A]">Cafeterías</span>
+                        <span className="text-[7px] text-[#C85A32] font-bold">→</span>
+                      </div>
+                      <div className="aspect-[4/3] w-full rounded-lg overflow-hidden bg-slate-100 mt-1 border border-stone-200">
                         <img src="https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=300&q=80" alt="" className="w-full h-full object-cover" />
                       </div>
                     </div>
@@ -188,10 +188,26 @@ export function MobileAppPromoSection({ onNavigateToApp }) {
                   {/* Mockup Card Promo */}
                   <div className="p-2 rounded-xl bg-white border border-[#EAE3D5] space-y-1 shadow-2xs">
                     <div className="flex items-center justify-between text-[8px]">
-                      <span className="font-bold text-[#C85A32] bg-[#FAF3EB] px-1 rounded">PROMO 2x1</span>
-                      <span className="font-bold text-emerald-700">WhatsApp Directo</span>
+                      <span className="font-bold text-[#DC2626] bg-red-50 px-1 rounded">🔥 PROMO 2x1</span>
+                      <span className="font-bold text-emerald-700">WhatsApp</span>
                     </div>
-                    <p className="text-[9px] font-bold text-[#1E1C1A] truncate">Noches de Burgers &amp; Sangría</p>
+                    <p className="text-[9px] font-bold text-[#1E1C1A] truncate">Burgers de Autor &amp; Sangría</p>
+                  </div>
+
+                  {/* Mockup Barra Inferior Táctil Flotante (Nuevo Diseño Obsidiana) */}
+                  <div className="rounded-xl bg-[#1C1917] p-1 border border-stone-700 shadow-lg flex items-center justify-between gap-1 mt-1">
+                    <div className="flex-1 py-1 px-1 rounded-lg bg-[#C85A32] text-white text-[7px] font-bold text-center">
+                      Inicio
+                    </div>
+                    <div className="flex-1 py-1 px-1 rounded-lg bg-[#292420] text-amber-400 text-[7px] font-medium text-center">
+                      Rest.
+                    </div>
+                    <div className="flex-1 py-1 px-1 rounded-lg bg-[#292420] text-red-400 text-[7px] font-medium text-center">
+                      Promos
+                    </div>
+                    <div className="flex-1 py-1 px-1 rounded-lg bg-[#292420] text-emerald-400 text-[7px] font-medium text-center">
+                      Guía
+                    </div>
                   </div>
 
                 </div>
