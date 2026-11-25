@@ -25,6 +25,7 @@ import { ElValleTouristPage } from './components/ElValleTouristPage';
 import { NewsMediaSection } from './components/NewsMediaSection';
 import { TouristGuideGridSection } from './components/TouristGuideGridSection';
 import { MobileAppView } from './components/MobileAppView';
+import { MobileAppPromoSection } from './components/MobileAppPromoSection';
 import { INITIAL_DIRECTORY_DATA } from './data/initialDirectoryData';
 
 import { RESTAURANTS_DATA } from './data/restaurantsData';
@@ -431,6 +432,9 @@ export function App() {
               onExploreAll={() => navigateTo('guide')}
               t={t}
             />
+
+            {/* Banner Oficial: App Móvil en Google Play Store */}
+            <MobileAppPromoSection onNavigateToApp={() => navigateTo('app')} />
 
             {/* Featured Section: Noticias & Medios */}
             <NewsMediaSection />
